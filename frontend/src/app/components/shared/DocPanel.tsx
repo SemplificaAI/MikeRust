@@ -17,7 +17,8 @@ import type {
     MikeEditAnnotation,
 } from "./types";
 
-function isDocxFilename(name: string): boolean {
+function isDocxFilename(name: string | null | undefined): boolean {
+    if (!name || typeof name !== "string") return false;
     const ext = name.split(".").pop()?.toLowerCase();
     return ext === "docx" || ext === "doc";
 }
