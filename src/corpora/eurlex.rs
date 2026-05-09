@@ -179,6 +179,20 @@ impl EurlexAdapter {
         )
     }
 
+    /// Cellar REST endpoint for the same act. Lives on a different
+    /// host (`publications.europa.eu`) than the legal-content pages,
+    /// so when EUR-Lex's CloudFront-WAF fires an anti-bot challenge
+    /// at `eur-lex.europa.eu` we still have a chance of getting the
+    /// real content. Cellar 303-redirects to the right HTML
+    /// representation when given Accept-Language; reqwest follows
+    /// the redirect for us.
+    fn cellar_url(celex: &str) -> String {
+        format!(
+            "https://publications.europa.eu/resource/celex/{celex}",
+            celex = celex
+        )
+    }
+
     fn canonical_url(celex: &str, lang_upper: &str) -> String {
         format!(
             "{BASE}/legal-content/{lang}/TXT/?uri=CELEX:{celex}",
@@ -202,13 +216,21 @@ impl EurlexAdapter {
         lang_iso: &str,
     ) -> Result<Option<EurlexFetched>> {
         let lang_upper = lang_iso.to_ascii_uppercase();
+        // URL fallback chain. The first three live on
+        // `eur-lex.europa.eu` and are sometimes WAF-challenged
+        // (CloudFront Bot Control); the fourth (Cellar REST) lives on
+        // `publications.europa.eu` and serves as a different-CDN
+        // escape hatch. With four chances, a single transient WAF
+        // hit on EUR-Lex doesn't kill the whole fetch.
         let urls = [
             Self::txt_url(celex, &lang_upper),
             Self::html_url(celex, &lang_upper),
             Self::all_url(celex, &lang_upper),
+            Self::cellar_url(celex),
         ];
 
         let mut last_status: Option<u16> = None;
+        let mut saw_waf_challenge = false;
         for url in &urls {
             tracing::info!("[eurlex] GET {url}");
             let resp = self
@@ -275,6 +297,25 @@ impl EurlexAdapter {
                     .map(|t| &t[..t.len().min(80)])
             );
 
+            // AWS WAF / CloudFront Bot Control challenge detection.
+            // The challenge response is a small HTML wrapper around a
+            // JS payload that sets a session cookie via crypto-PoW.
+            // We can't solve it (no JS engine), but we can recognise
+            // it from these inline markers and short-circuit so the
+            // user gets a useful error instead of "body too small".
+            let html_lower = html.to_ascii_lowercase();
+            if html_lower.contains("awswafcookiedomainlist")
+                || html_lower.contains("gokuprops")
+                || html_lower.contains("aws-waf-token")
+            {
+                tracing::warn!(
+                    "[eurlex] {celex} ({lang_upper}): AWS WAF challenge detected on this variant — \
+                     EUR-Lex's CDN flagged us as a bot. Trying next variant (different host = different rule set)."
+                );
+                saw_waf_challenge = true;
+                continue;
+            }
+
             // Stub-page detection by signature phrase across EU languages.
             let lower_text = extracted.text.to_ascii_lowercase();
             let stub_markers = [
@@ -319,10 +360,18 @@ impl EurlexAdapter {
             }));
         }
 
-        tracing::info!(
-            "[eurlex] {celex} ({lang_upper}): all variants exhausted (last status: {:?})",
-            last_status
-        );
+        if saw_waf_challenge {
+            tracing::warn!(
+                "[eurlex] {celex} ({lang_upper}): all variants returned AWS WAF \
+                 challenges or stubs. EUR-Lex / Cellar are likely rate-limiting \
+                 this client; suggest waiting 5-10 minutes before retrying.",
+            );
+        } else {
+            tracing::info!(
+                "[eurlex] {celex} ({lang_upper}): all variants exhausted (last status: {:?})",
+                last_status
+            );
+        }
         Ok(None)
     }
 
@@ -1145,8 +1194,11 @@ impl LegalCorpusAdapter for EurlexAdapter {
             None => {
                 if !fallback_en || primary == "en" {
                     return Err(anyhow!(
-                        "EUR-Lex: CELEX {celex} not available in {primary} \
-                         (after 3 attempts; EUR-Lex may be rate-limiting — try again in a minute)"
+                        "EUR-Lex non ha restituito il testo di CELEX {celex} ({primary}) \
+                         dopo 3 tentativi su 4 endpoint diversi (legal-content TXT/HTML/ALL + Cellar). \
+                         Probabile causa: anti-bot CDN (AWS WAF) ha temporaneamente flaggato questo \
+                         client. Attendi 5-10 minuti e riprova; nel frattempo evita altre fetch \
+                         in rapida successione."
                     ));
                 }
                 tracing::info!(
@@ -1156,8 +1208,9 @@ impl LegalCorpusAdapter for EurlexAdapter {
                     .await?
                     .ok_or_else(|| {
                         anyhow!(
-                            "EUR-Lex: CELEX {celex} not available in {primary} or English \
-                             (after 3 attempts each; EUR-Lex may be rate-limiting)"
+                            "EUR-Lex non ha restituito il testo di CELEX {celex} né in {primary} \
+                             né in English dopo 3 tentativi per lingua su 4 endpoint diversi. \
+                             Probabile anti-bot CDN attivo — attendi 5-10 minuti."
                         )
                     })?;
                 (en, true)
