@@ -103,3 +103,9 @@ ehthumbs.db
 # ─── Ad-hoc planning notes — docs/ is the source of truth ───────────
 PLAN.md
 TODO.md
+
+# Upstream Mike reference material (third-party docs from
+# willchen96/mike + Semplifica adaptation notes) — kept on disk for
+# author convenience but NOT shipped in this repo: those docs talk
+# about a different stack and a different toolchain than MikeRust.
+docs/mike-upstream/
