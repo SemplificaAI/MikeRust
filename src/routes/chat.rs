@@ -998,10 +998,17 @@ pub struct RetrievedKbEntry {
 }
 
 /// Maximum cosine distance accepted for a chunk to be included. Values
-/// above this threshold are noise rather than relevant context — the
-/// e5 family is well-calibrated so 0.6 is a safe cut-off in practice.
+/// above this threshold are noise rather than relevant context — but
+/// 0.6 was too aggressive for cross-lingual queries (e.g. asking in
+/// English about an Italian-language GDPR), where multilingual-e5
+/// similarities cluster ~0.05-0.10 lower than monolingual. With an
+/// English question against an Italian corpus doc we observed valid
+/// matches falling around 0.62-0.68 and getting culled, leading to
+/// "no relevant passages found" answers despite the doc being
+/// retrievable in principle. 0.75 still excludes cosine-distant
+/// noise while admitting cross-lingual paraphrases.
 #[cfg(feature = "rag")]
-const KB_DISTANCE_THRESHOLD: f32 = 0.6;
+const KB_DISTANCE_THRESHOLD: f32 = 0.75;
 
 /// Run vector retrieval against the user's library and return the
 /// chunks ready to be rendered into the system prompt. The scope is
@@ -1189,11 +1196,37 @@ fn build_library_inventory_prompt(entries: &[CorpusInventoryEntry]) -> String {
 
     let mut s = String::from(
         "<USER LIBRARY — authoritative corpus documents indexed for this user>\n\
-         The user has the following documents available via semantic retrieval. \
-         You don't see their full text in this prompt, but you may cite them by \
-         name when relevant — and the retrieval block above will surface their \
-         actual passages when the question matches semantically. If asked \
-         \"what do you have?\" or \"do you know X?\", answer based on this list.\n\n",
+         This is an awareness list ONLY. The documents below are indexed and \
+         retrievable. When a question matches one of them, the relevant \
+         passages appear in the <KNOWLEDGE BASE> block above tagged \
+         [g1]/[g2]/[p1]/...\n\
+         \n\
+         IF <KNOWLEDGE BASE> CONTAINS [gN]/[pN] TAGS:\n\
+           · Use them and cite via the rules in that section. The user's \
+             documents are authoritative.\n\
+         \n\
+         IF <KNOWLEDGE BASE> IS EMPTY OR HAS NO RELEVANT MATCH:\n\
+           · The semantic match was below threshold, NOT that the document \
+             is missing. Do NOT say \"not currently loaded\" or \"not \
+             available for direct querying\" — those phrasings are wrong \
+             and confuse the user.\n\
+           · You may answer from general knowledge if confident, BUT state \
+             plainly that the answer isn't grounded in the user's library, \
+             and suggest the user re-phrase or attach the doc directly if \
+             they want a citation-backed answer.\n\
+         \n\
+         CITATION DOC_ID RULES (mandatory):\n\
+           · NEVER use the inventory identifiers below (e.g. \"32016R0679\", \
+             \"eurlex_32016R0679\") as `doc_id` in <CITATIONS>. Those are \
+             corpus references, NOT citation handles.\n\
+           · NEVER invent doc-N labels when no files are attached to this \
+             chat — only use doc-N if the user actually attached a file.\n\
+           · The ONLY valid `doc_id` values are: (a) the [gN]/[pN] tags from \
+             <KNOWLEDGE BASE>, or (b) the doc-N labels of files actually \
+             attached to this chat. Anything else gets dropped or mis-routed.\n\
+         \n\
+         If asked \"what do you have?\" or \"do you know X?\", answer based on \
+         this list (no citation needed for the meta-answer).\n\n",
     );
     if !ready.is_empty() {
         s.push_str("Indexed and ready:\n");
@@ -1263,7 +1296,16 @@ fn build_kb_system_prompt(chunks: &[RetrievedKbEntry]) -> String {
               way it applies to attached documents.\n\
            3. In the <CITATIONS> entry, set \"doc_id\" to the EXACT tag \
               you used inline (\"g1\", \"g2\", \"p1\", etc.) — NOT a \
-              number, NOT \"doc-0\", NOT a filename.\n\n\
+              number, NOT \"doc-0\", NOT a filename.\n\
+           4. The `quote` field MUST be a verbatim substring of the \
+              passage text shown above between «…» — do NOT translate, \
+              paraphrase, summarise, or correct typography. Copy the \
+              exact characters (including the original language and \
+              punctuation). The viewer text-searches the PDF for this \
+              quote to highlight it; any deviation breaks the highlight.\n\
+              If you want to discuss the passage in the user's language \
+              (e.g. translate while answering), do that in your prose, \
+              but keep the JSON `quote` in the original.\n\n\
          Example for KB tags only:\n\
          \n\
          Prose: \"L'articolo 35 GDPR richiede una DPIA [g1].\"\n\
@@ -2174,6 +2216,77 @@ async fn stream_chat_root(
             kb_by_tag.insert(entry.tag.clone(), entry.clone());
         }
 
+        // Build a corpus-identifier → tag fallback index so the citation
+        // resolver can recover when the model invents a doc_id from the
+        // <USER LIBRARY> inventory (e.g. "eurlex_32016R0679" or just
+        // "32016R0679") instead of using the [gN] tag from the
+        // <KNOWLEDGE BASE> section as instructed. Without this fallback
+        // those citations get tagged source="attached", point at no
+        // real document, and render as a 404 in the viewer.
+        //
+        // We index the same chunk under several normalised keys so a
+        // model emitting any of "eurlex_32016R0679", "EUR-Lex/32016R0679",
+        // "32016R0679", or "eurlex:32016R0679" still resolves.
+        let mut corpus_ref_to_tag: HashMap<String, String> = HashMap::new();
+        if !kb_by_tag.is_empty() {
+            let doc_ids: std::collections::HashSet<String> = kb_chunks_for_citations
+                .iter()
+                .map(|e| e.document_id.clone())
+                .collect();
+            if !doc_ids.is_empty() {
+                let placeholders = std::iter::repeat("?")
+                    .take(doc_ids.len())
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let q = format!(
+                    "SELECT id, corpus_id, corpus_identifier FROM documents \
+                     WHERE user_id = ? AND id IN ({}) \
+                       AND corpus_id IS NOT NULL AND corpus_identifier IS NOT NULL",
+                    placeholders
+                );
+                let mut query = sqlx::query_as::<_, (String, String, String)>(&q)
+                    .bind(&auth.user_id);
+                for did in &doc_ids {
+                    query = query.bind(did);
+                }
+                if let Ok(rows) = query.fetch_all(&state_clone.db).await {
+                    // Build a doc_id → tag lookup once, then map every
+                    // alias of (corpus_id, corpus_identifier) to it.
+                    let mut tag_by_doc: HashMap<String, String> = HashMap::new();
+                    for entry in &kb_chunks_for_citations {
+                        tag_by_doc
+                            .entry(entry.document_id.clone())
+                            .or_insert_with(|| entry.tag.clone());
+                    }
+                    for (doc_uuid, corpus_id, ident) in rows {
+                        let Some(tag) = tag_by_doc.get(&doc_uuid) else { continue };
+                        let ident_lower = ident.to_ascii_lowercase();
+                        let corpus_lower = corpus_id.to_ascii_lowercase();
+                        for key in [
+                            ident.clone(),
+                            ident_lower.clone(),
+                            format!("{corpus_id}_{ident}"),
+                            format!("{corpus_lower}_{ident_lower}"),
+                            format!("{corpus_id}:{ident}"),
+                            format!("{corpus_lower}:{ident_lower}"),
+                            format!("{corpus_id}/{ident}"),
+                            format!("{corpus_lower}/{ident_lower}"),
+                        ] {
+                            corpus_ref_to_tag
+                                .entry(key)
+                                .or_insert_with(|| tag.clone());
+                        }
+                    }
+                    if !corpus_ref_to_tag.is_empty() {
+                        tracing::info!(
+                            "[chat] built corpus-ref → tag fallback with {} aliases",
+                            corpus_ref_to_tag.len()
+                        );
+                    }
+                }
+            }
+        }
+
         let citations_json = extract_citations_block(&full_response).or_else(|| {
             // Fallback: model wrote [gN]/[pN] inline but skipped the
             // <CITATIONS> JSON block. Synthesise from markers so the
@@ -2191,12 +2304,176 @@ async fn stream_chat_root(
                     let mut obj = c.as_object().cloned().unwrap_or_default();
                     obj.insert("type".into(), Value::String("citation_data".to_string()));
 
-                    // Two resolution paths:
+                    // Three resolution paths:
                     //  - "doc-N"           → attached document, lookup in id_by_label
                     //  - "g1" / "p1" / ... → KB chunk, lookup in kb_by_tag
-                    // The model is told to emit one or the other in `doc_id`;
-                    // we pick the right resolver and stamp `source` so the
-                    // frontend can render the right pill style.
+                    //  - corpus identifier → KB chunk, via corpus_ref_to_tag
+                    // Plus normalisation passes for variations the model
+                    // produces in practice: "[g1]" (with brackets),
+                    // "G1" (uppercase), "1" (just the number), and even
+                    // "doc-0" emitted as a generic placeholder when no
+                    // attached docs exist. The last fallback is the
+                    // most robust: quote-based content matching against
+                    // the kb chunks we actually fed to the model.
+                    let original_label = label.to_string();
+                    let normalised = original_label
+                        .trim()
+                        .trim_start_matches('[')
+                        .trim_end_matches(']')
+                        .to_ascii_lowercase();
+                    let mut resolved_label = original_label.clone();
+                    if !kb_by_tag.contains_key(&resolved_label)
+                        && !id_by_label.contains_key(&resolved_label)
+                    {
+                        // Try the normalised form first.
+                        if kb_by_tag.contains_key(&normalised) {
+                            resolved_label = normalised.clone();
+                        } else if id_by_label.contains_key(&normalised) {
+                            resolved_label = normalised.clone();
+                        } else if let Some(tag) = corpus_ref_to_tag
+                            .get(&original_label)
+                            .or_else(|| corpus_ref_to_tag.get(&normalised))
+                        {
+                            tracing::info!(
+                                "[chat] citation doc_id {:?} not a known label/tag; \
+                                 retro-resolving via corpus alias to KB tag {:?}",
+                                original_label,
+                                tag
+                            );
+                            resolved_label = tag.clone();
+                        } else if normalised.chars().all(|c| c.is_ascii_digit())
+                            && !normalised.is_empty()
+                        {
+                            // Bare number like "1": if there's exactly
+                            // one [gN] in kb_by_tag, that's almost
+                            // certainly what the model meant.
+                            let g_keys: Vec<&String> = kb_by_tag
+                                .keys()
+                                .filter(|k| k.starts_with('g'))
+                                .collect();
+                            if g_keys.len() == 1 {
+                                tracing::info!(
+                                    "[chat] citation doc_id {:?} is bare number; \
+                                     mapping to sole KB tag {:?}",
+                                    original_label,
+                                    g_keys[0]
+                                );
+                                resolved_label = g_keys[0].clone();
+                            } else {
+                                let candidate = format!("g{normalised}");
+                                if kb_by_tag.contains_key(&candidate) {
+                                    resolved_label = candidate;
+                                }
+                            }
+                        }
+
+                        // Quote-based content match: when the model
+                        // copied a verbatim excerpt of a chunk into the
+                        // citation quote, we can find the chunk it
+                        // came from and use that tag. Cheaper than the
+                        // single-doc fallback below, and more accurate
+                        // when chunks span multiple corpus docs.
+                        // Requires ≥25-char prefix so a short phrase
+                        // doesn't accidentally match every chunk.
+                        if resolved_label == original_label
+                            && !kb_by_tag.contains_key(&resolved_label)
+                            && !id_by_label.contains_key(&resolved_label)
+                        {
+                            if let Some(quote) = obj.get("quote").and_then(|v| v.as_str()) {
+                                let needle = quote
+                                    .split_whitespace()
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                                    .to_lowercase();
+                                let needle_prefix: String =
+                                    needle.chars().take(120).collect();
+                                if needle_prefix.chars().count() >= 25 {
+                                    let mut hit: Option<&str> = None;
+                                    for (tag, kb) in &kb_by_tag {
+                                        let hay = kb
+                                            .text
+                                            .split_whitespace()
+                                            .collect::<Vec<_>>()
+                                            .join(" ")
+                                            .to_lowercase();
+                                        if hay.contains(&needle_prefix) {
+                                            hit = Some(tag.as_str());
+                                            break;
+                                        }
+                                    }
+                                    if let Some(tag) = hit {
+                                        tracing::info!(
+                                            "[chat] citation doc_id {:?} resolved by \
+                                             quote-content match to KB tag {:?}",
+                                            original_label,
+                                            tag
+                                        );
+                                        resolved_label = tag.to_string();
+                                    }
+                                }
+                            }
+                        }
+
+                        // Single-corpus-doc fallback: when every KB
+                        // chunk we surfaced for this turn points at
+                        // the same underlying corpus document, all
+                        // citations almost certainly mean that one
+                        // doc — even a paraphrased quote with a
+                        // hallucinated page is "talking about GDPR".
+                        // Map the unresolved label to any tag from
+                        // that doc so the citation pill at least
+                        // opens the right viewer. Not safe when KB
+                        // chunks span multiple docs (we'd guess).
+                        if resolved_label == original_label
+                            && !kb_by_tag.contains_key(&resolved_label)
+                            && !id_by_label.contains_key(&resolved_label)
+                            && !kb_by_tag.is_empty()
+                        {
+                            let mut doc_ids: std::collections::HashSet<&str> =
+                                std::collections::HashSet::new();
+                            for kb in kb_by_tag.values() {
+                                doc_ids.insert(kb.document_id.as_str());
+                            }
+                            if doc_ids.len() == 1 {
+                                // Pick the lowest-numbered g-tag if any,
+                                // otherwise the first tag we see.
+                                let mut keys: Vec<&String> =
+                                    kb_by_tag.keys().collect();
+                                keys.sort();
+                                let chosen = keys
+                                    .iter()
+                                    .find(|k| k.starts_with('g'))
+                                    .copied()
+                                    .or_else(|| keys.first().copied());
+                                if let Some(tag) = chosen {
+                                    tracing::info!(
+                                        "[chat] citation doc_id {:?} unresolvable; \
+                                         all KB chunks share one corpus doc — \
+                                         routing to KB tag {:?} (page may be \
+                                         hallucinated, viewer still opens correct file)",
+                                        original_label,
+                                        tag
+                                    );
+                                    resolved_label = tag.clone();
+                                    // The model's page is likely
+                                    // hallucinated when it invented
+                                    // the doc_id — drop it so the
+                                    // viewer falls back to opening
+                                    // page 1 / using PDF.js text
+                                    // search on the quote.
+                                    obj.remove("page");
+                                }
+                            }
+                        }
+
+                        if resolved_label != original_label {
+                            obj.insert(
+                                "doc_id".into(),
+                                Value::String(resolved_label.clone()),
+                            );
+                        }
+                    }
+                    let label = resolved_label.as_str();
                     if let Some(kb) = kb_by_tag.get(label) {
                         // Strip our scanner's `[Page N]` markers from
                         // the quote — the model often copies them

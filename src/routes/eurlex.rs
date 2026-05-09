@@ -436,9 +436,17 @@ async fn fetch_celex(
     // On failure we mark 'interrupted' so the resync endpoint and the
     // UI can recover without losing the row (which would re-trigger a
     // fetch from EUR-Lex).
+    //
+    // The chunk's `source_path` MUST be the local filesystem path the
+    // DocPanel can read back via `/sync/kb-doc?path=...`. Storing the
+    // EUR-Lex URL here (the obvious-looking choice) made the
+    // citation-pill viewer fail with "Failed to load document":
+    // `kb-doc` does `std::fs::read(path)`, which can't take a URL.
+    // Use the absolute path of the cache file we just wrote.
     let text = String::from_utf8_lossy(&fetched.bytes).into_owned();
+    let chunk_source_path = bin_abs.to_string_lossy().to_string();
     let (chunks_indexed, indexing_error, final_status) =
-        run_indexing(&state, &auth.user_id, &doc_id, &fetched.source_url, &text).await;
+        run_indexing(&state, &auth.user_id, &doc_id, &chunk_source_path, &text).await;
 
     sqlx::query("UPDATE documents SET status = ? WHERE id = ?")
         .bind(&final_status)
@@ -466,6 +474,14 @@ async fn fetch_celex(
 /// Run chunking + embedding for a document. Returns
 /// `(chunks_indexed, error_message, final_status)` where
 /// `final_status` is one of `"ready"` or `"interrupted"`.
+///
+/// When the rag feature is compiled in and an embedding service is
+/// available, we treat `chunks_indexed == 0` as an error — a row with
+/// zero chunks is unreachable to RAG retrieval, so flipping it to
+/// 'ready' would be a silent failure: the inventory line says the doc
+/// is available but every query about it comes back empty. The user
+/// can recover by Riavvia (re-runs `index_document` against the same
+/// cached text) or Delete + re-fetch.
 async fn run_indexing(
     state: &AppState,
     user_id: &str,
@@ -480,6 +496,28 @@ async fn run_indexing(
                 .index_document(user_id, None, doc_id, source_path, text)
                 .await
             {
+                Ok(0) => {
+                    // Text was on disk and >= 1024 bytes (fetch_celex's
+                    // guard already enforced that), yet the chunker
+                    // produced nothing. This usually means the body
+                    // turned out to be markup we couldn't parse cleanly
+                    // — leaving status=ready would silently mislead
+                    // the model into citing a doc with no retrievable
+                    // content.
+                    tracing::warn!(
+                        "[eurlex] {}: indexer produced 0 chunks despite valid text \
+                         ({} chars). Marking interrupted so the user can resync.",
+                        doc_id,
+                        text.len()
+                    );
+                    let msg = format!(
+                        "Indicizzazione completata ma nessun chunk creato \
+                         (testo: {} caratteri). Probabile problema con il chunker; \
+                         usa Riavvia per ritentare.",
+                        text.len()
+                    );
+                    (0, Some(msg), "interrupted".to_string())
+                }
                 Ok(n) => {
                     tracing::info!(
                         "[eurlex] indexed {} into {} chunk(s)",
@@ -531,7 +569,7 @@ async fn resync_document(
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
-    let (text_path, identifier, prev_status) = row.ok_or_else(|| {
+    let (text_path, _identifier, prev_status) = row.ok_or_else(|| {
         err(StatusCode::NOT_FOUND, "Documento EUR-Lex non trovato")
     })?;
     let text_key = text_path.ok_or_else(|| {
@@ -555,10 +593,13 @@ async fn resync_document(
         .await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let text = String::from_utf8_lossy(&bytes).into_owned();
-    let source_path = identifier
-        .as_ref()
-        .map(|c| format!("https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:{}", c))
-        .unwrap_or_else(|| text_key.clone());
+    // Same constraint as fetch_celex: the chunk source_path must be a
+    // local filesystem path so /sync/kb-doc can read it back. Resolve
+    // text_key (relative `cache/<hash>.txt`) to its absolute form.
+    let source_path = storage_root()
+        .join(text_key.replace('/', std::path::MAIN_SEPARATOR_STR))
+        .to_string_lossy()
+        .to_string();
 
     let (chunks_indexed, indexing_error, final_status) =
         run_indexing(&state, &auth.user_id, &id, &source_path, &text).await;
@@ -587,6 +628,10 @@ async fn list_documents(
     State(state): State<Arc<AppState>>,
     auth: AuthUser,
 ) -> ApiResult {
+    // LEFT JOIN onto a per-doc chunk-count subquery so the UI can
+    // surface "0 chunk indicizzati" even on rows the backend marked
+    // 'ready' — defends against silent regressions where the chunker
+    // pipeline goes empty for a class of inputs.
     let rows: Vec<(
         String,
         String,
@@ -596,12 +641,17 @@ async fn list_documents(
         i64,
         String,
         String,
+        i64,
     )> = sqlx::query_as(
-        "SELECT id, filename, corpus_identifier, corpus_language, \
-                fetched_with_fallback, size_bytes, created_at, status \
-         FROM documents \
-         WHERE user_id = ? AND corpus_id = ? \
-         ORDER BY created_at DESC",
+        "SELECT d.id, d.filename, d.corpus_identifier, d.corpus_language, \
+                d.fetched_with_fallback, d.size_bytes, d.created_at, d.status, \
+                COALESCE(c.n, 0) AS chunks \
+         FROM documents d \
+         LEFT JOIN ( \
+             SELECT document_id, COUNT(*) AS n FROM doc_chunks GROUP BY document_id \
+         ) c ON c.document_id = d.id \
+         WHERE d.user_id = ? AND d.corpus_id = ? \
+         ORDER BY d.created_at DESC",
     )
     .bind(&auth.user_id)
     .bind(CORPUS_ID)
@@ -611,7 +661,7 @@ async fn list_documents(
 
     let docs: Vec<Value> = rows
         .into_iter()
-        .map(|(id, filename, ident, lang, fb, size, created, status)| {
+        .map(|(id, filename, ident, lang, fb, size, created, status, chunks)| {
             json!({
                 "id": id,
                 "filename": filename,
@@ -621,6 +671,7 @@ async fn list_documents(
                 "size_bytes": size,
                 "created_at": created,
                 "status": status,
+                "chunks_indexed": chunks,
                 "source_url": ident.as_ref().zip(lang.as_ref()).map(|(c, l)| {
                     format!(
                         "https://eur-lex.europa.eu/legal-content/{}/TXT/?uri=CELEX:{}",

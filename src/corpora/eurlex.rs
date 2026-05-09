@@ -362,9 +362,11 @@ impl EurlexAdapter {
 
         if saw_waf_challenge {
             tracing::warn!(
-                "[eurlex] {celex} ({lang_upper}): all variants returned AWS WAF \
-                 challenges or stubs. EUR-Lex / Cellar are likely rate-limiting \
-                 this client; suggest waiting 5-10 minutes before retrying.",
+                "[eurlex] {celex} ({lang_upper}): every variant served an AWS WAF \
+                 anti-bot challenge instead of the act body. The challenge requires \
+                 a JS engine to solve, which we don't have. This is a CDN-side \
+                 decision and not necessarily about call frequency — it can fire \
+                 on a single request."
             );
         } else {
             tracing::info!(
@@ -1194,11 +1196,12 @@ impl LegalCorpusAdapter for EurlexAdapter {
             None => {
                 if !fallback_en || primary == "en" {
                     return Err(anyhow!(
-                        "EUR-Lex non ha restituito il testo di CELEX {celex} ({primary}) \
-                         dopo 3 tentativi su 4 endpoint diversi (legal-content TXT/HTML/ALL + Cellar). \
-                         Probabile causa: anti-bot CDN (AWS WAF) ha temporaneamente flaggato questo \
-                         client. Attendi 5-10 minuti e riprova; nel frattempo evita altre fetch \
-                         in rapida successione."
+                        "EUR-Lex non ha restituito il testo dell'atto {celex} ({primary}) \
+                         dopo 3 tentativi su 4 endpoint diversi (legal-content TXT/HTML/ALL \
+                         + Cellar REST). I log del backend riportano la natura precisa di \
+                         ogni risposta (challenge anti-bot, stub, body troppo corto, 4xx). \
+                         L'atto potrebbe non essere disponibile in questa lingua, oppure \
+                         il CDN sta servendo un challenge JS che non possiamo risolvere."
                     ));
                 }
                 tracing::info!(
@@ -1208,9 +1211,10 @@ impl LegalCorpusAdapter for EurlexAdapter {
                     .await?
                     .ok_or_else(|| {
                         anyhow!(
-                            "EUR-Lex non ha restituito il testo di CELEX {celex} né in {primary} \
-                             né in English dopo 3 tentativi per lingua su 4 endpoint diversi. \
-                             Probabile anti-bot CDN attivo — attendi 5-10 minuti."
+                            "EUR-Lex non ha restituito il testo dell'atto {celex} né in \
+                             {primary} né in English dopo 3 tentativi per lingua su 4 \
+                             endpoint diversi. I log riportano la natura precisa di ogni \
+                             risposta (challenge anti-bot, stub, body troppo corto, 4xx)."
                         )
                     })?;
                 (en, true)

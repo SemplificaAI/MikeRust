@@ -103,6 +103,7 @@ interface IndexedDoc {
     created_at: string;
     source_url?: string | null;
     status: string;
+    chunks_indexed?: number;
 }
 
 // EU24 official languages — surface-level codes used by EUR-Lex URL
@@ -332,6 +333,15 @@ export default function EurlexPage() {
     const syncHit = async (hit: SearchHit) => {
         setError(null);
         setSyncing(hit.identifier);
+        // Kick the indexed-list refresh in the background so the
+        // 'syncing' row appears immediately and the embed-progress
+        // poll has something to attach to. Without this nudge, the
+        // backend insert+embed runs to completion before the list
+        // even shows the row, so the progress bar never gets a
+        // chance to render.
+        const indexedRefreshTimer = setInterval(() => {
+            void refreshIndexed();
+        }, 1000);
         try {
             const doc = await api<FetchedDoc>("/eurlex/fetch", {
                 method: "POST",
@@ -342,12 +352,31 @@ export default function EurlexPage() {
             });
             setSynced((prev) => ({ ...prev, [hit.identifier]: doc }));
             setLastFetched(doc);
+            // Surface server-side indexing problems even when the HTTP
+            // call returned 200. The /fetch endpoint flips the row to
+            // 'interrupted' instead of 'ready' when the chunker
+            // produces 0 chunks, but the user still needs to know
+            // *why* the new "interrotto" badge appeared.
+            if (doc.indexing_error) {
+                setError(
+                    `Documento sincronizzato con problemi: ${doc.indexing_error}`,
+                );
+            } else if (
+                typeof doc.chunks_indexed === "number" &&
+                doc.chunks_indexed === 0 &&
+                doc.status !== "ready"
+            ) {
+                setError(
+                    "Documento scaricato ma indicizzazione incompleta. Usa Riavvia.",
+                );
+            }
             // Refresh the indexed-list so the new doc shows up
             // immediately in the "Documenti sincronizzati" section.
             await refreshIndexed();
         } catch (e) {
             setError(String(e));
         } finally {
+            clearInterval(indexedRefreshTimer);
             setSyncing(null);
         }
     };
@@ -656,7 +685,15 @@ export default function EurlexPage() {
                             const isSyncing =
                                 doc.status === "syncing" || isResyncing;
                             const isInterrupted = doc.status === "interrupted";
-                            const isReady = doc.status === "ready";
+                            // A row marked 'ready' but with 0 chunks behaves
+                            // like 'interrupted' from the user's perspective
+                            // — RAG can't reach it. We treat it as a soft
+                            // failure so the Riavvia button shows up.
+                            const isEmptyReady =
+                                doc.status === "ready" &&
+                                doc.chunks_indexed === 0;
+                            const isReady =
+                                doc.status === "ready" && !isEmptyReady;
                             // Only the doc the embedding service is actively
                             // working on right now is "in flight". Other
                             // syncing rows are queued behind the model
@@ -707,6 +744,15 @@ export default function EurlexPage() {
                                                     interrotto
                                                 </span>
                                             )}
+                                            {isEmptyReady && (
+                                                <span
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-normal"
+                                                    title="0 chunk: il RAG non può recuperare questo documento. Usa Riavvia."
+                                                >
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    senza chunk
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="text-xs text-gray-500 mt-0.5">
                                             {doc.corpus_identifier && (
@@ -721,6 +767,23 @@ export default function EurlexPage() {
                                             <span className="ml-2 text-gray-400">
                                                 {(doc.size_bytes / 1024).toFixed(0)} KB
                                             </span>
+                                            {typeof doc.chunks_indexed === "number" && (
+                                                <span
+                                                    className={`ml-2 ${
+                                                        isReady && doc.chunks_indexed === 0
+                                                            ? "text-amber-700"
+                                                            : "text-gray-400"
+                                                    }`}
+                                                    title={
+                                                        isReady &&
+                                                        doc.chunks_indexed === 0
+                                                            ? "Zero chunk indicizzati: il documento risulta 'ready' ma non è raggiungibile dal RAG. Usa Riavvia."
+                                                            : undefined
+                                                    }
+                                                >
+                                                    · {doc.chunks_indexed} chunk
+                                                </span>
+                                            )}
                                         </div>
                                         {doc.source_url && (
                                             <button
@@ -759,7 +822,7 @@ export default function EurlexPage() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
-                                        {isInterrupted && (
+                                        {(isInterrupted || isEmptyReady) && (
                                             <button
                                                 type="button"
                                                 onClick={() => resyncDoc(doc)}

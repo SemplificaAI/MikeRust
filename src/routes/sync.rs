@@ -376,16 +376,49 @@ async fn get_kb_doc(
     Query(q): Query<KbDocQuery>,
 ) -> Result<Response, (StatusCode, Json<Value>)> {
     tracing::info!("[kb-doc] requested path={:?} user={}", q.path, auth.user_id);
-    // Allowlist: the path must be currently indexed for this user.
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT path FROM synced_files WHERE user_id = ? AND path = ?",
+    // Allowlist: the path must either be a currently-indexed KB file
+    // (synced_files) for this user, OR resolve to a corpus document
+    // (documents.storage_path) the user has fetched. Corpus docs aren't
+    // in synced_files — they live in `documents` keyed by user_id and
+    // have a relative storage_path like `cache/<hash>.txt`. We resolve
+    // that to its absolute on-disk path and compare against the
+    // requested path so the same kb-doc endpoint serves both.
+    let in_synced_files: bool = sqlx::query_scalar::<_, i64>(
+        "SELECT 1 FROM synced_files WHERE user_id = ? AND path = ? LIMIT 1",
     )
     .bind(&auth.user_id)
     .bind(&q.path)
     .fetch_optional(&state.db)
     .await
-    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    if row.is_none() {
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?
+    .is_some();
+
+    let in_corpus: bool = if !in_synced_files {
+        let storage_root = std::path::PathBuf::from(
+            std::env::var("STORAGE_PATH")
+                .unwrap_or_else(|_| "./data/storage".to_string()),
+        );
+        let rows: Vec<(Option<String>,)> = sqlx::query_as(
+            "SELECT storage_path FROM documents \
+             WHERE user_id = ? AND corpus_id IS NOT NULL AND storage_path IS NOT NULL",
+        )
+        .bind(&auth.user_id)
+        .fetch_all(&state.db)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        rows.into_iter().any(|(sp,)| {
+            let sp = sp.unwrap_or_default();
+            let abs = storage_root
+                .join(sp.replace('/', std::path::MAIN_SEPARATOR_STR))
+                .to_string_lossy()
+                .to_string();
+            abs == q.path
+        })
+    } else {
+        false
+    };
+
+    if !in_synced_files && !in_corpus {
         // Diagnose the mismatch: dump every indexed path for this user
         // so we can compare against `q.path` byte-by-byte (case, slashes,
         // trailing whitespace, NFC vs NFD on macOS, etc.).
@@ -396,7 +429,8 @@ async fn get_kb_doc(
                 .await
                 .unwrap_or_default();
         tracing::warn!(
-            "[kb-doc] path NOT in synced_files for user. Requested:\n  {:?}\nIndexed paths ({}):\n{}",
+            "[kb-doc] path NOT in synced_files NOR documents (corpus) for user. \
+             Requested:\n  {:?}\nIndexed paths ({}):\n{}",
             q.path,
             all.len(),
             all.iter()
