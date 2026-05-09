@@ -48,6 +48,21 @@ pub fn mcp_cache_ttl() -> std::time::Duration {
         .unwrap_or_else(|| std::time::Duration::from_secs(300))
 }
 
+/// How long to wait for an MCP `tools/call` response before giving up.
+/// Default 5 minutes — pseudonymization, OCR, RAG-summary tools can
+/// realistically take 60-120 s on a non-trivial doc, and the previous
+/// 60 s default tripped over them: every long call returned an opaque
+/// `{"error":"network: timeout"}` string and the model would tell the
+/// user "communication error" instead of waiting. Override via env
+/// `MCP_CALL_TIMEOUT_SECS` for shops that prefer to fail faster.
+pub fn mcp_call_timeout_secs() -> u64 {
+    std::env::var("MCP_CALL_TIMEOUT_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .filter(|&n| n > 0 && n <= 1800)
+        .unwrap_or(300)
+}
+
 /// Stored per-user. We carry the discovery payload as opaque JSON so
 /// `db/mod.rs` doesn't depend on the routes layer's `McpDiscovered`
 /// type — the chat handler serialises into this on insert and

@@ -248,8 +248,9 @@ async fn dispatch_mcp_tool(
         return json!({"error": "tool's MCP server has no URL"}).to_string();
     };
 
+    let timeout_secs = crate::db::mcp_call_timeout_secs();
     let client = match reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(timeout_secs))
         .build()
     {
         Ok(c) => c,
@@ -295,7 +296,11 @@ async fn dispatch_mcp_tool(
         Err(e) => return json!({"error": format!("network: {e}")}).to_string(),
     };
 
-    let val = match read_jsonrpc_response(resp, 100, 60).await {
+    // Reader timeout matches the wire-level timeout — otherwise the
+    // SSE stream reader could give up earlier than the HTTP client
+    // and we'd lose a long but legitimate tool response (e.g. Edge
+    // pseudonymising a multi-MB document for 60-120 s).
+    let val = match read_jsonrpc_response(resp, 100, timeout_secs).await {
         Ok(v) => v,
         Err(e) => return json!({"error": format!("read: {e}")}).to_string(),
     };
@@ -1833,7 +1838,25 @@ async fn stream_chat_root(
                             tracing::info!("[chat] dispatching MCP tool: {}", call.name);
                             dispatch_mcp_tool(&mcp_servers, &call.name, &call.input).await
                         };
-                        tracing::info!("[chat] tool {} result: {} chars", call.name, result.len());
+                        // For diagnostics: when a tool result is short
+                        // it's almost always an error envelope or a
+                        // pointer to async work. Log the body verbatim
+                        // so we can tell at a glance whether the model
+                        // is going to refuse vs proceed.
+                        if result.len() <= 200 {
+                            tracing::info!(
+                                "[chat] tool {} result ({} chars): {}",
+                                call.name,
+                                result.len(),
+                                result
+                            );
+                        } else {
+                            tracing::info!(
+                                "[chat] tool {} result: {} chars",
+                                call.name,
+                                result.len()
+                            );
+                        }
                         current_messages.push(Message::tool_result(&call.id, &call.name, &result));
                     }
                 }
