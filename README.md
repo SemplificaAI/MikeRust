@@ -4,6 +4,20 @@ Sovereign local AI document assistant — Rust+axum backend, SQLite, local files
 
 Designed to run entirely on the user's machine: no cloud database, no external auth provider, no S3 bucket. Optional LLM API keys are stored locally and never leave the box except to call the model provider the user explicitly configured.
 
+Maintained by **Semplifica s.r.l.** — [semplifica.ai](https://semplifica.ai). The code is AGPL-3.0; the Semplifica wordmark and logo are trademarks, see [NOTICE.md](NOTICE.md) for the brand-vs-code separation.
+
+### Built in the open — please contribute
+
+MikeRust is meant to be a **collaborative** project. Fixes, new corpus
+plugins, translations, jurisdiction-specific feedback, design ideas,
+half-formed proposals — all welcome, and a small idea filed as an issue
+tends to land faster than a full feature held back until it's "ready".
+You don't have to write the patch yourself: open an
+[issue](https://github.com/SemplificaAI/MikeRust/issues) to discuss a
+direction, send a pull request when you have something concrete, or
+reach out at [d.finardi@semplifica.ai](mailto:d.finardi@semplifica.ai)
+if a public thread is the wrong place.
+
 ## Lineage
 
 MikeRust derives from the open-source **Mike** project by Will Chen
@@ -57,16 +71,16 @@ Corpus panel.
 
 The UI is fully wired for i18n via
 [`next-intl`](https://next-intl.dev/) — every user-facing string lives in
-[`frontend/messages/`](frontend/messages/). Currently shipped: **English
-(`en.json`) and Italian (`it.json`)**. Adding a locale is one translation
-file plus an entry in the locale picker.
+[`frontend/messages/`](frontend/messages/). Currently shipped: **Italian
+(`it.json`), English (`en.json`), French (`fr.json`)**. Adding a locale is
+one translation file plus an entry in the locale picker.
 
 > ⚠️ Development and screenshots use the UI in **Italian** — that's the
 > source-of-truth surface for visual review and copy iteration. The English
-> locale is kept current but typically lags by one or two iterations on
-> brand-new strings. Contributors adding UI: add the IT key first, then the
-> EN equivalent. **Never hardcode user-facing strings**, always go through
-> a `useTranslations` namespace key.
+> and French locales are kept current but typically lag by one or two
+> iterations on brand-new strings. Contributors adding UI: add the IT key
+> first, then EN and FR. **Never hardcode user-facing strings**, always go
+> through a `useTranslations` namespace key.
 
 ## Quick start
 
@@ -163,21 +177,71 @@ When the model skips the `<CITATIONS>` block (some providers do), `synthesise_kb
 
 The embedding model state — including the one-shot ~280 MB download — is reported via `/sync/model-status`; the UI renders an amber progress bar above the folder list while in `downloading` or `loading` state.
 
-### Authoritative legal corpora (planned)
-Optional ingestion of public legal sources, configured per-corpus under the same settings menu. See [docs/CORPORA.md](docs/CORPORA.md) for the API survey and per-corpus implementation status:
+### Authoritative legal corpora — plugin system
 
-| Corpus | API | Languages | Status |
+**The intent.** The medium-term goal for this project is a **plugin
+system for downloading legal documents locally**: a contributor (or the
+user) describes a new public source — Légifrance, BOE, Bundesgesetzblatt,
+a regional bulletin — in a small JSON manifest, and MikeRust handles the
+rest (sidebar entry, importer, bulk-snapshot ingestion, search, fetch,
+embed). No Rust patch, no rebuild, no per-corpus bespoke UI. The user
+keeps a fully offline mirror of the parts of public law they care about,
+under their own AGPL-licensed copy of MikeRust.
+
+The first implementation lives in [`corpora-plugins/`](corpora-plugins/)
+and is documented in [docs/CORPUS_PLUGINS.md](docs/CORPUS_PLUGINS.md).
+Today three strategies are supported:
+
+- `builtin` — corpus served by a hand-written Rust adapter (EUR-Lex,
+  Italian Legal). The manifest only carries metadata (display name,
+  language list, license attribution).
+- `dila-bulk-xml` — fully declarative: point at a DILA OPENDATA archive
+  index URL, pick a *fonds* (CNIL / LEGI / JORF / CASS / KALI), and the
+  generic importer takes care of download → tar walk → XML parse →
+  `corpus_documents` insert → FTS5 index. **Proof of concept: CNIL**,
+  ~26 000 délibérations indexed locally from an ~18 MB tar.gz, Etalab 2.0
+  license, zero anti-bot exposure.
+- `http-fetch-per-id` — scaffolded for single-document fetch with URL
+  templates + CSS/JSONPath extraction (not yet exercised; first target
+  was CNIL via Légifrance, abandoned because of Cloudflare).
+
+**Alternative under evaluation — MCP-driven backend.** A second design
+is on the table: instead of (or alongside) the JSON-plugin path, expose
+legal-source ingestion as an **MCP backend**. Each public source becomes
+an MCP server with tools like `search`, `fetch`, `bulk_import`,
+`list_indexed`; MikeRust calls those tools the same way it already calls
+any other MCP server. The trade-off is roughly:
+
+| | JSON plugins (current) | MCP backend (evaluating) |
+|---|---|---|
+| Author-time cost | one JSON file | one MCP server (Rust/Python/TS) |
+| Run-time cost | in-process, zero extra deps | extra long-lived process |
+| Reach | bounded by the manifest schema | unbounded — arbitrary code |
+| Sovereignty | data stays in `data/db/mike.db` | depends on the server's policy |
+| Reuse outside MikeRust | none | usable from Claude / any MCP host |
+
+Neither path forecloses the other. The JSON plugin is shipping now
+because it's the smallest possible footprint; the MCP backend is being
+weighed for the connectors that can't be expressed declaratively
+(arbitrary auth flows, multi-step session protocols, jurisdiction-
+specific quirks like Légifrance's PISTE OAuth or the Bundesanzeiger's
+TOC-then-ZIP pattern). Feedback welcome — pick your favourite source and
+tell us which path would be less painful for it.
+
+| Corpus | Strategy | Languages | Status |
 |---|---|---|---|
-| **EUR-Lex** (EU) | REST/SOAP + SPARQL + Cellar | 24 EU languages | ✅ V1 — CELEX fetch via public HTML, EN fallback |
-| **Italia legale** (HF dataset) | HF datasets-server `/rows` + Parquet bulk | Italian | ✅ V1 — Normattiva (~69K) + Corte Costituzionale (~22K) |
-| Italian: OpenGA (TAR + Consiglio di Stato) | Same dataset, source filter | Italian | 🔲 in dataset, opt-in mancante |
+| **EUR-Lex** (EU) | builtin (REST/SOAP + SPARQL + Cellar) | 24 EU languages | ✅ V1 — CELEX fetch via public HTML, EN fallback |
+| **Italia legale** (HF dataset) | builtin (HF datasets-server + Parquet bulk) | Italian | ✅ V1 — Normattiva (~69K) + Corte Costituzionale (~22K) |
+| **CNIL** (France, via DILA OPENDATA) | `dila-bulk-xml` plugin | French | ✅ V1 — délibérations + recommandations + avis (~26K docs, Etalab 2.0) |
+| Italian: OpenGA (TAR + Consiglio di Stato) | Same HF dataset, source filter | Italian | 🔲 in dataset, opt-in mancante |
 | Italian: Cassazione (civile/penale/sez. unite) | da identificare | Italian | 🔲 V2 — sorgente fuori dataset HF |
 | Italian: Normattiva post-snapshot live | URN single-fetch | Italian | 🔲 V2 — atti dopo 2026-03-01 |
 | Italian: Leggi regionali (20 BUR) | per-regione | Italian | 🔲 V3 |
 | Italian: Gazzetta Ufficiale (sumario quotidiano) | XML feed | Italian | 🔲 V3 |
 | Italian: Decreti ministeriali / circolari | per-ministero | Italian | 🔲 V3 (import da URL) |
+| French: LEGI / JORF / CASS / KALI (DILA bulk) | `dila-bulk-xml` plugin | French | 🔲 — same strategy as CNIL; one manifest each |
+| **Légifrance** (France, via PISTE) | candidate for MCP backend | French | 🔲 OAuth2 REST — JSON plugin or MCP TBD |
 | **Retsinformation** (Denmark) | JSON `/api/document/{eli}` + `/api/search` | Danish | planned |
-| **Légifrance** (France, via PISTE) | OAuth2 REST | French | planned |
 | **BOE** (Spain) | Open Data API + daily XML sumarios | Spanish | planned |
 | **Gesetze im Internet** (Germany) | TOC XML → per-law ZIP | German | scraping-only |
 | **Normattiva** (Italy, direct) | none — HTML / Akoma Ntoso URN deep links | Italian | sostituito dal connettore HF; resta utile come V2 live-fetch |
@@ -236,7 +300,12 @@ See `.env.example` for the full reference.
 | Italia legale V1 (Normattiva + Corte Cost via HF dataset) | ✅ |
 | Italia legale V2 (OpenGA opt-in, Cassazione, live Normattiva) | 🔲 see [CORPORA.md](docs/CORPORA.md) |
 | Italia legale V3 (regional laws, GU, ministerial decrees) | 🔲 |
-| Other corpus ingestors (Retsinformation, Légifrance, BOE, ...) | 🔲 planned |
+| **JSON-manifest plugin system** (`corpora-plugins/*.json`) | ✅ schema + loader + adapter registry + generic /corpora routes |
+| **`dila-bulk-xml` strategy** (download tar.gz → walk XML → FTS5) | ✅ end-to-end test + live import |
+| CNIL via DILA OPENDATA (declarative plugin) | ✅ — first proof-of-concept consumer of the plugin system |
+| Other DILA fondi (LEGI, JORF, CASS, KALI) as plugins | 🔲 — same strategy, one manifest each |
+| MCP-backend alternative for ingestion (Légifrance / Bundesanzeiger / …) | 🔲 design phase — see "Authoritative legal corpora" |
+| Other corpus ingestors (Retsinformation, BOE, …) | 🔲 planned |
 
 ### Note: MCP client — async multi-step flows
 
@@ -281,3 +350,14 @@ preserved, only the dispatcher mechanics are in scope. See
 ## License
 
 Inherits AGPL-3.0 from the upstream [`willchen96/mike`][upstream] frontend. Backend (`src/`, `src-tauri/`) is original Rust and ships under the same license for consistency. See `LICENSE`.
+
+**Brand assets are not AGPL.** The wordmark **Semplifica**, the corporate
+name **Semplifica s.r.l.**, and the Semplifica logo shipped under
+[`frontend/public/semplifica/`](frontend/public/semplifica/) are
+trademarks of [Semplifica s.r.l.](https://semplifica.ai) and are reserved
+separately from the code license. The **MikeRust** name is also reserved
+as the identifier of this upstream (MikeRust ships without its own logo
+for now — only the Semplifica mark is present in the UI). Forks with
+substantive changes are asked to drop the Semplifica wordmark/logo and
+rename the binary; see [NOTICE.md](NOTICE.md) for the full policy and
+the precedent (GitLab CE, Mastodon, Nextcloud, Element, Plausible, …).
