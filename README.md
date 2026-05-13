@@ -93,10 +93,19 @@ one translation file plus an entry in the locale picker.
 cp .env.example .env
 # Edit .env: set JWT_SECRET. STORAGE_PATH, DATABASE_URL etc. have sensible defaults.
 
-# 3. Run dev (Tauri shell + axum backend + Next.js frontend)
-cd src-tauri && cargo tauri dev
+# 3. Install frontend deps + Tauri CLI (one-shot)
+cd frontend && npm install && cd ..
 
-# Or backend only:
+# 4. Run dev (Tauri shell + axum backend + Next.js frontend)
+# Use the Tauri CLI binary that npm placed under frontend/node_modules/ —
+# no global `cargo install` required, and the version stays pinned to
+# what package.json declares.
+./frontend/node_modules/.bin/tauri dev --config src-tauri/tauri.conf.json
+
+# Alternative if you've globally installed `cargo install tauri-cli@^2`:
+#   cd src-tauri && cargo tauri dev
+
+# Or backend only (axum on 127.0.0.1:$PORT, no Tauri shell):
 cargo run --features rag
 ```
 
