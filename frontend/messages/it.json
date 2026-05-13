@@ -458,6 +458,7 @@
     },
     "Projects": {
         "title": "Progetti",
+        "loadFailed": "Impossibile caricare i progetti.",
         "selectProject": "Seleziona un progetto…",
         "newProject": "Nuovo progetto",
         "createNew": "+ Crea nuovo",
