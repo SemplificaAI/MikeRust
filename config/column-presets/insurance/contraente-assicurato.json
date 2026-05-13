@@ -1,0 +1,8 @@
+{
+    "name": "Contraente / Assicurato",
+    "match_pattern": "\\bcontraente\\b|\\bassicurato\\b|\\binsured\\b|\\bpolicyholder\\b",
+    "match_flags": "i",
+    "format": "text",
+    "domain": "insurance",
+    "prompt": "Chi stipula la polizza (Contraente) e chi è coperto (Assicurato). Se sono diversi soggetti, distinguili esplicitamente. Indica la natura giuridica (persona fisica, S.p.A., S.r.l., associazione professionale, studio, ecc.). Se non specificato in polizza, rispondi \"Non specificato\"."
+}

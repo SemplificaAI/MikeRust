@@ -1,0 +1,8 @@
+{
+    "name": "Tipo franchigia",
+    "match_pattern": "\\btipo (di )?franchigia\\b|\\bdeductible type\\b",
+    "match_flags": "i",
+    "format": "tag",
+    "domain": "insurance",
+    "prompt": "Una sola opzione tra: \"assoluta\", \"relativa\", \"SIR\". Se non chiaramente identificabile rispondi \"Non specificato\"."
+}

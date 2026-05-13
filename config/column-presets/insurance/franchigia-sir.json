@@ -1,0 +1,8 @@
+{
+    "name": "Franchigia / SIR",
+    "match_pattern": "\\bfranchigia\\b|\\bSIR\\b|\\bself[- ]insured retention\\b|\\bdeductible\\b",
+    "match_flags": "i",
+    "format": "monetary_amount",
+    "domain": "insurance",
+    "prompt": "Importo a carico dell'assicurato per ciascun sinistro. Importo e valuta. Cita l'articolo."
+}

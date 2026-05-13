@@ -1,0 +1,8 @@
+{
+    "name": "Subrogazione",
+    "match_pattern": "\\bsurroga(zione)?\\b|\\bsubrogazione\\b|\\brivalsa\\b|\\bsubrogation\\b",
+    "match_flags": "i",
+    "format": "yes_no",
+    "domain": "insurance",
+    "prompt": "L'assicuratore subentra (per surrogazione ex art. 1916 c.c.) nei diritti dell'assicurato verso terzi responsabili dopo aver liquidato il sinistro? Indica eventuali limitazioni o rinunce espresse al diritto di rivalsa. Cita l'articolo."
+}

@@ -1,0 +1,8 @@
+{
+    "name": "Massimale aggregato annuo",
+    "match_pattern": "\\bmassimale aggregato\\b|\\baggregato annuo\\b|\\baggregate limit\\b",
+    "match_flags": "i",
+    "format": "monetary_amount",
+    "domain": "insurance",
+    "prompt": "Tetto totale dei risarcimenti per anno di polizza. Importo e valuta. Se l'aggregato non è espressamente previsto rispondi \"Non previsto\". Cita l'articolo."
+}

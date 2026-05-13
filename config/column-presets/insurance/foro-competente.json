@@ -1,0 +1,8 @@
+{
+    "name": "Foro competente / ADR",
+    "match_pattern": "\\bforo competente\\b|\\bgiurisdizione\\b|\\b(arbitrato|mediazione|conciliazione)\\b|\\bADR\\b|\\bjurisdiction\\b|\\barbitration\\b",
+    "match_flags": "i",
+    "format": "text",
+    "domain": "insurance",
+    "prompt": "Tribunale competente o meccanismo di risoluzione alternativa (arbitrato, conciliazione, mediazione). Cita l'articolo."
+}

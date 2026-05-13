@@ -1,0 +1,8 @@
+{
+    "name": "Premio annuo",
+    "match_pattern": "\\bpremio\\b|\\bannual premium\\b",
+    "match_flags": "i",
+    "format": "monetary_amount",
+    "domain": "insurance",
+    "prompt": "Premio lordo annuo: importo e valuta (es. \"€ 12.500\"). Se rateizzato, indica la frequenza tra parentesi (mensile, trimestrale, semestrale). Cita l'articolo del frazionamento se diverso dal premio."
+}

@@ -1,0 +1,8 @@
+{
+    "name": "Massimale per sinistro",
+    "match_pattern": "\\bmassimale per sinistro\\b|\\bmassimale singolo\\b|\\blimite per sinistro\\b|\\blimit per claim\\b|\\boccurrence limit\\b",
+    "match_flags": "i",
+    "format": "monetary_amount",
+    "domain": "insurance",
+    "prompt": "Limite massimo di indennizzo per singolo sinistro/evento. Importo e valuta. Cita l'articolo."
+}

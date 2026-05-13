@@ -1,0 +1,8 @@
+{
+    "name": "Data scadenza",
+    "match_pattern": "\\bdata scadenza\\b|\\bscadenza\\b|\\bfine copertura\\b|\\bexpiry date\\b|\\bexpiration date\\b",
+    "match_flags": "i",
+    "format": "date",
+    "domain": "insurance",
+    "prompt": "Data di fine della copertura assicurativa nel formato ISO YYYY-MM-DD. Cita l'articolo della scheda di polizza."
+}

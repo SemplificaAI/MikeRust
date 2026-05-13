@@ -1,0 +1,8 @@
+{
+    "name": "Condizioni di rinnovo",
+    "match_pattern": "\\bcondizioni di rinnovo\\b|\\brinnovo\\b|\\btacito rinnovo\\b|\\brenewal\\b",
+    "match_flags": "i",
+    "format": "text",
+    "domain": "insurance",
+    "prompt": "Indica le condizioni di rinnovo della polizza: presenza di tacito rinnovo (sì/no), preavviso minimo di disdetta (in giorni o mesi), eventuali variazioni automatiche di premio al rinnovo (indicizzazione ISTAT, ricalcolo su sinistralità). Cita l'articolo."
+}

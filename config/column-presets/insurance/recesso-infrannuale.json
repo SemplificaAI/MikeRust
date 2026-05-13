@@ -1,0 +1,8 @@
+{
+    "name": "Recesso infrannuale",
+    "match_pattern": "\\brecesso\\b|\\bdisdetta\\b|\\bmid[- ]term cancellation\\b",
+    "match_flags": "i",
+    "format": "text",
+    "domain": "insurance",
+    "prompt": "Possibilità di recesso prima della scadenza naturale: chi può recedere (assicurato, assicuratore, entrambi), in quali casi (libero, dopo sinistro, per giusta causa), effetti economici (rimborso pro-rata della frazione di premio non goduta, penali, perdita del diritto al rimborso). Cita l'articolo."
+}

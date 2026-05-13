@@ -1,0 +1,8 @@
+{
+    "name": "Territorialità",
+    "match_pattern": "\\bterritorialit[àa]\\b|\\bambito geografico\\b|\\bterritorial scope\\b|\\bterritory\\b",
+    "match_flags": "i",
+    "format": "text",
+    "domain": "insurance",
+    "prompt": "Ambito geografico della copertura (es. \"Italia\", \"Europa\", \"Mondo intero esclusi USA/Canada\"). Riporta eventuali esclusioni geografiche specifiche. Cita l'articolo."
+}

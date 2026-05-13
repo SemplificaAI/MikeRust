@@ -1,0 +1,8 @@
+{
+    "name": "Liquidazione sinistri",
+    "match_pattern": "\\bliquidazione (sinistri)?\\b|\\bgestione sinistri\\b|\\bclaims handling\\b|\\bclaim management\\b",
+    "match_flags": "i",
+    "format": "text",
+    "domain": "insurance",
+    "prompt": "Gestione dei sinistri: indica se la liquidazione è curata internamente dall'assicuratore o esternalizzata a una compagnia di gestione (claims handler) — riporta il nome se presente. Indica i termini massimi previsti in polizza (in giorni) per accettazione del sinistro e pagamento dell'indennizzo. Cita l'articolo."
+}

@@ -1,0 +1,8 @@
+{
+    "name": "Data decorrenza",
+    "match_pattern": "\\bdata decorrenza\\b|\\bdecorrenza\\b|\\binizio copertura\\b|\\bdata effetto\\b|\\beffective date\\b",
+    "match_flags": "i",
+    "format": "date",
+    "domain": "insurance",
+    "prompt": "Data di inizio della copertura assicurativa nel formato ISO YYYY-MM-DD. Cita l'articolo della scheda di polizza."
+}
