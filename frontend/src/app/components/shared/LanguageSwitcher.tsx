@@ -58,10 +58,16 @@ export function LanguageSwitcher() {
         pt: t("languagePortuguese"),
     };
 
+    // Label sits above the pill row (rather than next to it) so the
+    // six-language list has the full panel width to wrap into when the
+    // viewport is narrow. Each language is an individually-rounded
+    // pill so wrapping to a second line still looks clean — the old
+    // fused segmented-control look stopped working as soon as we went
+    // past four languages.
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2">
             <span className="text-sm font-medium">{t("language")}</span>
-            <div className="inline-flex rounded-md border border-gray-200 overflow-hidden">
+            <div className="flex flex-wrap gap-1.5">
                 {locales.map((loc) => (
                     <button
                         key={loc}
@@ -69,10 +75,10 @@ export function LanguageSwitcher() {
                         disabled={pending}
                         onClick={() => handleChange(loc)}
                         className={
-                            "px-3 py-1.5 text-sm transition " +
+                            "px-3 py-1.5 text-sm rounded-md border transition " +
                             (loc === locale
-                                ? "bg-gray-900 text-white"
-                                : "bg-white text-gray-700 hover:bg-gray-50") +
+                                ? "bg-gray-900 text-white border-gray-900"
+                                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-400") +
                             (pending ? " opacity-60 cursor-not-allowed" : "")
                         }
                         aria-pressed={loc === locale}
