@@ -68,4 +68,4 @@ owners — listed here for clarity, not as a claim:
 
 For trademark questions or permission to use the Semplifica wordmark
 in a redistribution, write to
-[d.finardi@semplifica.ai](mailto:d.finardi@semplifica.ai).
+[git@semplifica.ai](mailto:git@semplifica.ai).
