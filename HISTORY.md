@@ -283,6 +283,32 @@ by the user's `docs/insurance-workflows-plan.md`):
   (104 lines) — single source of truth is now the JSON files on
   disk under `config/`.
 
+### Security — defensive cleanup around the runtime DB (late evening)
+
+Forensic verification of the GitHub remote (every branch, every
+historical blob, `git log -p -S "AIzaSy"` over all refs) confirmed
+**no `.db` file or API-key fragment has ever been pushed** — the
+runtime DB lives outside the project tree by design
+(`<user-home>/mikerust-data/mike.db`) and `.gitignore` had already
+been excluding `*.db` and `data/`. Three defensive tidy-ups landed
+anyway so the safeguard is explicit and survives future refactors:
+
+- **Legacy `data/mike.db` removed from the working tree.** The stub
+  was a leftover from the pre-MikeRust upstream layout (only migration
+  0001 applied, no user data), but a SQLite file sitting in the
+  project root is a `git add .` accident waiting to happen.
+- **`.gitignore` annotated with a "DO NOT REMOVE" rationale** above
+  the DB exclusion block, calling out that the runtime DB stores user
+  API keys in plaintext and that `*.db` / `*.sqlite` / `data/` are
+  the primary defence against accidental commits.
+- **`.env.example` no longer suggests an in-repo DB path.** The
+  `DATABASE_URL=sqlite://mike.db` line that shipped from upstream
+  Mike would have landed the DB next to the executable (i.e. inside
+  the project tree if run from the repo root). Now the variable is
+  commented out so the code's secure default
+  (`<user-home>/mikerust-data/mike.db`) wins by default; same
+  treatment for `STORAGE_PATH`.
+
 ### Added — German, Spanish, Portuguese locales (evening)
 
 - **`de.json`, `es.json`, `pt.json`** — full UI catalogues translated

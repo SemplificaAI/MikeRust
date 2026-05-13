@@ -57,10 +57,20 @@ sentencepiece.bpe.model
 # ─── Application data ────────────────────────────────────────────────
 # SQLite + storage tree (chats, indexed docs, FTS5 italian-corpus,
 # EUR-Lex synced text, chat-attached docs cache, etc.).
+#
+# CRITICAL — DO NOT REMOVE: the runtime SQLite DB stores user API keys
+# (Anthropic, Gemini, OpenAI) in plaintext. The patterns below are the
+# primary safeguard against an accidental `git add .` ever pushing the
+# DB to GitHub. The default DB location is `<user-home>/mikerust-data/`
+# (outside the project tree) on purpose, but a clone with a custom
+# DATABASE_URL could still land it inside the tree — `*.db` catches
+# that.
 data/
 *.db
 *.db-wal
 *.db-shm
+*.sqlite
+*.sqlite3
 # Italian-legal-corpus parquet shards if the importer was set to keep
 # them on disk for a future refresh (it doesn't today, but be safe).
 /data_corpora/
