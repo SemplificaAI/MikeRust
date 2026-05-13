@@ -1,16 +1,13 @@
 "use client";
 
 // Refactor in progress (tracks upstream willchen96/mike f39f175 PR #64):
-//   ✅ Step A+B — layout helpers + DocVersionHistory extracted to
-//      ProjectPageParts.tsx (with MikeRust i18n preserved, no `depth` prop).
-//   ✅ Step C — ProjectPageSkeleton extracted. ProjectPageHeader deferred:
-//      MikeRust's header has substantial additions (RAG isolation toggle,
-//      export/share modals, i18n) that diverge from the upstream prop
-//      shape; extracting it cleanly is its own step.
-//   ⏭️  Step D/E — ProjectAssistantTab / ProjectReviewsTab extraction.
-//   ⏭️  Step F — `initialTab` prop + URL hash deep-linking.
-//   ⏭️  Step G — PATCH project-document rename (backend + frontend wiring).
-//   ⏭️  Step H — ProjectsOverview auth gating + cancel + loadError.
+//   ✅ Step A+B — layout helpers + DocVersionHistory in ProjectPageParts.
+//   ✅ Step C   — ProjectPageSkeleton extracted (Header deferred — diverges).
+//   ✅ Step D   — ProjectAssistantTab extracted.
+//   ✅ Step E   — ProjectReviewsTab extracted.
+//   ⏭️  Step F  — `initialTab` prop + URL hash deep-linking.
+//   ⏭️  Step G  — PATCH project-document rename (backend + frontend wiring).
+//   ⏭️  Step H  — ProjectsOverview auth gating + cancel + loadError.
 // See docs/UPSTREAM_SYNC.md for the meticulous plan and divergence notes.
 
 import { useEffect, useRef, useState } from "react";
@@ -27,10 +24,8 @@ import {
     FolderOpen,
     FolderPlus,
     Lock,
-    MessageSquare,
     Package,
     Share2,
-    Table2,
     Users,
 } from "lucide-react";
 import {
@@ -42,6 +37,8 @@ import {
     NAME_COL_W,
     ProjectPageSkeleton,
 } from "./ProjectPageParts";
+import { ProjectAssistantTab } from "./ProjectAssistantTab";
+import { ProjectReviewsTab } from "./ProjectReviewsTab";
 import { ProjectExportModal } from "@/app/components/projects/ProjectExportModal";
 import { HeaderSearchBtn } from "@/app/components/shared/HeaderSearchBtn";
 import {
@@ -1405,160 +1402,66 @@ export function ProjectPage({ projectId }: Props) {
 
                 {/* Tab: Assistant */}
                 {tab === "assistant" && (
-                    <>
-                        <div className="flex items-center h-8 pr-8 border-b border-gray-200 text-xs text-gray-500 font-medium select-none">
-                            <div className={`sticky left-0 z-[60] ${CHECK_W} relative bg-white flex items-center justify-center self-stretch before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-white`}>
-                                <input
-                                    type="checkbox"
-                                    checked={allChatsSelected}
-                                    ref={(el) => { if (el) el.indeterminate = someChatsSelected; }}
-                                    onChange={() => {
-                                        if (allChatsSelected) setSelectedChatIds([]);
-                                        else setSelectedChatIds(filteredChats.map((c) => c.id));
-                                    }}
-                                    className="h-2.5 w-2.5 rounded border-gray-200 cursor-pointer accent-black"
-                                />
-                            </div>
-                            <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
-                                Chats
-                            </div>
-                            <div className="ml-auto w-32 shrink-0 text-left">Created</div>
-                            <div className="w-8 shrink-0" />
-                        </div>
-                        {chats.length === 0 ? (
-                            <div className="flex flex-col items-start py-24 w-full max-w-xs mx-auto">
-                                <MessageSquare className="h-8 w-8 text-gray-300 mb-4" />
-                                <p className="text-2xl font-medium font-serif text-gray-900">Assistant</p>
-                                <p className="mt-1 text-xs text-gray-400 max-w-xs">Ask questions and get answers grounded in the documents in this project.</p>
-                                <button onClick={() => handleNewChat()} className="mt-4 inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-700 transition-colors shadow-md">
-                                    + Create New
-                                </button>
-                            </div>
-                        ) : (
-                            <div>
-                                {filteredChats.map((chat) => (
-                                    <div
-                                        key={chat.id}
-                                        onClick={() => { if (renamingChatId === chat.id) return; router.push(`/projects/${projectId}/assistant/chat/${chat.id}`); }}
-                                        className="group flex items-center h-10 pr-8 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
-                                    >
-                                        <div className={`sticky left-0 z-[60] ${CHECK_W} p-2 flex items-center justify-center ${selectedChatIds.includes(chat.id) ? "bg-gray-50" : "bg-white"} group-hover:bg-gray-50`} onClick={(e) => e.stopPropagation()}>
-                                            <input type="checkbox" checked={selectedChatIds.includes(chat.id)} onChange={() => setSelectedChatIds((prev) => prev.includes(chat.id) ? prev.filter((x) => x !== chat.id) : [...prev, chat.id])} className="h-2.5 w-2.5 rounded border-gray-200 cursor-pointer accent-black" />
-                                        </div>
-                                        <div className={`sticky left-8 z-[60] ${NAME_COL_W} p-2 ${selectedChatIds.includes(chat.id) ? "bg-gray-50" : "bg-white"} group-hover:bg-gray-50`}>
-                                            {renamingChatId === chat.id ? (
-                                                <input autoFocus value={renameChatValue} onChange={(e) => setRenameChatValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitChatRename(chat.id); if (e.key === "Escape") setRenamingChatId(null); }} onBlur={() => submitChatRename(chat.id)} onClick={(e) => e.stopPropagation()} className="w-full text-sm text-gray-800 bg-transparent outline-none" />
-                                            ) : (
-                                                <span className="text-sm text-gray-800 truncate block">{chat.title ?? "Untitled Chat"}</span>
-                                            )}
-                                        </div>
-                                        <div className="ml-auto w-32 shrink-0 text-sm text-gray-500 truncate">{formatDate(chat.created_at)}</div>
-                                        <div className="w-8 shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
-                                            <RowActions
-                                                onRename={() => {
-                                                    if (user?.id && chat.user_id !== user.id) {
-                                                        setOwnerOnlyAction("rename this chat");
-                                                        return;
-                                                    }
-                                                    setRenameChatValue(chat.title ?? "Untitled Chat");
-                                                    setRenamingChatId(chat.id);
-                                                }}
-                                                onDelete={async () => {
-                                                    if (user?.id && chat.user_id !== user.id) {
-                                                        setOwnerOnlyAction("delete this chat");
-                                                        return;
-                                                    }
-                                                    await deleteChat(chat.id);
-                                                    setChats((prev) => prev.filter((c) => c.id !== chat.id));
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </>
+                    <ProjectAssistantTab
+                        chats={chats}
+                        filteredChats={filteredChats}
+                        selectedChatIds={selectedChatIds}
+                        allChatsSelected={allChatsSelected}
+                        someChatsSelected={someChatsSelected}
+                        renamingChatId={renamingChatId}
+                        renameChatValue={renameChatValue}
+                        currentUserId={user?.id ?? null}
+                        onCreateChat={() => handleNewChat()}
+                        onOpenChat={(chatId) =>
+                            router.push(`/projects/${projectId}/assistant/chat/${chatId}`)
+                        }
+                        onDeleteChat={async (chat) => {
+                            if (user?.id && chat.user_id !== user.id) {
+                                setOwnerOnlyAction("delete this chat");
+                                return;
+                            }
+                            await deleteChat(chat.id);
+                            setChats((prev) => prev.filter((c) => c.id !== chat.id));
+                        }}
+                        onOwnerOnlyAction={setOwnerOnlyAction}
+                        submitChatRename={submitChatRename}
+                        setSelectedChatIds={setSelectedChatIds}
+                        setRenamingChatId={setRenamingChatId}
+                        setRenameChatValue={setRenameChatValue}
+                    />
                 )}
 
                 {/* Tab: Reviews */}
                 {tab === "reviews" && (
-                    <>
-                        <div className="flex items-center h-8 pr-8 border-b border-gray-200 text-xs text-gray-500 font-medium select-none">
-                            <div className={`sticky left-0 z-[60] ${CHECK_W} relative bg-white flex items-center justify-center self-stretch before:absolute before:inset-x-0 before:bottom-0 before:h-px before:bg-white`}>
-                                <input
-                                    type="checkbox"
-                                    checked={allReviewsSelected}
-                                    ref={(el) => { if (el) el.indeterminate = someReviewsSelected; }}
-                                    onChange={() => {
-                                        if (allReviewsSelected) setSelectedReviewIds([]);
-                                        else setSelectedReviewIds(filteredReviews.map((r) => r.id));
-                                    }}
-                                    className="h-2.5 w-2.5 rounded border-gray-200 cursor-pointer accent-black"
-                                />
-                            </div>
-                            <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
-                                Name
-                            </div>
-                            <div className="ml-auto w-24 shrink-0 text-left">Columns</div>
-                            <div className="w-24 shrink-0 text-left">Documents</div>
-                            <div className="w-32 shrink-0 text-left">Created</div>
-                            <div className="w-8 shrink-0" />
-                        </div>
-                        {projectReviews.length === 0 ? (
-                            <div className="flex flex-col items-start py-24 w-full max-w-xs mx-auto">
-                                <Table2 className="h-8 w-8 text-gray-300 mb-4" />
-                                <p className="text-2xl font-medium font-serif text-gray-900">Tabular Reviews</p>
-                                <p className="mt-1 text-xs text-gray-400 max-w-xs">Extract data from project documents into tables using AI.</p>
-                                <button onClick={handleNewReview} disabled={creatingReview || docs.length === 0} className="mt-4 inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-700 transition-colors shadow-md disabled:opacity-40">
-                                    + Create New
-                                </button>
-                            </div>
-                        ) : (
-                            <div>
-                                {filteredReviews.map((review) => (
-                                    <div
-                                        key={review.id}
-                                        onClick={() => { if (renamingReviewId === review.id) return; router.push(`/projects/${projectId}/tabular-reviews/${review.id}`); }}
-                                        className="group flex items-center h-10 pr-8 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors"
-                                    >
-                                        <div className={`sticky left-0 z-[60] ${CHECK_W} p-2 flex items-center justify-center ${selectedReviewIds.includes(review.id) ? "bg-gray-50" : "bg-white"} group-hover:bg-gray-50`} onClick={(e) => e.stopPropagation()}>
-                                            <input type="checkbox" checked={selectedReviewIds.includes(review.id)} onChange={() => setSelectedReviewIds((prev) => prev.includes(review.id) ? prev.filter((x) => x !== review.id) : [...prev, review.id])} className="h-2.5 w-2.5 rounded border-gray-200 cursor-pointer accent-black" />
-                                        </div>
-                                        <div className={`sticky left-8 z-[60] ${NAME_COL_W} p-2 ${selectedReviewIds.includes(review.id) ? "bg-gray-50" : "bg-white"} group-hover:bg-gray-50`}>
-                                            {renamingReviewId === review.id ? (
-                                                <input autoFocus value={renameReviewValue} onChange={(e) => setRenameReviewValue(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitReviewRename(review.id); if (e.key === "Escape") setRenamingReviewId(null); }} onBlur={() => submitReviewRename(review.id)} onClick={(e) => e.stopPropagation()} className="w-full text-sm text-gray-800 bg-transparent outline-none" />
-                                            ) : (
-                                                <span className="text-sm text-gray-800 truncate block">{review.title ?? "Untitled Review"}</span>
-                                            )}
-                                        </div>
-                                        <div className="ml-auto w-24 shrink-0 text-sm text-gray-500 truncate">{review.columns_config?.length ?? 0}</div>
-                                        <div className="w-24 shrink-0 text-sm text-gray-500 truncate">{review.document_count ?? 0}</div>
-                                        <div className="w-32 shrink-0 text-sm text-gray-500 truncate">{review.created_at ? formatDate(review.created_at) : <span className="text-gray-300">—</span>}</div>
-                                        <div className="w-8 shrink-0 flex justify-end" onClick={(e) => e.stopPropagation()}>
-                                            <RowActions
-                                                onRename={() => {
-                                                    if (user?.id && review.user_id !== user.id) {
-                                                        setOwnerOnlyAction("rename this tabular review");
-                                                        return;
-                                                    }
-                                                    setRenameReviewValue(review.title ?? "Untitled Review");
-                                                    setRenamingReviewId(review.id);
-                                                }}
-                                                onDelete={async () => {
-                                                    if (user?.id && review.user_id !== user.id) {
-                                                        setOwnerOnlyAction("delete this tabular review");
-                                                        return;
-                                                    }
-                                                    await deleteTabularReview(review.id);
-                                                    setProjectReviews((prev) => prev.filter((r) => r.id !== review.id));
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </>
+                    <ProjectReviewsTab
+                        docs={docs}
+                        reviews={projectReviews}
+                        filteredReviews={filteredReviews}
+                        selectedReviewIds={selectedReviewIds}
+                        allReviewsSelected={allReviewsSelected}
+                        someReviewsSelected={someReviewsSelected}
+                        renamingReviewId={renamingReviewId}
+                        renameReviewValue={renameReviewValue}
+                        creatingReview={creatingReview}
+                        currentUserId={user?.id ?? null}
+                        onCreateReview={handleNewReview}
+                        onOpenReview={(reviewId) =>
+                            router.push(`/projects/${projectId}/tabular-reviews/${reviewId}`)
+                        }
+                        onDeleteReview={async (review) => {
+                            if (user?.id && review.user_id !== user.id) {
+                                setOwnerOnlyAction("delete this tabular review");
+                                return;
+                            }
+                            await deleteTabularReview(review.id);
+                            setProjectReviews((prev) => prev.filter((r) => r.id !== review.id));
+                        }}
+                        onOwnerOnlyAction={setOwnerOnlyAction}
+                        submitReviewRename={submitReviewRename}
+                        setSelectedReviewIds={setSelectedReviewIds}
+                        setRenamingReviewId={setRenamingReviewId}
+                        setRenameReviewValue={setRenameReviewValue}
+                    />
                 )}
             </div>
             </div>
