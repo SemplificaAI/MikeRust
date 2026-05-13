@@ -100,6 +100,7 @@
         "language": "Language",
         "languageItalian": "Italiano",
         "languageEnglish": "English",
+        "languageFrench": "Français",
         "security": "Security",
         "changePin": "Change PIN",
         "currentPin": "Current PIN",
@@ -231,6 +232,36 @@
         "modelFailed": "Model load failed: {error}",
         "modelHint": "First download is ~280 MB and happens once; subsequent scans start offline."
     },
+    "Corpora": {
+        "sourceOriginalLink": "Source",
+        "language": "Language",
+        "exampleHint": "e.g. {example}",
+        "searchButton": "Search",
+        "searching": "Searching…",
+        "resultsTitle": "Results ({count})",
+        "noResultsFor": "No results for \"{query}\".",
+        "indexHit": "Index",
+        "reindexHit": "Re-index",
+        "syncing": "Syncing…",
+        "openHit": "Open",
+        "removeDoc": "Remove from index",
+        "indexedHeader": "Indexed documents ({count})",
+        "statusReady": "indexed",
+        "statusInterrupted": "interrupted",
+        "bulk": {
+            "snapshotImported": "Snapshot imported",
+            "snapshotImport": "Import the corpus index",
+            "snapshotPrefix": "Snapshot from",
+            "snapshotSuffix": "documents indexed. The authoritative version is still the original source.",
+            "snapshotFresh": "Download and index the full dump locally. One-shot operation; run it again to update to the latest snapshot.",
+            "starting": "Starting import…",
+            "importing": "Import in progress…",
+            "updateAction": "Update",
+            "importAction": "Import now"
+        },
+        "sourcesAvailable": "Available now",
+        "sourcesComingSoon": "Coming soon"
+    },
     "Eurlex": {
         "title": "EUR-Lex",
         "subtitle": "Index EU legislation (regulations, directives, decisions) from EUR-Lex. Available in 24 official languages; if a document isn't published in the chosen language, the connector falls back to English.",
@@ -253,6 +284,9 @@
         "indexedTitle": "Indexed documents",
         "indexedEmpty": "No EUR-Lex documents indexed yet. Search for an act above to add one.",
         "remove": "Remove from index",
+        "syncing": "Syncing…",
+        "alreadyIndexed": "Indexed",
+        "indexAction": "Index",
         "notImplementedNotice": "EUR-Lex connector not yet implemented — this is a preview UI. See docs/CORPORA.md for the rollout plan."
     },
     "Mcp": {

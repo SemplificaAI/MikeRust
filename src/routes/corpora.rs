@@ -13,7 +13,7 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    routing::{get, post},
+    routing::{delete, get, post},
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -54,6 +54,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/{id}/search", post(generic_search))
         .route("/{id}/fetch", post(generic_fetch))
         .route("/{id}/documents", get(generic_list_documents))
+        .route("/{id}/documents/{doc_id}", delete(generic_delete_document))
         // Bulk import (DILA-style: download tar.gz, walk XML, populate
         // corpus_documents + FTS5). Synchronous today; the route
         // blocks until the import finishes. Acceptable for CNIL
@@ -505,6 +506,80 @@ async fn generic_list_documents(
         })
         .collect();
     Ok(Json(json!({ "documents": docs })))
+}
+
+// ---------------------------------------------------------------------------
+// DELETE /corpora/:id/documents/:doc_id — remove a synced doc
+// ---------------------------------------------------------------------------
+//
+// Mirrors `/eurlex/documents/:id` policy: drop the documents row +
+// embedding chunks, then delete the on-disk cache file only if no
+// other documents row still references the same content hash
+// (ref-counted across users / chats).
+async fn generic_delete_document(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path((id, doc_id)): Path<(String, String)>,
+) -> ApiResult {
+    let plugin = lookup_plugin(&state, &id)?;
+    if !plugin.capabilities.documents_delete {
+        return Err(err(
+            StatusCode::METHOD_NOT_ALLOWED,
+            &format!("corpus {id} does not declare capabilities.documents_delete"),
+        ));
+    }
+
+    let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT storage_path, content_hash FROM documents \
+         WHERE id = ? AND user_id = ? AND corpus_id = ?",
+    )
+    .bind(&doc_id)
+    .bind(&auth.user_id)
+    .bind(&id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let (storage_path, content_hash) =
+        row.ok_or_else(|| err(StatusCode::NOT_FOUND, "Document not found"))?;
+
+    let _ = sqlx::query("DELETE FROM doc_chunks WHERE document_id = ?")
+        .bind(&doc_id)
+        .execute(&state.db)
+        .await;
+
+    sqlx::query("DELETE FROM documents WHERE id = ? AND user_id = ?")
+        .bind(&doc_id)
+        .bind(&auth.user_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    if let Some(hash) = content_hash {
+        let still_referenced: Option<(i64,)> = sqlx::query_as(
+            "SELECT 1 FROM documents WHERE content_hash = ? LIMIT 1",
+        )
+        .bind(&hash)
+        .fetch_optional(&state.db)
+        .await
+        .ok()
+        .flatten();
+        if still_referenced.is_none() {
+            if let (Ok(storage), Some(key)) = (make_storage(), storage_path) {
+                if let Err(e) = storage.delete(&key).await {
+                    tracing::warn!(
+                        "[corpora/{}] failed to delete cache file {} for doc {}: {}",
+                        id,
+                        key,
+                        doc_id,
+                        e
+                    );
+                }
+            }
+        }
+    }
+
+    Ok(Json(json!({ "ok": true, "id": doc_id })))
 }
 
 // ---------------------------------------------------------------------------

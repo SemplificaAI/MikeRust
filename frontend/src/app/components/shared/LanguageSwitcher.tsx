@@ -53,6 +53,7 @@ export function LanguageSwitcher() {
     const labels: Record<Locale, string> = {
         it: t("languageItalian"),
         en: t("languageEnglish"),
+        fr: t("languageFrench"),
     };
 
     return (

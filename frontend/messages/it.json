@@ -100,6 +100,7 @@
         "language": "Lingua",
         "languageItalian": "Italiano",
         "languageEnglish": "English",
+        "languageFrench": "Français",
         "security": "Sicurezza",
         "changePin": "Cambia PIN",
         "currentPin": "PIN attuale",
@@ -231,6 +232,36 @@
         "modelFailed": "Caricamento modello fallito: {error}",
         "modelHint": "Il primo download è ~280 MB e avviene una volta sola; le scansioni successive partono offline."
     },
+    "Corpora": {
+        "sourceOriginalLink": "Fonte originale",
+        "language": "Lingua",
+        "exampleHint": "es. {example}",
+        "searchButton": "Cerca",
+        "searching": "Ricerca in corso…",
+        "resultsTitle": "Risultati ({count})",
+        "noResultsFor": "Nessun risultato per \"{query}\".",
+        "indexHit": "Indicizza",
+        "reindexHit": "Re-indicizza",
+        "syncing": "Sync…",
+        "openHit": "Apri",
+        "removeDoc": "Rimuovi dall'indice",
+        "indexedHeader": "Documenti indicizzati ({count})",
+        "statusReady": "indicizzato",
+        "statusInterrupted": "interrotto",
+        "bulk": {
+            "snapshotImported": "Snapshot importato",
+            "snapshotImport": "Importa l'indice del corpus",
+            "snapshotPrefix": "Snapshot del",
+            "snapshotSuffix": "documenti indicizzati. La versione autoritativa resta la fonte originale.",
+            "snapshotFresh": "Scarica e indicizza localmente il dump completo. Operazione one-shot; ripetila per aggiornare allo snapshot più recente.",
+            "starting": "Avvio import…",
+            "importing": "Import in corso…",
+            "updateAction": "Aggiorna",
+            "importAction": "Importa ora"
+        },
+        "sourcesAvailable": "Disponibili ora",
+        "sourcesComingSoon": "In preparazione"
+    },
     "Eurlex": {
         "title": "EUR-Lex",
         "subtitle": "Indicizza atti legislativi UE (regolamenti, direttive, decisioni) tramite EUR-Lex. Disponibili in 24 lingue ufficiali; quando un documento non esiste nella lingua scelta, ricade automaticamente sull'inglese.",
@@ -253,6 +284,9 @@
         "indexedTitle": "Documenti indicizzati",
         "indexedEmpty": "Nessun documento EUR-Lex ancora indicizzato. Cerca un atto qui sopra per aggiungerlo.",
         "remove": "Rimuovi dall'indice",
+        "syncing": "Sync…",
+        "alreadyIndexed": "Indicizzato",
+        "indexAction": "Indicizza",
         "notImplementedNotice": "Connettore EUR-Lex non ancora implementato — interfaccia di anteprima. Vedi docs/CORPORA.md per il piano di adozione."
     },
     "Mcp": {

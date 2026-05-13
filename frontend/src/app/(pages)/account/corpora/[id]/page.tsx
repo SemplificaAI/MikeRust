@@ -21,6 +21,7 @@ import {
     CheckCircle2,
     ExternalLink,
     Download,
+    Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ import {
     startCorpusImport,
     getCorpusImportStatus,
     getCorpusImportProgress,
+    deleteCorpusDocument,
     type BulkImportStatus,
     type CorpusImportProgress,
 } from "@/app/lib/mikeApi";
@@ -150,6 +152,8 @@ export default function GenericCorpusPage({
 }) {
     const { id } = use(params);
     const tCommon = useTranslations("Common");
+    const t = useTranslations("Corpora");
+    const tBulk = useTranslations("Corpora.bulk");
 
     const [corpus, setCorpus] = useState<CorpusItem | null>(null);
     const [loadError, setLoadError] = useState<string | null>(null);
@@ -157,7 +161,11 @@ export default function GenericCorpusPage({
     const [language, setLanguage] = useState<string>("");
     const [searching, setSearching] = useState(false);
     const [hits, setHits] = useState<SearchHit[] | null>(null);
-    const [syncing, setSyncing] = useState<string | null>(null);
+    // Set of identifiers currently being synced. Stored as a Set rather
+    // than a single string so several "Indicizza" clicks in a row each
+    // keep their own in-flight state (button spinner + progress strip
+    // per row) until their POST finishes.
+    const [syncing, setSyncing] = useState<Set<string>>(new Set());
     const [error, setError] = useState<string | null>(null);
     const [indexedDocs, setIndexedDocs] = useState<IndexedDoc[]>([]);
     const [importStatus, setImportStatus] = useState<BulkImportStatus | null>(
@@ -166,6 +174,7 @@ export default function GenericCorpusPage({
     const [importing, setImporting] = useState(false);
     const [importProgress, setImportProgress] =
         useState<CorpusImportProgress | null>(null);
+    const [deletingDoc, setDeletingDoc] = useState<string | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -218,7 +227,7 @@ export default function GenericCorpusPage({
         // the optimistic value the UI looks unresponsive).
         setImportProgress({
             phase: "discovering",
-            message: "Avvio import…",
+            message: tBulk("starting"),
             current: 0,
             total: 0,
         });
@@ -296,8 +305,13 @@ export default function GenericCorpusPage({
     };
 
     const syncHit = async (hit: SearchHit) => {
+        if (syncing.has(hit.identifier)) return;
         setError(null);
-        setSyncing(hit.identifier);
+        setSyncing((prev) => {
+            const next = new Set(prev);
+            next.add(hit.identifier);
+            return next;
+        });
         try {
             await api<{ id: string }>(`/corpora/${id}/fetch`, {
                 method: "POST",
@@ -310,9 +324,35 @@ export default function GenericCorpusPage({
         } catch (e) {
             setError(String(e));
         } finally {
-            setSyncing(null);
+            setSyncing((prev) => {
+                const next = new Set(prev);
+                next.delete(hit.identifier);
+                return next;
+            });
         }
     };
+
+    const removeDoc = async (doc: IndexedDoc) => {
+        setError(null);
+        setDeletingDoc(doc.id);
+        try {
+            await deleteCorpusDocument(id, doc.id);
+            await refreshIndexed();
+        } catch (e) {
+            setError(String(e));
+        } finally {
+            setDeletingDoc(null);
+        }
+    };
+
+    // Identifiers currently in the local index — used to label the
+    // search-result "Indicizza" button as "Re-indicizza" when the user
+    // has already synced that document (and would just overwrite it).
+    const indexedIdentifiers = new Set(
+        indexedDocs
+            .map((d) => d.corpus_identifier)
+            .filter((x): x is string => !!x),
+    );
 
     if (loadError) {
         return (
@@ -352,7 +392,7 @@ export default function GenericCorpusPage({
                             title={corpus.homepage}
                         >
                             <ExternalLink className="h-3 w-3" />
-                            Fonte originale
+                            {t("sourceOriginalLink")}
                         </button>
                     )}
                     {corpus.license && (
@@ -385,13 +425,13 @@ export default function GenericCorpusPage({
                         <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium">
                                 {importStatus?.imported
-                                    ? "Snapshot importato"
-                                    : "Importa l'indice del corpus"}
+                                    ? tBulk("snapshotImported")
+                                    : tBulk("snapshotImport")}
                             </div>
                             <div className="text-xs text-gray-500 mt-0.5">
                                 {importStatus?.imported && importStatus.last_archive_ts ? (
                                     <>
-                                        Snapshot del{" "}
+                                        {tBulk("snapshotPrefix")}{" "}
                                         <span className="font-medium text-gray-700">
                                             {importStatus.last_archive_ts.slice(0, 4)}
                                             -
@@ -400,15 +440,11 @@ export default function GenericCorpusPage({
                                             {importStatus.last_archive_ts.slice(6, 8)}
                                         </span>
                                         {" · "}
-                                        {importStatus.doc_count} documenti indicizzati.
-                                        La versione autoritativa resta la fonte originale.
+                                        {importStatus.doc_count}{" "}
+                                        {tBulk("snapshotSuffix")}
                                     </>
                                 ) : (
-                                    <>
-                                        Scarica e indicizza localmente il dump
-                                        completo. Operazione one-shot; ripetila per
-                                        aggiornare allo snapshot più recente.
-                                    </>
+                                    <>{tBulk("snapshotFresh")}</>
                                 )}
                             </div>
                         </div>
@@ -423,10 +459,10 @@ export default function GenericCorpusPage({
                                 <Download className="h-3.5 w-3.5 mr-1" />
                             )}
                             {importing
-                                ? "Import in corso…"
+                                ? tBulk("importing")
                                 : importStatus?.imported
-                                  ? "Aggiorna"
-                                  : "Importa ora"}
+                                  ? tBulk("updateAction")
+                                  : tBulk("importAction")}
                         </Button>
                     </div>
 
@@ -435,7 +471,10 @@ export default function GenericCorpusPage({
                         until next click). The bar is determinate when the
                         backend reports total > 0 (the inserting phase),
                         indeterminate otherwise (discovering / downloading /
-                        extracting). */}
+                        extracting). When the import is a no-op success
+                        (same snapshot already imported), the backend emits
+                        phase=done with total=0 — show only the green text
+                        line, not a 100% bar that lies about doing work. */}
                     {importProgress &&
                         importProgress.phase !== "idle" && (
                             <div className="space-y-1">
@@ -458,28 +497,30 @@ export default function GenericCorpusPage({
                                         </span>
                                     )}
                                 </div>
-                                <div className="h-1.5 bg-gray-100 rounded overflow-hidden">
-                                    {importProgress.phase === "error" ? (
-                                        <div className="h-full w-full bg-red-300" />
-                                    ) : importProgress.phase === "done" ? (
-                                        <div className="h-full w-full bg-green-500" />
-                                    ) : importProgress.total > 0 ? (
-                                        <div
-                                            className="h-full bg-blue-500 transition-all"
-                                            style={{
-                                                width: `${Math.min(
-                                                    100,
-                                                    Math.round(
-                                                        (100 * importProgress.current) /
-                                                            importProgress.total,
-                                                    ),
-                                                )}%`,
-                                            }}
-                                        />
-                                    ) : (
-                                        <div className="h-full w-1/3 bg-blue-500 animate-pulse" />
-                                    )}
-                                </div>
+                                {!(importProgress.phase === "done" && importProgress.total === 0) && (
+                                    <div className="h-1.5 bg-gray-100 rounded overflow-hidden">
+                                        {importProgress.phase === "error" ? (
+                                            <div className="h-full w-full bg-red-300" />
+                                        ) : importProgress.phase === "done" ? (
+                                            <div className="h-full w-full bg-green-500" />
+                                        ) : importProgress.total > 0 ? (
+                                            <div
+                                                className="h-full bg-blue-500 transition-all"
+                                                style={{
+                                                    width: `${Math.min(
+                                                        100,
+                                                        Math.round(
+                                                            (100 * importProgress.current) /
+                                                                importProgress.total,
+                                                        ),
+                                                    )}%`,
+                                                }}
+                                            />
+                                        ) : (
+                                            <div className="h-full w-1/3 bg-blue-500 animate-pulse" />
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         )}
                 </section>
@@ -491,7 +532,7 @@ export default function GenericCorpusPage({
                     {sourcesAvailable.length > 0 && (
                         <>
                             <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                                Disponibili ora
+                                {t("sourcesAvailable")}
                             </div>
                             {sourcesAvailable.map((s) => (
                                 <label
@@ -518,7 +559,7 @@ export default function GenericCorpusPage({
                     {sourcesComingSoon.length > 0 && (
                         <>
                             <div className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 pt-2">
-                                In preparazione
+                                {t("sourcesComingSoon")}
                             </div>
                             {sourcesComingSoon.map((s) => (
                                 <div key={s.id} className="flex items-start gap-2 text-sm opacity-60">
@@ -562,7 +603,7 @@ export default function GenericCorpusPage({
                             {corpus.identifier_label}
                             {corpus.identifier_example && (
                                 <span className="ml-2 text-gray-400">
-                                    es. {corpus.identifier_example}
+                                    {t("exampleHint", { example: corpus.identifier_example })}
                                 </span>
                             )}
                         </label>
@@ -581,7 +622,7 @@ export default function GenericCorpusPage({
                     {corpus.languages.length > 1 && (
                         <div>
                             <label className="text-xs text-gray-500 block mb-1">
-                                Lingua
+                                {t("language")}
                             </label>
                             <select
                                 value={language}
@@ -607,7 +648,7 @@ export default function GenericCorpusPage({
                             ) : (
                                 <Search className="h-3.5 w-3.5 mr-1" />
                             )}
-                            Cerca
+                            {searching ? t("searching") : t("searchButton")}
                         </Button>
                     </div>
                 </section>
@@ -624,49 +665,77 @@ export default function GenericCorpusPage({
             {hits !== null && hits.length > 0 && (
                 <section>
                     <h3 className="text-sm font-medium mb-2">
-                        Risultati ({hits.length})
+                        {t("resultsTitle", { count: hits.length })}
                     </h3>
                     <ul className="space-y-2">
                         {hits.map((hit) => {
-                            const isSyncingThis = syncing === hit.identifier;
+                            const isSyncingThis = syncing.has(hit.identifier);
+                            const alreadyIndexed = indexedIdentifiers.has(
+                                hit.identifier,
+                            );
                             return (
                                 <li
                                     key={hit.identifier}
-                                    className="border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-3"
+                                    className="border border-gray-200 rounded-lg overflow-hidden"
                                 >
-                                    <div className="min-w-0 flex-1">
-                                        <div className="text-sm font-medium truncate">
-                                            {hit.title}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-0.5">
-                                            {corpus.identifier_label} {hit.identifier}
-                                            {hit.date && (
-                                                <span className="ml-2">· {hit.date}</span>
+                                    <div className="p-3 flex items-start justify-between gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            <div className="text-sm font-medium truncate">
+                                                {hit.title}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-0.5">
+                                                {corpus.identifier_label} {hit.identifier}
+                                                {hit.date && (
+                                                    <span className="ml-2">· {hit.date}</span>
+                                                )}
+                                            </div>
+                                            {hit.url && (
+                                                <a
+                                                    href={hit.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs inline-flex items-center gap-1 text-gray-500 hover:text-gray-800 mt-1"
+                                                >
+                                                    <ExternalLink className="h-3 w-3" /> {t("openHit")}
+                                                </a>
                                             )}
                                         </div>
-                                        {hit.url && (
-                                            <a
-                                                href={hit.url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs inline-flex items-center gap-1 text-gray-500 hover:text-gray-800 mt-1"
+                                        {corpus.capabilities.fetch && (
+                                            <button
+                                                type="button"
+                                                onClick={() => syncHit(hit)}
+                                                disabled={isSyncingThis}
+                                                className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs disabled:opacity-50 ${
+                                                    alreadyIndexed
+                                                        ? "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                                                        : "bg-black text-white hover:bg-gray-900"
+                                                }`}
                                             >
-                                                <ExternalLink className="h-3 w-3" /> Apri
-                                            </a>
+                                                {isSyncingThis ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : null}
+                                                {isSyncingThis
+                                                    ? t("syncing")
+                                                    : alreadyIndexed
+                                                      ? t("reindexHit")
+                                                      : t("indexHit")}
+                                            </button>
                                         )}
                                     </div>
-                                    {corpus.capabilities.fetch && (
-                                        <button
-                                            type="button"
-                                            onClick={() => syncHit(hit)}
-                                            disabled={isSyncingThis}
-                                            className="shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs bg-black text-white hover:bg-gray-900 disabled:opacity-50"
-                                        >
-                                            {isSyncingThis ? (
-                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                            ) : null}
-                                            {isSyncingThis ? "Sync…" : "Indicizza"}
-                                        </button>
+                                    {/* Indeterminate progress strip — the
+                                        backend's /fetch is synchronous
+                                        (chunk + embed inline) so there are
+                                        no phase ticks to report. The bar
+                                        slides edge-to-edge while the call
+                                        is in flight, giving the user
+                                        visible feedback that work is
+                                        happening (chunking can take
+                                        several seconds on first run when
+                                        the embedding model is loading). */}
+                                    {isSyncingThis && (
+                                        <div className="h-1 bg-gray-100 overflow-hidden">
+                                            <div className="h-full w-1/3 bg-blue-500 animate-pulse" />
+                                        </div>
                                     )}
                                 </li>
                             );
@@ -677,7 +746,7 @@ export default function GenericCorpusPage({
 
             {hits !== null && hits.length === 0 && (
                 <div className="text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
-                    Nessun risultato per &quot;{query}&quot;.
+                    {t("noResultsFor", { query })}
                 </div>
             )}
 
@@ -685,40 +754,59 @@ export default function GenericCorpusPage({
             {corpus.capabilities.documents && indexedDocs.length > 0 && (
                 <section>
                     <h3 className="text-sm font-medium mb-2">
-                        Documenti indicizzati ({indexedDocs.length})
+                        {t("indexedHeader", { count: indexedDocs.length })}
                     </h3>
                     <ul className="space-y-2">
-                        {indexedDocs.map((doc) => (
-                            <li
-                                key={doc.id}
-                                className="border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-3"
-                            >
-                                <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium truncate flex items-center gap-2">
-                                        {doc.filename}
-                                        {doc.status === "ready" && (
-                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 text-[10px] font-normal">
-                                                <CheckCircle2 className="h-3 w-3" />
-                                                indicizzato
+                        {indexedDocs.map((doc) => {
+                            const isDeletingThis = deletingDoc === doc.id;
+                            return (
+                                <li
+                                    key={doc.id}
+                                    className="border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-3"
+                                >
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-medium truncate flex items-center gap-2">
+                                            {doc.filename}
+                                            {doc.status === "ready" && (
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 text-[10px] font-normal">
+                                                    <CheckCircle2 className="h-3 w-3" />
+                                                    {t("statusReady")}
+                                                </span>
+                                            )}
+                                            {doc.status === "interrupted" && (
+                                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 text-[10px] font-normal">
+                                                    <AlertCircle className="h-3 w-3" />
+                                                    {t("statusInterrupted")}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-0.5">
+                                            {corpus.identifier_label} {doc.corpus_identifier} ·{" "}
+                                            {doc.corpus_language?.toUpperCase()}
+                                            <span className="ml-2 text-gray-400">
+                                                {(doc.size_bytes / 1024).toFixed(0)} KB
                                             </span>
-                                        )}
-                                        {doc.status === "interrupted" && (
-                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-200 text-[10px] font-normal">
-                                                <AlertCircle className="h-3 w-3" />
-                                                interrotto
-                                            </span>
-                                        )}
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-gray-500 mt-0.5">
-                                        {corpus.identifier_label} {doc.corpus_identifier} ·{" "}
-                                        {doc.corpus_language?.toUpperCase()}
-                                        <span className="ml-2 text-gray-400">
-                                            {(doc.size_bytes / 1024).toFixed(0)} KB
-                                        </span>
-                                    </div>
-                                </div>
-                            </li>
-                        ))}
+                                    {corpus.capabilities.documents_delete && (
+                                        <button
+                                            type="button"
+                                            onClick={() => removeDoc(doc)}
+                                            disabled={isDeletingThis}
+                                            title={t("removeDoc")}
+                                            aria-label={t("removeDoc")}
+                                            className="shrink-0 inline-flex items-center justify-center h-7 w-7 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                        >
+                                            {isDeletingThis ? (
+                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                            ) : (
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            )}
+                                        </button>
+                                    )}
+                                </li>
+                            );
+                        })}
                     </ul>
                 </section>
             )}

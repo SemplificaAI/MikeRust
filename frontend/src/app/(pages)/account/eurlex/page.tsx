@@ -629,10 +629,10 @@ export default function EurlexPage() {
                                             <CheckCircle2 className="h-3.5 w-3.5" />
                                         ) : null}
                                         {isSyncingThis
-                                            ? "Sync…"
+                                            ? t("syncing")
                                             : alreadySynced
-                                              ? "Indicizzato"
-                                              : "Indicizza"}
+                                              ? t("alreadyIndexed")
+                                              : t("indexAction")}
                                     </button>
                                 </li>
                             );

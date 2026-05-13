@@ -207,6 +207,20 @@ export async function listCorpora(): Promise<CorpusItem[]> {
     return data?.corpora ?? [];
 }
 
+/**
+ * Drop a synced document from a corpus's local index. Mirrors the
+ * eurlex/italian-legal cleanup policy: removes the documents row +
+ * embedding chunks, ref-counts the on-disk cache file.
+ */
+export async function deleteCorpusDocument(
+    corpusId: string,
+    docId: string,
+): Promise<void> {
+    await apiRequest(`/corpora/${corpusId}/documents/${docId}`, {
+        method: "DELETE",
+    });
+}
+
 // ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 // next-intl request handler (server) and the client-side language switcher
 // so the locale list and default stay in sync across the app.
 
-export const locales = ["it", "en"] as const;
+export const locales = ["it", "en", "fr"] as const;
 export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = "it";
