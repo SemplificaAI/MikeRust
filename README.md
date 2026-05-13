@@ -76,15 +76,29 @@ Corpus panel.
 The UI is fully wired for i18n via
 [`next-intl`](https://next-intl.dev/) — every user-facing string lives in
 [`frontend/messages/`](frontend/messages/). Currently shipped: **Italian
-(`it.json`), English (`en.json`), French (`fr.json`)**. Adding a locale is
-one translation file plus an entry in the locale picker.
+(`it.json`), English (`en.json`), French (`fr.json`), German (`de.json`),
+Spanish (`es.json`), Portuguese (`pt.json`)** — six locales, full
+coverage on each (same key tree as `en.json`, no missing strings). The
+locale picker in Account → Generali is a Radix dropdown with hand-rolled
+inline SVG flags (emoji flags don't render on Windows). Adding a locale
+is one translation file plus an entry in the `locales` array of
+[`src/i18n/config.ts`](frontend/src/i18n/config.ts).
+
+> **English fallback.** [`src/i18n/request.ts`](frontend/src/i18n/request.ts)
+> deep-merges the active locale onto `en.json` before passing it to
+> next-intl, so any key missing from a non-English catalogue silently
+> falls back to English instead of rendering as a raw path
+> (`Models.previewGlobalOnly`). This makes future catalogue additions
+> safe — drop a new key into `en.json`, ship it, translations catch up
+> later without breaking the UI in the meantime.
 
 > ⚠️ Development and screenshots use the UI in **Italian** — that's the
-> source-of-truth surface for visual review and copy iteration. The English
-> and French locales are kept current but typically lag by one or two
-> iterations on brand-new strings. Contributors adding UI: add the IT key
-> first, then EN and FR. **Never hardcode user-facing strings**, always go
-> through a `useTranslations` namespace key.
+> source-of-truth surface for visual review and copy iteration. The
+> other five locales are kept current but typically lag by one or two
+> iterations on brand-new strings. Contributors adding UI: add the IT
+> key first, then EN (so the fallback works), then DE/ES/FR/PT. **Never
+> hardcode user-facing strings**, always go through a `useTranslations`
+> namespace key.
 
 ## Quick start
 
@@ -333,6 +347,11 @@ See `.env.example` for the full reference.
 | Insurance phase-2 workflows (Cyber / RC Generale / Property review / RC Medica / Key Man) | 🔲 see `docs/insurance-workflows-plan.md` |
 | Column-preset shortcuts (auto-suggest column prompt+format from name match) | ✅ 13 legal + 17 insurance, domain-scoped auto-match |
 | Picker modals with on-the-fly domain switch | ✅ workflow / tabular-template / column-preset pickers all expose a `DomainSelect` combo, pre-seeded with the user's default at every open |
+| **LLM model catalogue** (`config/model.json` + `GET /models`) | ✅ 4 providers (Anthropic, Google Gemini, OpenAI, Mistral), Gemini 30-region matrix, `preview`/`legacy` flags drive auto-snap to global + UI dimming |
+| Settings → Modelli LLM: catalogue-driven combos | ✅ model and region dropdowns populated from `/models`; "Provider attivo" buttons gated to providers with a saved API key (lock icon + tooltip for the rest) |
+| Chat model picker filters out unconfigured providers | ✅ ModelToggle hides Anthropic / OpenAI / Gemini until their API key is saved, matching the Settings page gating |
+| **Six UI locales** (`it` / `en` / `fr` / `de` / `es` / `pt`) | ✅ full catalogues, identical key tree, English fallback for any missing key via deep-merge in `src/i18n/request.ts` |
+| Language picker with inline SVG flags | ✅ Radix dropdown; hand-rolled SVGs because Windows doesn't render emoji flags |
 
 ### Note: MCP client — async multi-step flows
 

@@ -300,9 +300,32 @@ by the user's `docs/insurance-workflows-plan.md`):
   works in all six locales immediately while translations catch up.
 - **`/user/locale` whitelist** expanded to accept `de` / `es` / `pt`
   alongside the existing `it` / `en` / `fr`.
-- **LanguageSwitcher** picks up the three new options
-  (`Deutsch` / `Español` / `Português`) added under `Account.*` in all
-  six message files.
+- **LanguageSwitcher** redesigned as a Radix dropdown with inline SVG
+  flags for each locale. Emoji flags fall back to the bare regional
+  indicator letters on Windows (no built-in flag font), so the
+  component ships its own minimal hand-rolled SVGs (Italy, simplified
+  Union Jack, France, Germany, Spain, Portugal) that render identically
+  on every supported OS.
+
+### Changed — Account profile layout (evening)
+
+- All four Profile fields (Nome utente, Nome visualizzato, Lingua,
+  Settore) now share a single layout pattern: block label above + flex
+  row with the control at `flex-1` and a phantom 80px slot mirroring
+  the Save button used by Nome visualizzato. Result: all controls end
+  at the same x-coordinate inside the `max-w-md` container, so the
+  panel looks ordered even though only Nome visualizzato actually
+  carries a Save action.
+
+### Fixed — chat model picker (evening)
+
+- The chat ModelToggle was surfacing Anthropic models even when the
+  user had no Claude API key saved, because the custom-model branch
+  fired on the saved `claudeModel` field unconditionally. Same picker
+  also fell back to the full preset list when `profile.llm` hadn't
+  loaded yet. Both gated now — the picker only shows providers with a
+  saved API key, mirroring the gating already applied to the Settings
+  page provider toggle.
 
 ### Added — LLM model catalogue (evening)
 
