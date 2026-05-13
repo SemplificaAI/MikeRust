@@ -27,8 +27,31 @@ import { Input } from "@/components/ui/input";
 import {
     startCorpusImport,
     getCorpusImportStatus,
+    getCorpusImportProgress,
     type BulkImportStatus,
+    type CorpusImportProgress,
 } from "@/app/lib/mikeApi";
+
+/**
+ * Open a URL in the OS default browser. Inside Tauri the
+ * `open_external_url` command goes through the `open` crate, so the
+ * user's actual default (Edge / Chrome / Firefox / Safari / xdg-open)
+ * handles it instead of opening inside the Tauri WebView.
+ *
+ * Outside Tauri (Next.js dev in a regular browser) `invoke` throws —
+ * we fall back to `window.open` so the page still works.
+ *
+ * Same helper EUR-Lex page uses; the duplication is intentional
+ * (cheap, no module wrangling) until a third caller wants it.
+ */
+async function openExternal(url: string) {
+    try {
+        const tauri = await import("@tauri-apps/api/core");
+        await tauri.invoke("open_external_url", { url });
+    } catch {
+        window.open(url, "_blank", "noopener,noreferrer");
+    }
+}
 
 const API_BASE =
     process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
@@ -141,6 +164,8 @@ export default function GenericCorpusPage({
         null,
     );
     const [importing, setImporting] = useState(false);
+    const [importProgress, setImportProgress] =
+        useState<CorpusImportProgress | null>(null);
 
     useEffect(() => {
         let cancelled = false;
@@ -188,21 +213,65 @@ export default function GenericCorpusPage({
         if (!corpus?.capabilities.bulk_import) return;
         setError(null);
         setImporting(true);
+        // Optimistic placeholder so the bar appears before the
+        // first poll tick comes back (~500ms feels instant; without
+        // the optimistic value the UI looks unresponsive).
+        setImportProgress({
+            phase: "discovering",
+            message: "Avvio import…",
+            current: 0,
+            total: 0,
+        });
         try {
-            const stats = await startCorpusImport(corpus.id);
-            setImportStatus({
-                imported: true,
-                last_archive_url: stats.archive_url,
-                last_archive_ts: stats.archive_ts,
-                last_imported_at: new Date().toISOString(),
-                doc_count: stats.inserted,
-            });
+            await startCorpusImport(corpus.id);
         } catch (e) {
             setError(String(e));
-        } finally {
             setImporting(false);
+            setImportProgress(null);
         }
     };
+
+    // Poll the progress endpoint while an import is in flight. Stops
+    // as soon as the phase transitions to a terminal state
+    // (done/error/idle) and `importing` is set to false. The terminal
+    // payload stays visible (so the user can read "245 documenti
+    // indicizzati." or the error message) until the next click.
+    useEffect(() => {
+        if (!importing) return;
+        if (!corpus?.capabilities.bulk_import) return;
+        let cancelled = false;
+        const tick = async () => {
+            try {
+                const p = await getCorpusImportProgress(corpus.id);
+                if (cancelled) return;
+                setImportProgress(p);
+                if (
+                    p &&
+                    (p.phase === "done" || p.phase === "error" || p.phase === "idle")
+                ) {
+                    setImporting(false);
+                    // Refresh the snapshot-status line so the
+                    // "Snapshot del …" footer updates.
+                    if (p.phase === "done") {
+                        try {
+                            const s = await getCorpusImportStatus(corpus.id);
+                            if (!cancelled) setImportStatus(s);
+                        } catch {
+                            /* ignore */
+                        }
+                    }
+                }
+            } catch (e) {
+                if (!cancelled) console.warn("[corpora] progress poll:", e);
+            }
+        };
+        void tick();
+        const handle = setInterval(tick, 600);
+        return () => {
+            cancelled = true;
+            clearInterval(handle);
+        };
+    }, [importing, corpus?.id, corpus?.capabilities.bulk_import]);
 
     const runSearch = async () => {
         setError(null);
@@ -274,30 +343,44 @@ export default function GenericCorpusPage({
                         {corpus.description}
                     </p>
                 )}
-                {corpus.license && (
-                    <p className="mt-2 text-[11px] text-gray-400">
-                        {corpus.license.attribution}
-                        {corpus.license.url && (
-                            <>
-                                {" "}
-                                ·{" "}
-                                <a
-                                    href={corpus.license.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="underline hover:text-gray-600"
-                                >
-                                    {corpus.license.id}
-                                </a>
-                            </>
-                        )}
-                    </p>
-                )}
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-400">
+                    {corpus.homepage && (
+                        <button
+                            type="button"
+                            onClick={() => void openExternal(corpus.homepage!)}
+                            className="inline-flex items-center gap-1 hover:text-gray-700 transition-colors cursor-pointer"
+                            title={corpus.homepage}
+                        >
+                            <ExternalLink className="h-3 w-3" />
+                            Fonte originale
+                        </button>
+                    )}
+                    {corpus.license && (
+                        <span>
+                            {corpus.license.attribution}
+                            {corpus.license.url && (
+                                <>
+                                    {" "}
+                                    ·{" "}
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            void openExternal(corpus.license!.url!)
+                                        }
+                                        className="underline hover:text-gray-700 transition-colors cursor-pointer"
+                                    >
+                                        {corpus.license.id}
+                                    </button>
+                                </>
+                            )}
+                        </span>
+                    )}
+                </div>
             </div>
 
             {/* Bulk import (only for corpora with the capability) */}
             {corpus.capabilities.bulk_import && (
-                <section className="border border-gray-200 rounded-lg p-4 space-y-2">
+                <section className="border border-gray-200 rounded-lg p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                             <div className="text-sm font-medium">
@@ -346,6 +429,59 @@ export default function GenericCorpusPage({
                                   : "Importa ora"}
                         </Button>
                     </div>
+
+                    {/* Live progress bar — only while a task is in flight or
+                        right after one completes (terminal payload sticky
+                        until next click). The bar is determinate when the
+                        backend reports total > 0 (the inserting phase),
+                        indeterminate otherwise (discovering / downloading /
+                        extracting). */}
+                    {importProgress &&
+                        importProgress.phase !== "idle" && (
+                            <div className="space-y-1">
+                                <div className="flex items-center justify-between gap-2 text-xs">
+                                    <span
+                                        className={`truncate ${
+                                            importProgress.phase === "error"
+                                                ? "text-red-600"
+                                                : importProgress.phase === "done"
+                                                  ? "text-green-700"
+                                                  : "text-gray-600"
+                                        }`}
+                                    >
+                                        {importProgress.error ?? importProgress.message}
+                                    </span>
+                                    {importProgress.total > 0 && (
+                                        <span className="tabular-nums text-gray-500 shrink-0">
+                                            {importProgress.current}/
+                                            {importProgress.total}
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="h-1.5 bg-gray-100 rounded overflow-hidden">
+                                    {importProgress.phase === "error" ? (
+                                        <div className="h-full w-full bg-red-300" />
+                                    ) : importProgress.phase === "done" ? (
+                                        <div className="h-full w-full bg-green-500" />
+                                    ) : importProgress.total > 0 ? (
+                                        <div
+                                            className="h-full bg-blue-500 transition-all"
+                                            style={{
+                                                width: `${Math.min(
+                                                    100,
+                                                    Math.round(
+                                                        (100 * importProgress.current) /
+                                                            importProgress.total,
+                                                    ),
+                                                )}%`,
+                                            }}
+                                        />
+                                    ) : (
+                                        <div className="h-full w-1/3 bg-blue-500 animate-pulse" />
+                                    )}
+                                </div>
+                            </div>
+                        )}
                 </section>
             )}
 

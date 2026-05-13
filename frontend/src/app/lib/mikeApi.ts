@@ -149,20 +149,52 @@ export interface BulkImportStatus {
     doc_count: number;
 }
 
+export interface CorpusImportStartResponse {
+    started: boolean;
+    already_running: boolean;
+    phase?: string;
+    message?: string;
+}
+
+export interface CorpusImportProgress {
+    phase: string; // "discovering" | "downloading" | "extracting" | "inserting" | "done" | "error" | "idle"
+    message: string;
+    current: number;
+    total: number;
+    error?: string | null;
+}
+
 export async function startCorpusImport(
     corpusId: string,
-): Promise<BulkImportStats> {
-    return apiRequest<BulkImportStats>(`/corpora/${corpusId}/import`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: "{}",
-    });
+): Promise<CorpusImportStartResponse> {
+    return apiRequest<CorpusImportStartResponse>(
+        `/corpora/${corpusId}/import`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+        },
+    );
 }
 
 export async function getCorpusImportStatus(
     corpusId: string,
 ): Promise<BulkImportStatus> {
     return apiRequest<BulkImportStatus>(`/corpora/${corpusId}/import-status`);
+}
+
+/**
+ * Poll endpoint for the live progress bar. Returns null when no
+ * import has been kicked off in this process lifetime (the route
+ * sends a JSON null; we surface it as JS null so the caller can
+ * branch on it).
+ */
+export async function getCorpusImportProgress(
+    corpusId: string,
+): Promise<CorpusImportProgress | null> {
+    return apiRequest<CorpusImportProgress | null>(
+        `/corpora/${corpusId}/import-progress`,
+    );
 }
 
 /**

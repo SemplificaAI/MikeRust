@@ -61,6 +61,7 @@ pub fn router() -> Router<Arc<AppState>> {
         // progress polling.
         .route("/{id}/import", post(generic_import))
         .route("/{id}/import-status", get(generic_import_status))
+        .route("/{id}/import-progress", get(generic_import_progress))
 }
 
 /// Public projection of a `CorpusPlugin` for the API. Strips the
@@ -638,10 +639,84 @@ async fn generic_import(
             ));
         }
     };
-    let stats = crate::corpora::dila_bulk::run_import(&spec, &state.db, &id)
-        .await
-        .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
-    let value = serde_json::to_value(&stats)
+
+    // Refuse to start a second import if one is already running for
+    // the same corpus. The progress map is the source of truth: a
+    // phase in {discovering, downloading, extracting, inserting} means
+    // a task is in flight; anything else (done/error/idle/missing)
+    // means we're free to start.
+    {
+        let guard = state.corpus_import_progress.read().await;
+        if let Some(sink) = guard.get(&id) {
+            let progress = sink.read().await;
+            let in_flight = matches!(
+                progress.phase.as_str(),
+                "discovering" | "downloading" | "extracting" | "inserting"
+            );
+            if in_flight {
+                return Ok(Json(json!({
+                    "started": false,
+                    "already_running": true,
+                    "phase": progress.phase,
+                    "message": progress.message,
+                })));
+            }
+        }
+    }
+
+    // Create / reset the progress sink for this corpus.
+    let sink = Arc::new(tokio::sync::RwLock::new(
+        crate::corpora::dila_bulk::ImportProgress {
+            phase: "discovering".to_string(),
+            message: "Avvio import…".to_string(),
+            current: 0,
+            total: 0,
+            error: None,
+        },
+    ));
+    {
+        let mut guard = state.corpus_import_progress.write().await;
+        guard.insert(id.clone(), sink.clone());
+    }
+
+    // Spawn the task. The progress sink lets the user poll while the
+    // worker runs; the task itself awaits on the import and stamps
+    // `done` / `error` on the sink before exiting.
+    let db = state.db.clone();
+    let corpus_id = id.clone();
+    tokio::spawn(async move {
+        let _ = crate::corpora::dila_bulk::run_import(&spec, &db, &corpus_id, Some(sink))
+            .await;
+        // The result is reflected in the progress sink; nothing more
+        // to do here. Errors are logged inside run_import.
+    });
+
+    Ok(Json(json!({
+        "started": true,
+        "already_running": false,
+    })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /corpora/:id/import-progress — live phase + counter for the bar
+// ---------------------------------------------------------------------------
+//
+// Returns null when no import has been started for this corpus in
+// the current process lifetime. The UI uses that to render the
+// "Importa ora" state vs the live progress section.
+
+async fn generic_import_progress(
+    State(state): State<Arc<AppState>>,
+    _auth: AuthUser,
+    Path(id): Path<String>,
+) -> ApiResult {
+    let guard = state.corpus_import_progress.read().await;
+    let Some(sink) = guard.get(&id).cloned() else {
+        return Ok(Json(serde_json::Value::Null));
+    };
+    drop(guard);
+    let progress = sink.read().await.clone();
+    let value = serde_json::to_value(progress)
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(value))
 }

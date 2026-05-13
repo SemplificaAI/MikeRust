@@ -137,6 +137,15 @@ pub struct AppState {
     /// migrate here when we converge on generic routes.
     pub corpus_adapters:
         Arc<crate::corpora::manifest_adapter::AdapterRegistry>,
+
+    /// Live progress for in-flight bulk imports, keyed by corpus id.
+    /// Spawned by POST `/corpora/:id/import`, polled by GET
+    /// `/corpora/:id/import-progress`. A `phase=="error"` entry
+    /// sticks until the next import overwrites it so the UI can
+    /// surface the message after the user looks away.
+    pub corpus_import_progress: Arc<
+        RwLock<HashMap<String, Arc<RwLock<crate::corpora::dila_bulk::ImportProgress>>>>,
+    >,
 }
 
 impl AppState {
@@ -238,6 +247,7 @@ impl AppState {
             scans: Arc::new(RwLock::new(HashMap::new())),
             corpus_plugins: Arc::new(corpus_plugins),
             corpus_adapters: Arc::new(corpus_adapters),
+            corpus_import_progress: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 

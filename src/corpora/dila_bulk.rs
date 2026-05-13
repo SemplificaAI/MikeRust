@@ -343,7 +343,78 @@ fn collapse_body(raw: &str) -> String {
 use flate2::read::GzDecoder;
 use sqlx::SqlitePool;
 use std::io::Read;
+use std::sync::Arc;
 use tar::Archive;
+use tokio::sync::RwLock;
+
+/// Live progress for an in-flight bulk import. Updated by
+/// `run_import` at each phase and shared via
+/// `AppState::corpus_import_progress` (keyed by corpus id) so the
+/// frontend can poll `/corpora/:id/import-progress`.
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportProgress {
+    /// "discovering" | "downloading" | "extracting" | "inserting" |
+    /// "done" | "error". UI maps these to messages and decides
+    /// between determinate (progress bar) and indeterminate
+    /// (spinner) rendering.
+    pub phase: String,
+    /// Human-readable label for the current step. UI surfaces it
+    /// verbatim alongside the bar.
+    pub message: String,
+    /// Current item count inside the phase ("12 of 1247 docs
+    /// inserted"). Zero when the phase has no countable steps
+    /// (discovering, downloading).
+    pub current: usize,
+    /// Total item count, when known. Zero when unknown — the UI
+    /// then falls back to indeterminate rendering.
+    pub total: usize,
+    /// Set only when `phase == "error"`. Error message surfaced to
+    /// the user. The phase stays "error" until the next import
+    /// kicks off.
+    #[serde(default)]
+    pub error: Option<String>,
+}
+
+impl Default for ImportProgress {
+    fn default() -> Self {
+        Self {
+            phase: "idle".to_string(),
+            message: String::new(),
+            current: 0,
+            total: 0,
+            error: None,
+        }
+    }
+}
+
+/// Shared sink the route handler hands to `run_import`. Wrapped in
+/// `Option` so `run_import` can be called without progress tracking
+/// from tests or one-shot CLI paths.
+pub type ProgressSink = Arc<RwLock<ImportProgress>>;
+
+async fn set_phase(
+    sink: Option<&ProgressSink>,
+    phase: &str,
+    message: &str,
+    current: usize,
+    total: usize,
+) {
+    let Some(s) = sink else { return };
+    let mut g = s.write().await;
+    g.phase = phase.to_string();
+    g.message = message.to_string();
+    g.current = current;
+    g.total = total;
+    g.error = None;
+}
+
+async fn set_error(sink: Option<&ProgressSink>, err: &str) {
+    let Some(s) = sink else { return };
+    let mut g = s.write().await;
+    g.phase = "error".to_string();
+    g.message = "Import failed".to_string();
+    g.error = Some(err.to_string());
+}
 
 /// Outcome of a single import pass. Returned to the route handler
 /// for the API response and recorded in `corpus_imports`.
@@ -499,6 +570,7 @@ pub async fn extract_and_index(
     db: &SqlitePool,
     corpus_id: &str,
     archive_ts: &str,
+    progress: Option<ProgressSink>,
 ) -> Result<(usize, usize, usize)> {
     // Step 1 (synchronous, in a blocking section): walk the tar.gz,
     // parse every XML, collect a Vec<DilaDocument>. Kept off the
@@ -548,6 +620,14 @@ pub async fn extract_and_index(
         .context("spawn_blocking join")??;
 
     // Step 2 (async): single transaction, insert every parsed doc.
+    set_phase(
+        progress.as_ref(),
+        "inserting",
+        "Indicizzazione locale…",
+        0,
+        docs.len(),
+    )
+    .await;
     let mut tx = db.begin().await.context("begin tx")?;
     let mut inserted = 0usize;
     for doc in &docs {
@@ -555,6 +635,18 @@ pub async fn extract_and_index(
             .await
             .with_context(|| format!("insert {} ({corpus_id})", doc.id))?;
         inserted += 1;
+        // Throttle progress writes: one update per 50 docs is plenty
+        // for a smooth bar without contention on the RwLock.
+        if inserted.is_multiple_of(50) {
+            set_phase(
+                progress.as_ref(),
+                "inserting",
+                "Indicizzazione locale…",
+                inserted,
+                docs.len(),
+            )
+            .await;
+        }
     }
     tx.commit().await.context("commit tx")?;
 
@@ -708,10 +800,35 @@ pub async fn run_import(
     spec: &DilaBulkXmlSpec,
     db: &SqlitePool,
     corpus_id: &str,
+    progress: Option<ProgressSink>,
+) -> Result<ImportStats> {
+    // Wrap the body so we can stamp `error` on the progress sink on
+    // any short-circuit. This is more reliable than scattered
+    // set_error calls — every Err exits through this branch.
+    let result = run_import_inner(spec, db, corpus_id, progress.clone()).await;
+    if let Err(e) = &result {
+        set_error(progress.as_ref(), &format!("{e:#}")).await;
+    }
+    result
+}
+
+async fn run_import_inner(
+    spec: &DilaBulkXmlSpec,
+    db: &SqlitePool,
+    corpus_id: &str,
+    progress: Option<ProgressSink>,
 ) -> Result<ImportStats> {
     let client = dila_http_client()?;
     let started = std::time::Instant::now();
 
+    set_phase(
+        progress.as_ref(),
+        "discovering",
+        "Ricerca dell'archivio più recente…",
+        0,
+        0,
+    )
+    .await;
     let (archive_url, archive_ts) = find_latest_archive(
         &client,
         &spec.archive_index_url,
@@ -729,6 +846,14 @@ pub async fn run_import(
                 "[dila] {corpus_id}: archive {} already imported, skipping",
                 archive_url
             );
+            set_phase(
+                progress.as_ref(),
+                "done",
+                "Già al giorno (stesso snapshot).",
+                0,
+                0,
+            )
+            .await;
             return Ok(ImportStats {
                 archive_url,
                 archive_ts,
@@ -740,19 +865,45 @@ pub async fn run_import(
         }
     }
 
+    set_phase(
+        progress.as_ref(),
+        "downloading",
+        &format!("Scarico {}…", archive_url.rsplit('/').next().unwrap_or(&archive_url)),
+        0,
+        0,
+    )
+    .await;
     let bytes = download_archive(&client, &archive_url).await?;
+
+    set_phase(
+        progress.as_ref(),
+        "extracting",
+        "Estrazione e parsing XML…",
+        0,
+        0,
+    )
+    .await;
     let (xml_files, inserted, parse_errors) =
-        extract_and_index(&bytes, db, corpus_id, &archive_ts).await?;
+        extract_and_index(&bytes, db, corpus_id, &archive_ts, progress.clone()).await?;
     record_import(db, corpus_id, &archive_url, &archive_ts).await?;
 
-    Ok(ImportStats {
+    let stats = ImportStats {
         archive_url,
         archive_ts,
         xml_files,
         inserted,
         parse_errors,
         elapsed_secs: started.elapsed().as_secs_f64(),
-    })
+    };
+    set_phase(
+        progress.as_ref(),
+        "done",
+        &format!("{} documenti indicizzati.", stats.inserted),
+        stats.inserted,
+        stats.inserted,
+    )
+    .await;
+    Ok(stats)
 }
 
 #[cfg(test)]
