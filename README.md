@@ -107,14 +107,22 @@ is one translation file plus an entry in the `locales` array of
 # Download from https://github.com/bblanchon/pdfium-binaries/releases
 # Place pdfium.dll / libpdfium.so / libpdfium.dylib in libs/pdfium/
 
-# 2. Backend env
+# 2. onnxruntime (embeddings via the RAG feature)
+# Download the variant matching your hardware (CPU / DirectML / CUDA / CoreML / …)
+# from https://github.com/microsoft/onnxruntime/releases and place the
+# onnxruntime.dll / libonnxruntime.so / libonnxruntime.dylib under the
+# matching libs/onnxruntime/<platform>/ subfolder. The full recipe per
+# variant is in libs/onnxruntime/README.md. ort is built with
+# `load-dynamic` — no statically-linked runtime, no system DLL fallback.
+
+# 3. Backend env
 cp .env.example .env
 # Edit .env: set JWT_SECRET. STORAGE_PATH, DATABASE_URL etc. have sensible defaults.
 
-# 3. Install frontend deps + Tauri CLI (one-shot)
+# 4. Install frontend deps + Tauri CLI (one-shot)
 cd frontend && npm install && cd ..
 
-# 4. Run dev (Tauri shell + axum backend + Next.js frontend)
+# 5. Run dev (Tauri shell + axum backend + Next.js frontend)
 # Use the Tauri CLI binary that npm placed under frontend/node_modules/ —
 # no global `cargo install` required, and the version stays pinned to
 # what package.json declares.
@@ -294,10 +302,11 @@ See `.env.example` for the full reference.
 | Variable | Required | Default |
 |---|---|---|
 | `JWT_SECRET` | **yes** | — |
-| `DATABASE_URL` | no | `sqlite://data/db/mike.db` |
-| `STORAGE_PATH` | no | `./data/storage` |
+| `DATABASE_URL` | no | `sqlite:<USERPROFILE>/mikerust-data/mike.db` |
+| `STORAGE_PATH` | no | `%USERPROFILE%/mikerust-data/storage` |
 | `FASTEMBED_CACHE_DIR` | no | `%USERPROFILE%/mikerust-data/fastembed` |
 | `PDFIUM_DYNAMIC_LIB_PATH` | no | walks ancestors of cwd / exe for `libs/pdfium/` |
+| `ORT_DYLIB_PATH` | no | walks ancestors for `libs/onnxruntime/<platform>/` (see [`libs/onnxruntime/README.md`](libs/onnxruntime/README.md)) |
 | `PORT` | no | `0` (OS picks a free high port — see Architecture) |
 | `VLLM_BASE_URL` | for local LLM | — |
 | `VLLM_API_KEY` | no | `local` |

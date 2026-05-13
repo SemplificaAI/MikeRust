@@ -758,11 +758,12 @@ async fn download_one(
 /// Assemble the ONNX Runtime execution-provider list, in fallback
 /// order, based on which hardware-accel features were compiled in.
 ///
-/// Order: QNN (Qualcomm Hexagon NPU) → DirectML (Windows GPUs) → CPU.
-/// Each provider declares whether it's `supported_by_platform()` at
-/// `register()` time — ort silently skips any whose runtime DLLs
-/// aren't available, so it's safe to ship a binary built with
-/// `rag-qnn` enabled even on machines without the Qualcomm SDK.
+/// Order is best-to-worst-fallback: NPU-class providers first, then
+/// GPU, then optimised-CPU, with the implicit CPU EP picking up the
+/// remainder. ort calls each provider's `supported_by_platform()` at
+/// `register()` time and silently skips any whose backend DLLs aren't
+/// loadable — so it's safe to ship a binary built with every EP
+/// enabled and let the host machine self-select.
 ///
 /// Empty vec means "CPU only" (the ort default).
 #[cfg(feature = "rag")]
@@ -771,13 +772,12 @@ fn build_execution_providers()
     #[allow(unused_mut)]
     let mut out: Vec<ort::execution_providers::ExecutionProviderDispatch> = Vec::new();
 
+    // ── NPU class ─────────────────────────────────────────────────
     #[cfg(feature = "rag-qnn")]
     {
         // Hexagon NPU on Snapdragon X Elite / 8 Gen 3 / etc.
-        // The HTP backend DLL (`QnnHtp.dll`) must be on PATH; falls
-        // back to CPU if the Qualcomm AI Engine Direct SDK isn't
-        // installed. fp16 precision keeps the model small enough to
-        // fit in NPU memory and roughly doubles throughput vs fp32.
+        // `QnnHtp.dll` must be reachable; fp16 halves memory and ~2x
+        // throughput vs fp32.
         out.push(
             ort::ep::QNN::default()
                 .with_backend_path("QnnHtp.dll")
@@ -785,14 +785,101 @@ fn build_execution_providers()
                 .build(),
         );
     }
+    #[cfg(feature = "rag-cann")]
+    {
+        // Huawei Ascend NPU.
+        out.push(ort::ep::CANN::default().build());
+    }
+    #[cfg(feature = "rag-nnapi")]
+    {
+        // Android Neural Networks API — no-op on desktop targets, but
+        // harmless to leave compiled in.
+        out.push(ort::ep::NNAPI::default().build());
+    }
+    #[cfg(feature = "rag-rknpu")]
+    {
+        // Rockchip RK3588 / RK3568 NPU.
+        out.push(ort::ep::RKNPU::default().build());
+    }
+    #[cfg(feature = "rag-vitis")]
+    {
+        // AMD/Xilinx Vitis AI FPGA.
+        out.push(ort::ep::Vitis::default().build());
+    }
 
+    // ── GPU class ─────────────────────────────────────────────────
+    #[cfg(feature = "rag-tensorrt")]
+    {
+        // NVIDIA TensorRT — graph optimiser on top of CUDA. Listed
+        // before plain CUDA so ort prefers it when both are available.
+        out.push(ort::ep::TensorRT::default().build());
+    }
+    #[cfg(feature = "rag-cuda")]
+    {
+        out.push(ort::ep::CUDA::default().build());
+    }
+    #[cfg(feature = "rag-migraphx")]
+    {
+        // AMD MIGraphX — graph optimiser on top of ROCm.
+        out.push(ort::ep::MIGraphX::default().build());
+    }
+    #[cfg(feature = "rag-rocm")]
+    {
+        out.push(ort::ep::ROCm::default().build());
+    }
     #[cfg(feature = "rag-directml")]
     {
-        // DirectML — works on any DX12 GPU on Windows. On the
-        // Snapdragon X Elite it lights up the Adreno X1 GPU; on Intel
-        // Arc / NVIDIA / AMD desktops it picks up the integrated or
-        // discrete GPU automatically.
+        // DirectML — any DX12 GPU on Windows (Adreno X1, Iris, Radeon,
+        // GeForce). Picks up the most capable adapter automatically.
         out.push(ort::ep::DirectML::default().build());
+    }
+    #[cfg(feature = "rag-coreml")]
+    {
+        // Apple Silicon ANE / GPU. Best perf on M-series.
+        out.push(ort::ep::CoreML::default().build());
+    }
+    #[cfg(feature = "rag-webgpu")]
+    {
+        // WebGPU via WGPU/Dawn — cross-platform GPU acceleration where
+        // none of the vendor-specific EPs is available.
+        out.push(ort::ep::WebGPU::default().build());
+    }
+    #[cfg(feature = "rag-openvino")]
+    {
+        // Intel CPU / iGPU / Movidius VPU.
+        out.push(ort::ep::OpenVINO::default().build());
+    }
+
+    // ── Optimised CPU class ───────────────────────────────────────
+    #[cfg(feature = "rag-onednn")]
+    {
+        // Intel oneDNN — CPU-side optimised kernels.
+        out.push(ort::ep::OneDNN::default().build());
+    }
+    #[cfg(feature = "rag-acl")]
+    {
+        // ARM Compute Library.
+        out.push(ort::ep::ACL::default().build());
+    }
+    // NOTE: Arm NN was removed from upstream ONNX Runtime — use ACL,
+    // XNNPACK, or the Kleidi-optimised CPU EP instead. The `rag-armnn`
+    // cargo feature has been retired accordingly.
+    #[cfg(feature = "rag-xnnpack")]
+    {
+        // Google XNNPACK — mobile / low-end CPU optimisation.
+        out.push(ort::ep::XNNPACK::default().build());
+    }
+    #[cfg(feature = "rag-tvm")]
+    {
+        // Apache TVM.
+        out.push(ort::ep::TVM::default().build());
+    }
+
+    // ── Service class ─────────────────────────────────────────────
+    #[cfg(feature = "rag-azure")]
+    {
+        // Azure-attached EPs (cognitive-services off-load).
+        out.push(ort::ep::Azure::default().build());
     }
 
     out
@@ -802,6 +889,150 @@ fn build_execution_providers()
 #[allow(dead_code)]
 fn build_execution_providers() -> Vec<()> {
     Vec::new()
+}
+
+/// Resolve the on-disk path to `onnxruntime.dll` (Windows) /
+/// `libonnxruntime.{so,dylib}` (Linux/macOS) and export it via
+/// `ORT_DYLIB_PATH` so the `ort` crate's `load-dynamic` mode picks it
+/// up. Mirrors the discovery walk used for pdfium so dev runs (cwd =
+/// workspace root) and bundled runs (cwd = src-tauri/) both work.
+///
+/// Search order (first hit wins):
+///   1. `$ORT_DYLIB_PATH` already set (explicit override — respected).
+///   2. `<exe_dir>/libs/onnxruntime/<platform>/`
+///   3. `<cwd>/libs/onnxruntime/<platform>/`
+///   4. Each ancestor of `<cwd>` ending in
+///      `libs/onnxruntime/<platform>/`, up to filesystem root.
+///   5. Each ancestor of `<exe_dir>` ending in same.
+///
+/// `<platform>` is one of `win-x64`, `win-arm64`, `linux-x64`,
+/// `linux-aarch64`, `macos-x64`, `macos-arm64`. We pick the one
+/// matching the current process's compile target.
+///
+/// On failure: logs a loud warning and returns without setting the
+/// env var. Subsequent ort calls will then fail with a clear "library
+/// not found" error pointing at the README, which is better than a
+/// silent fallback to a system DLL.
+///
+/// Safety note: we keep the DLL *inside* the project tree on purpose
+/// — no PATH search, no `LoadLibrary` against the system32 onnxruntime,
+/// no surprise version mismatches across machines.
+#[cfg(feature = "rag")]
+pub fn ensure_onnxruntime_dylib_path() {
+    if std::env::var_os("ORT_DYLIB_PATH").is_some() {
+        tracing::info!(
+            "[rag] ORT_DYLIB_PATH already set — honouring explicit override"
+        );
+        return;
+    }
+
+    let (dir, file) = onnxruntime_subdir_and_filename();
+
+    fn try_dir(
+        base: &std::path::Path,
+        sub: &str,
+        file: &str,
+    ) -> Option<PathBuf> {
+        let candidate = base
+            .join("libs")
+            .join("onnxruntime")
+            .join(sub)
+            .join(file);
+        if candidate.is_file() {
+            Some(candidate)
+        } else {
+            None
+        }
+    }
+
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|x| x.to_path_buf()));
+    let cwd = std::env::current_dir().ok();
+
+    let mut resolved: Option<PathBuf> = None;
+    for base in exe_dir.iter().chain(cwd.iter()) {
+        if let Some(p) = try_dir(base, dir, file) {
+            resolved = Some(p);
+            break;
+        }
+    }
+    if resolved.is_none() {
+        for base in cwd.iter().chain(exe_dir.iter()) {
+            for anc in base.ancestors() {
+                if let Some(p) = try_dir(anc, dir, file) {
+                    resolved = Some(p);
+                    break;
+                }
+            }
+            if resolved.is_some() {
+                break;
+            }
+        }
+    }
+
+    match resolved {
+        Some(path) => {
+            tracing::info!(
+                "[rag] loading onnxruntime from {} (load-dynamic)",
+                path.display()
+            );
+            // SAFETY: single-threaded process startup before the ort
+            // crate observes the env var — no concurrent reads of
+            // std::env::set_var to race with.
+            unsafe {
+                std::env::set_var("ORT_DYLIB_PATH", &path);
+            }
+        }
+        None => {
+            tracing::warn!(
+                "[rag] onnxruntime DLL not found in libs/onnxruntime/{}/{} \
+                 (searched cwd + exe ancestors). \
+                 The first embed call will fail. See libs/onnxruntime/README.md.",
+                dir,
+                file,
+            );
+        }
+    }
+}
+
+#[cfg(not(feature = "rag"))]
+#[allow(dead_code)]
+pub fn ensure_onnxruntime_dylib_path() {}
+
+/// Resolve `(subdirectory, filename)` for the bundled onnxruntime DLL
+/// based on the current build target. Subdirectories are kept separate
+/// so `libs/onnxruntime/` can carry multiple platform builds side-by-
+/// side (useful for cross-compiled distributions and bisecting EP
+/// support between vendor variants).
+#[cfg(feature = "rag")]
+fn onnxruntime_subdir_and_filename() -> (&'static str, &'static str) {
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    {
+        return ("win-x64", "onnxruntime.dll");
+    }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    {
+        return ("win-arm64", "onnxruntime.dll");
+    }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    {
+        return ("linux-x64", "libonnxruntime.so");
+    }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    {
+        return ("linux-aarch64", "libonnxruntime.so");
+    }
+    #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+    {
+        return ("macos-x64", "libonnxruntime.dylib");
+    }
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        return ("macos-arm64", "libonnxruntime.dylib");
+    }
+    #[allow(unreachable_code)]
+    ("unknown", "onnxruntime")
 }
 
 /// Pack `Vec<f32>` as little-endian bytes — sqlite-vec's BLOB format.

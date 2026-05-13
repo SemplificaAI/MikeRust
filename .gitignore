@@ -84,6 +84,27 @@ src-tauri/libs/pdfium/
 pdfium-*.tgz
 pdfium-*.zip
 
+# ─── onnxruntime DLLs ───────────────────────────────────────────────
+# Same pattern as pdfium: the runtime libraries are NEVER committed,
+# each contributor fetches the variant matching their target and EP
+# selection. See libs/onnxruntime/README.md for the layout and
+# download recipes. The directory structure (one subfolder per
+# platform) IS tracked so the README is discoverable from git.
+libs/onnxruntime/**/onnxruntime.dll
+libs/onnxruntime/**/libonnxruntime.so
+libs/onnxruntime/**/libonnxruntime.dylib
+libs/onnxruntime/**/DirectML.dll
+libs/onnxruntime/**/onnxruntime_providers_*.dll
+libs/onnxruntime/**/Qnn*.dll
+libs/onnxruntime/**/*.so.*
+libs/onnxruntime/**/*.lib
+libs/onnxruntime/**/*.pdb
+libs/onnxruntime/**/*.exp
+# Archives from microsoft/onnxruntime releases.
+onnxruntime-*.tgz
+onnxruntime-*.zip
+onnxruntime-*.nupkg
+
 # ─── Secrets ────────────────────────────────────────────────────────
 .env
 .env.local

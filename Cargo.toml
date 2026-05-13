@@ -45,13 +45,31 @@ sha2 = "0.10"
 # variant (768 dims, 512 max tokens) which works well for IT/EN legal
 # text. Optional feature gate so devs without ort/onnxruntime libs can
 # still build the rest of MikeRust.
-fastembed = { version = "5", optional = true }
+#
+# `default-features = false` disables fastembed's auto-download of
+# pre-built onnxruntime binaries. We point ort at our own
+# `libs/onnxruntime/` instead (see ort dep below + the `ort-load-dynamic`
+# fastembed feature). This keeps the runtime DLL under direct project
+# control — no system-wide onnxruntime, no statically-linked variant
+# baked into the binary.
+fastembed = { version = "5", optional = true, default-features = false, features = [
+    "hf-hub-native-tls",
+    "image-models",
+    "ort-load-dynamic",
+] }
 # Direct dep on the same ort version fastembed pulls transitively, so
-# we can configure execution providers (DirectML on Windows GPUs, QNN
-# on Qualcomm Snapdragon NPUs) without forking fastembed. Cargo
+# we can configure execution providers without forking fastembed. Cargo
 # deduplicates: there's still a single ort 2.0.0-rc.12 in the build,
-# our features just merge into fastembed's existing feature set.
-ort = { version = "=2.0.0-rc.12", optional = true, default-features = false }
+# our features merge into fastembed's existing feature set.
+#
+# `load-dynamic` is non-negotiable: onnxruntime.dll lives in
+# `libs/onnxruntime/<platform>/` and is loaded at runtime via
+# `ORT_DYLIB_PATH`. No static link, no fallback to a system DLL —
+# the platform is what we ship, period.
+ort = { version = "=2.0.0-rc.12", optional = true, default-features = false, features = [
+    "std",
+    "load-dynamic",
+] }
 # Vector store via the sqlite-vec extension. Same SQLite file as the
 # rest of MikeRust (mike.db) — atomic transactions, single backup,
 # no extra daemon, no protoc. Brute-force cosine in C with SIMD;
@@ -177,27 +195,114 @@ rag = [
     "dep:ignore",
 ]
 # Hardware-accelerated embedding inference via ONNX Runtime execution
-# providers. Strictly opt-in — the default `rag` build uses CPU only,
-# which is portable but slower on batch indexing.
+# providers (EPs). All are strictly opt-in — the default `rag` build
+# uses CPU only, which is portable but slower on batch indexing.
 #
-#   --features rag-directml  Windows GPU (Adreno X1, Iris, Radeon, …)
-#                            via DirectML 1.x. Works on any DX12 device,
-#                            no extra SDK needed beyond what Windows
-#                            already ships.
+# Every EP feature is compatible with `load-dynamic` (ort doesn't try
+# to compile against the vendor SDK; the runtime onnxruntime.dll in
+# `libs/onnxruntime/<platform>/` provides the actual EP implementation).
+# A provider whose backend DLL isn't loadable at runtime is silently
+# skipped by ort — so it's safe to ship a binary with every EP enabled
+# even on a machine that only has DirectML available.
 #
-#   --features rag-qnn       Qualcomm Snapdragon NPU (Hexagon) on
-#                            Snapdragon X Elite / 8 Gen 3 / etc. via
-#                            QNN HTP backend. REQUIRES the Qualcomm AI
-#                            Engine Direct SDK installed and the
-#                            backend DLL on PATH (`QnnHtp.dll` on
-#                            Windows ARM64). Without the SDK the
-#                            provider falls back to CPU at runtime.
+# Build size and link-time cost are negligible because `load-dynamic`
+# bypasses ort-sys' build script: enabling every EP roughly doubles
+# the size of the Rust glue, not the binary.
 #
-# Both can be enabled together — the service tries them in this order:
-# QNN → DirectML → CPU, and ort silently skips any provider whose DLLs
-# aren't loadable on the current machine.
-rag-directml = ["dep:ort", "ort/directml"]
-rag-qnn = ["dep:ort", "ort/qnn"]
+# Quick reference (which EP for what):
+#   directml   Windows GPU (Adreno, Iris, Radeon, GeForce — any DX12)
+#   cuda       NVIDIA GPUs (Pascal+, requires CUDA-built onnxruntime.dll)
+#   tensorrt   NVIDIA, INT8/FP16 graph optimisation on top of cuda
+#   openvino   Intel CPU/iGPU/Movidius VPU
+#   onednn     Intel oneDNN (CPU-side optimised kernels)
+#   coreml     Apple Silicon ANE / GPU on macOS
+#   rocm       AMD ROCm (Linux + Windows discrete cards)
+#   migraphx   AMD MIGraphX (graph optimiser on top of rocm)
+#   qnn        Qualcomm Hexagon NPU (Snapdragon X Elite, 8 Gen 3, …)
+#   cann       Huawei Ascend NPU
+#   acl        ARM Compute Library
+#   armnn      Arm NN
+#   vitis      AMD/Xilinx Vitis AI FPGA
+#   azure      Azure Cognitive Services attached EPs
+#   nnapi      Android Neural Networks API
+#   rknpu      Rockchip RK3588 / RK3568 NPU
+#   tvm        Apache TVM
+#   webgpu     WGPU/Dawn (cross-platform via WebGPU)
+#   xnnpack    Google XNNPACK (mobile CPU optimisation)
+#
+# Convenience umbrellas at the bottom — pick a platform pack or
+# `rag-accel-all` to enable every EP at once.
+rag-acl       = ["dep:ort", "ort/acl"]
+rag-azure     = ["dep:ort", "ort/azure"]
+rag-cann      = ["dep:ort", "ort/cann"]
+rag-coreml    = ["dep:ort", "ort/coreml"]
+rag-cuda      = ["dep:ort", "ort/cuda"]
+rag-directml  = ["dep:ort", "ort/directml"]
+rag-migraphx  = ["dep:ort", "ort/migraphx"]
+rag-nnapi     = ["dep:ort", "ort/nnapi"]
+rag-onednn    = ["dep:ort", "ort/onednn"]
+rag-openvino  = ["dep:ort", "ort/openvino"]
+rag-qnn       = ["dep:ort", "ort/qnn"]
+rag-rknpu     = ["dep:ort", "ort/rknpu"]
+rag-rocm      = ["dep:ort", "ort/rocm"]
+rag-tensorrt  = ["dep:ort", "ort/tensorrt"]
+rag-tvm       = ["dep:ort", "ort/tvm"]
+rag-vitis     = ["dep:ort", "ort/vitis"]
+rag-webgpu    = ["dep:ort", "ort/webgpu"]
+rag-xnnpack   = ["dep:ort", "ort/xnnpack"]
+
+# Platform packs — every EP that's actually useful on that OS family.
+# These are unions, not exclusive: enabling `rag-accel-windows` does
+# not preclude also enabling `rag-coreml` for a Mac cross-build.
+rag-accel-windows = [
+    "rag-directml",
+    "rag-cuda",
+    "rag-tensorrt",
+    "rag-openvino",
+    "rag-onednn",
+    "rag-qnn",
+    "rag-xnnpack",
+    "rag-webgpu",
+]
+rag-accel-linux = [
+    "rag-cuda",
+    "rag-tensorrt",
+    "rag-openvino",
+    "rag-onednn",
+    "rag-rocm",
+    "rag-migraphx",
+    "rag-xnnpack",
+    "rag-webgpu",
+]
+rag-accel-macos = [
+    "rag-coreml",
+    "rag-xnnpack",
+    "rag-webgpu",
+]
+
+# Everything ort 2.0.0-rc.12 supports. Build size impact: ~negligible
+# with `load-dynamic` (no vendor SDKs linked). Runtime: every EP that
+# fails to find its backend DLL is skipped, so this never crashes.
+rag-accel-all = [
+    "rag-acl",
+    "rag-azure",
+    "rag-cann",
+    "rag-coreml",
+    "rag-cuda",
+    "rag-directml",
+    "rag-migraphx",
+    "rag-nnapi",
+    "rag-onednn",
+    "rag-openvino",
+    "rag-qnn",
+    "rag-rknpu",
+    "rag-rocm",
+    "rag-tensorrt",
+    "rag-tvm",
+    "rag-vitis",
+    "rag-webgpu",
+    "rag-xnnpack",
+]
 
 # ------------------------------------------------------------------
 # pdfium DLL path — bundled alongside the binary

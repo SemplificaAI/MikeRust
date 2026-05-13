@@ -12,6 +12,90 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-14 — ONNX Runtime: load-dynamic + every execution provider
+
+The embeddings pipeline switches from the statically-baked
+onnxruntime that fastembed used to ship to a fully **load-dynamic**
+setup, with all 18 execution providers ort exposes now available
+behind cargo feature flags.
+
+### Changed — ONNX Runtime loading
+
+- **`ort/load-dynamic` everywhere** — the onnxruntime native library
+  is no longer downloaded by fastembed at build time and no longer
+  statically linked into the binary. Instead the runtime DLL lives in
+  `libs/onnxruntime/<platform>/` (vendored locally to the project, the
+  same pattern already used for pdfium) and is loaded at process
+  start via `ORT_DYLIB_PATH`. Three motivations:
+  *(a)* reproducibility — the runtime version we test against is the
+  one we ship; *(b)* sovereignty — no implicit dependency on whatever
+  `onnxruntime.dll` lives in `system32`; *(c)* security — no
+  `LoadLibrary` against the system search path means no DLL-hijack
+  surface where a poisoned onnxruntime on PATH could be picked up
+  before ours.
+- **`ensure_onnxruntime_dylib_path()`** in
+  [`src/embeddings/service.rs`](src/embeddings/service.rs) — the
+  startup hook called from `run_server_with_channels()` before
+  AppState is constructed. Walks cwd and exe ancestors looking for
+  `libs/onnxruntime/<platform>/{onnxruntime.dll | libonnxruntime.so
+  | libonnxruntime.dylib}` and exports the absolute path via
+  `ORT_DYLIB_PATH`. Mirrors the pdfium discovery walk so dev runs
+  (cwd = workspace root) and bundled runs (cwd = `src-tauri/`) both
+  work without extra config.
+- **`fastembed`** is now pulled in with `default-features = false`
+  and only the `hf-hub-native-tls`, `image-models`,
+  `ort-load-dynamic` features turned on — the previous default
+  brought in `ort/download-binaries` which baked a CPU-only
+  onnxruntime into every release build.
+
+### Added — every ort execution provider as a cargo feature
+
+Each ONNX Runtime execution provider exposed by ort 2.0.0-rc.12 now
+has its own `rag-<ep>` cargo feature. Enabling a feature only
+toggles the Rust API surface — the actual EP code lives in the
+runtime DLL the user drops into `libs/onnxruntime/<platform>/`, so a
+binary built with `--features rag-accel-all` works on a machine that
+only has the CPU build of onnxruntime (ort silently skips providers
+whose backend DLLs aren't loadable).
+
+- **NPU class:** `rag-qnn` (Qualcomm Hexagon), `rag-cann`
+  (Huawei Ascend), `rag-nnapi` (Android NN API), `rag-rknpu`
+  (Rockchip), `rag-vitis` (AMD/Xilinx FPGA).
+- **GPU class:** `rag-tensorrt`, `rag-cuda` (NVIDIA),
+  `rag-migraphx`, `rag-rocm` (AMD), `rag-directml` (DX12 on
+  Windows), `rag-coreml` (Apple Silicon ANE/GPU),
+  `rag-webgpu` (cross-platform), `rag-openvino` (Intel
+  CPU/iGPU/VPU).
+- **Optimised-CPU class:** `rag-onednn` (Intel), `rag-acl` (ARM
+  Compute Library), `rag-xnnpack` (mobile-class kernels),
+  `rag-tvm` (Apache TVM).
+- **Service class:** `rag-azure` (Cognitive Services off-load).
+- **Convenience umbrellas:** `rag-accel-windows`, `rag-accel-linux`,
+  `rag-accel-macos`, and `rag-accel-all` (every EP at once).
+
+The `build_execution_providers()` helper in `src/embeddings/service.rs`
+now registers every configured provider in the canonical
+NPU → GPU → optimised-CPU → service order. ArmNN was retired
+(removed from upstream ONNX Runtime — use ACL / XNNPACK / the
+Kleidi-optimised CPU EP instead).
+
+### Added — `libs/onnxruntime/` directory layout
+
+- `libs/onnxruntime/{win-x64, win-arm64, linux-x64, linux-aarch64,
+  macos-x64, macos-arm64}/` — one subdir per platform. Tracked in
+  git as empty (`.gitkeep`) so the structure is discoverable on a
+  fresh clone, but the runtime libraries themselves are
+  **gitignored** (`*.dll`, `*.so`, `*.dylib`, `DirectML.dll`,
+  `onnxruntime_providers_*.dll`, `Qnn*.dll`, archives) — each
+  contributor fetches the variant matching their hardware.
+- `libs/onnxruntime/README.md` — full layout reference + per-EP
+  download recipes (CPU / DirectML / CUDA / TensorRT / OpenVINO /
+  QNN / CoreML / ROCm) with PowerShell quick-fetch examples.
+- README quickstart updated with a new "step 2" pointing at the
+  onnxruntime fetch flow, alongside the existing pdfium step.
+
+---
+
 ## 2026-05-13 — Plugin system, French locale, project refactor, dynamic port, migration auto-heal, domain column, JSON-preset registries, insurance vertical
 
 The big day for declarative ingestion. The medium-term goal of the
