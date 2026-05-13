@@ -224,9 +224,12 @@ See `.env.example` for the full reference.
 | MCP client (HTTP/SSE) — synchronous tools | ✅ |
 | MCP client — multi-step async flows (request → poll → fetch) | ⚠️ partial — see note below |
 | Routes: auth, user, chat, documents, projects, workflows, sync, tabular-review | ✅ |
+| Project: documents (PDF/DOCX/RTF/XLSX) + folders + versions + rename | ✅ |
+| Project: chats list, tabular-reviews list, owner/shared visibility | ✅ |
+| Project: URL `?tab=` deep-linking (documents / assistant / reviews) | ✅ |
+| Project: `.mikeprj` AES-256-GCM export + import | ✅ |
 | Chat citations with persistence | ✅ |
 | Chat-attachment hash cache + ref-counted cleanup | ✅ |
-| `.mikeprj` AES-256-GCM project export | ✅ |
 | Authoritative-corpus framework (`LegalCorpusAdapter` trait) | ✅ |
 | EUR-Lex V1 (CELEX-based fetch + 24-language picker + EN fallback) | ✅ |
 | EUR-Lex V2 (full-text search via SOAP CWS) | 🔲 [registration required](docs/EURLEX_REGISTRATION.md) |
