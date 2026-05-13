@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus, X } from "lucide-react";
-import type { ColumnConfig, ColumnFormat } from "../shared/types";
+import type { ColumnConfig, ColumnFormat, Domain } from "../shared/types";
+import { DEFAULT_DOMAIN } from "../shared/types";
 import {
     generateTabularColumnPrompt,
     listColumnPresets,
@@ -12,6 +13,8 @@ import {
 } from "@/app/lib/mikeApi";
 import { FORMAT_OPTIONS, formatLabel, formatIcon } from "../tabular/columnFormat";
 import { TAG_COLORS } from "../tabular/pillUtils";
+import { DomainSelect } from "../shared/DomainControls";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -65,14 +68,42 @@ export function WFEditColumnModal({ column, onClose, onSave, onDelete }: Props) 
         };
     }, []);
 
+    // Domain slice — same pattern as AddColumnModal. Defaults to the
+    // user's saved default_domain when the modal mounts; the inline
+    // DomainSelect in the presets popover lets the user switch on the
+    // fly. The auto-match below is scoped to the active domain.
+    const { profile } = useUserProfile();
+    const userDefaultDomain =
+        (profile?.defaultDomain as Domain | null | undefined) ?? DEFAULT_DOMAIN;
+    const [domainFilter, setDomainFilter] = useState<Domain>(userDefaultDomain);
+    useEffect(() => {
+        // Re-seed when the user updates their default in Settings.
+        setDomainFilter(userDefaultDomain);
+    }, [userDefaultDomain]);
+
+    const availableDomains: Domain[] = (() => {
+        const s = new Set<Domain>();
+        for (const p of presets) {
+            s.add(((p.domain as Domain | undefined) ?? "legal") as Domain);
+        }
+        const arr = [...s].sort();
+        return arr.length > 0 ? arr : [userDefaultDomain];
+    })();
+    const effectiveDomain: Domain = availableDomains.includes(domainFilter)
+        ? domainFilter
+        : (availableDomains[0] ?? userDefaultDomain);
+    const visiblePresets = presets.filter(
+        (p) => ((p.domain as Domain | undefined) ?? "legal") === effectiveDomain,
+    );
+
     function getPresetConfig(name: string): {
         prompt: string;
         format: ColumnFormat;
         tags?: string[];
     } | null {
         const trimmed = name.trim();
-        if (!trimmed || presets.length === 0) return null;
-        for (const p of presets) {
+        if (!trimmed || visiblePresets.length === 0) return null;
+        for (const p of visiblePresets) {
             try {
                 const rx = new RegExp(p.match_pattern, p.match_flags || "");
                 if (rx.test(trimmed)) {
@@ -215,27 +246,42 @@ export function WFEditColumnModal({ column, onClose, onSave, onDelete }: Props) 
                                     <ChevronDown className={`h-4 w-4 transition-transform ${presetsOpen ? "rotate-180" : ""}`} />
                                 </button>
                                 {presetsOpen && (
-                                    <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-100 bg-white shadow-lg overflow-y-auto max-h-64">
-                                        <button
-                                            type="button"
-                                            onClick={() => { update({ name: "", prompt: "", format: "text", tags: [], tagInput: "" }); setPresetsOpen(false); }}
-                                            className="w-full px-3 py-2 text-left text-sm text-gray-400 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                                        >
-                                            No Preset
-                                        </button>
-                                        {presets.map((preset) => (
-                                            <button
-                                                key={preset.name}
-                                                type="button"
-                                                onClick={() => {
-                                                    update({ name: preset.name, prompt: preset.prompt, format: preset.format as ColumnFormat, tags: preset.tags ?? [], tagInput: "" });
-                                                    setPresetsOpen(false);
-                                                }}
-                                                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                    <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden flex flex-col max-h-72">
+                                        {availableDomains.length > 1 && (
+                                            <div
+                                                className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center"
+                                                onClick={(e) => e.stopPropagation()}
                                             >
-                                                {preset.name}
+                                                <DomainSelect
+                                                    value={effectiveDomain}
+                                                    onChange={setDomainFilter}
+                                                    restrictTo={availableDomains}
+                                                    className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs flex-1"
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="overflow-y-auto flex-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => { update({ name: "", prompt: "", format: "text", tags: [], tagInput: "" }); setPresetsOpen(false); }}
+                                                className="w-full px-3 py-2 text-left text-sm text-gray-400 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                                            >
+                                                No Preset
                                             </button>
-                                        ))}
+                                            {visiblePresets.map((preset) => (
+                                                <button
+                                                    key={preset.name}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        update({ name: preset.name, prompt: preset.prompt, format: preset.format as ColumnFormat, tags: preset.tags ?? [], tagInput: "" });
+                                                        setPresetsOpen(false);
+                                                    }}
+                                                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                                >
+                                                    {preset.name}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>

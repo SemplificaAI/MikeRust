@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Loader2, Upload, X } from "lucide-react";
-import type { MikeDocument, MikeProject, MikeWorkflow } from "../shared/types";
+import type {
+    Domain,
+    MikeDocument,
+    MikeProject,
+    MikeWorkflow,
+} from "../shared/types";
+import { DEFAULT_DOMAIN } from "../shared/types";
 import {
     getProject,
     listProjects,
@@ -14,6 +20,8 @@ import {
     uploadStandaloneDocument,
 } from "@/app/lib/mikeApi";
 import { FileDirectory } from "../shared/FileDirectory";
+import { DomainSelect } from "../shared/DomainControls";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 
 interface Props {
     open: boolean;
@@ -75,8 +83,19 @@ export function AddNewTRModal({
     );
     const [workflowDropdownOpen, setWorkflowDropdownOpen] = useState(false);
 
+    // Domain slice for the workflow-template picker. Defaults to the
+    // user's saved default_domain every time the modal opens, then can
+    // be switched on the fly via the inline DomainSelect.
+    const { profile } = useUserProfile();
+    const userDefaultDomain =
+        (profile?.defaultDomain as Domain | null | undefined) ?? DEFAULT_DOMAIN;
+    const [domainFilter, setDomainFilter] = useState<Domain>(userDefaultDomain);
+
     useEffect(() => {
         if (!open) return;
+
+        // Reset domain filter to user default each open.
+        setDomainFilter(userDefaultDomain);
 
         setLoadingWorkflows(true);
         // /workflow now returns merged custom + system-shipped tabular
@@ -197,6 +216,24 @@ export function AddNewTRModal({
     const selectedProject = projects.find((p) => p.id === selectedProjectId);
     const selectedWorkflow = workflows.find((w) => w.id === selectedWorkflowId);
 
+    // Domains that have ≥1 tabular workflow available. Falls back to
+    // [userDefault] during the loading skeleton so the combo isn't
+    // empty before the API responds.
+    const availableDomains: Domain[] = (() => {
+        const s = new Set<Domain>();
+        for (const w of workflows) {
+            s.add(((w.domain as Domain | undefined) ?? "legal") as Domain);
+        }
+        const arr = [...s].sort();
+        return arr.length > 0 ? arr : [userDefaultDomain];
+    })();
+    const effectiveDomain: Domain = availableDomains.includes(domainFilter)
+        ? domainFilter
+        : (availableDomains[0] ?? userDefaultDomain);
+    const visibleWorkflows = workflows.filter(
+        (w) => ((w.domain as Domain | undefined) ?? "legal") === effectiveDomain,
+    );
+
     // What to show in the directory depends on mode and toggle state
     const directoryStandalone = isProjectMode
         ? (fixedProjectDocs ?? [])
@@ -302,48 +339,70 @@ export function AddNewTRModal({
                                     <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0 ml-2" />
                                 </button>
                                 {workflowDropdownOpen && !loadingWorkflows && (
-                                    <div className="absolute left-0 top-full z-20 mt-1 w-full rounded-xl border border-gray-100 bg-white shadow-lg overflow-y-auto max-h-52">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedWorkflowId(null);
-                                                setWorkflowDropdownOpen(false);
-                                            }}
-                                            className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50 ${!selectedWorkflowId ? "bg-gray-50 text-gray-900" : "text-gray-500"}`}
-                                        >
-                                            <span className="flex-1">
-                                                {t("noTemplate")}
-                                            </span>
-                                            {!selectedWorkflowId && (
-                                                <Check className="h-3.5 w-3.5 text-gray-500 shrink-0" />
-                                            )}
-                                        </button>
-                                        {workflows.length > 0 && (
-                                            <div className="border-t border-gray-100" />
+                                    <div className="absolute left-0 top-full z-20 mt-1 w-full rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden flex flex-col max-h-72">
+                                        {/* Domain combo — only rendered
+                                            when more than one vertical
+                                            has tabular templates. Clicks
+                                            inside don't close the
+                                            dropdown so the user can
+                                            switch slice without losing
+                                            their place. */}
+                                        {availableDomains.length > 1 && (
+                                            <div
+                                                className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center gap-2"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <DomainSelect
+                                                    value={effectiveDomain}
+                                                    onChange={setDomainFilter}
+                                                    restrictTo={availableDomains}
+                                                    className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs flex-1"
+                                                />
+                                            </div>
                                         )}
-                                        {workflows.map((wf) => (
+                                        <div className="overflow-y-auto flex-1">
                                             <button
-                                                key={wf.id}
                                                 type="button"
                                                 onClick={() => {
-                                                    setSelectedWorkflowId(
-                                                        wf.id,
-                                                    );
-                                                    setWorkflowDropdownOpen(
-                                                        false,
-                                                    );
+                                                    setSelectedWorkflowId(null);
+                                                    setWorkflowDropdownOpen(false);
                                                 }}
-                                                className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50 ${selectedWorkflowId === wf.id ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
+                                                className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50 ${!selectedWorkflowId ? "bg-gray-50 text-gray-900" : "text-gray-500"}`}
                                             >
-                                                <span className="flex-1 truncate">
-                                                    {wf.title}
+                                                <span className="flex-1">
+                                                    {t("noTemplate")}
                                                 </span>
-                                                {selectedWorkflowId ===
-                                                    wf.id && (
+                                                {!selectedWorkflowId && (
                                                     <Check className="h-3.5 w-3.5 text-gray-500 shrink-0" />
                                                 )}
                                             </button>
-                                        ))}
+                                            {visibleWorkflows.length > 0 && (
+                                                <div className="border-t border-gray-100" />
+                                            )}
+                                            {visibleWorkflows.map((wf) => (
+                                                <button
+                                                    key={wf.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedWorkflowId(
+                                                            wf.id,
+                                                        );
+                                                        setWorkflowDropdownOpen(
+                                                            false,
+                                                        );
+                                                    }}
+                                                    className={`w-full text-left flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-gray-50 ${selectedWorkflowId === wf.id ? "bg-gray-50 text-gray-900" : "text-gray-700"}`}
+                                                >
+                                                    <span className="flex-1 truncate">
+                                                        {wf.title}
+                                                    </span>
+                                                    {selectedWorkflowId ===
+                                                        wf.id && (
+                                                        <Check className="h-3.5 w-3.5 text-gray-500 shrink-0" />
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
                             </div>

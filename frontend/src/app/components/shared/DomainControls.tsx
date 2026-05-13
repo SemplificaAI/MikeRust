@@ -9,6 +9,12 @@ import { DOMAINS, DEFAULT_DOMAIN, type Domain } from "./types";
  * including the fallback `legal` when the parent passed `undefined`.
  * Labels come from the `Domains.values.*` namespace in the i18n
  * catalogue and update live when the user switches locale.
+ *
+ * Pass `restrictTo` to limit the dropdown to a subset of domains —
+ * typically used by picker modals to surface only the verticals that
+ * actually have ≥1 configured preset, so the user isn't offered an
+ * empty selection. When `restrictTo` is omitted, every canonical
+ * domain is shown.
  */
 export function DomainSelect({
     value,
@@ -16,14 +22,17 @@ export function DomainSelect({
     disabled,
     id,
     className,
+    restrictTo,
 }: {
     value: Domain | undefined;
     onChange: (next: Domain) => void;
     disabled?: boolean;
     id?: string;
     className?: string;
+    restrictTo?: readonly Domain[];
 }) {
     const t = useTranslations("Domains");
+    const options = restrictTo && restrictTo.length > 0 ? restrictTo : DOMAINS;
     return (
         <select
             id={id}
@@ -35,7 +44,7 @@ export function DomainSelect({
                 "w-full md:w-56 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm"
             }
         >
-            {DOMAINS.map((d) => (
+            {options.map((d) => (
                 <option key={d} value={d}>
                     {t(`values.${d}`)}
                 </option>

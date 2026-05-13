@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus, X } from "lucide-react";
-import type { ColumnConfig, ColumnFormat } from "../shared/types";
+import type { ColumnConfig, ColumnFormat, Domain } from "../shared/types";
+import { DEFAULT_DOMAIN } from "../shared/types";
 import {
     generateTabularColumnPrompt,
     listColumnPresets,
@@ -12,6 +13,8 @@ import {
 } from "@/app/lib/mikeApi";
 import { FORMAT_OPTIONS, formatLabel, formatIcon } from "./columnFormat";
 import { TAG_COLORS } from "./pillUtils";
+import { DomainSelect } from "../shared/DomainControls";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -62,8 +65,22 @@ export function AddColumnModal({ open, existingCount, onClose, onAdd, editingCol
     // silent — the dropdown just stays empty, no behaviour change for
     // users who never expand it.
     const [presets, setPresets] = useState<ColumnPresetDTO[]>([]);
+
+    // Domain slice for the column-preset suggestions. Defaults to the
+    // user's saved default_domain at each open; the inline DomainSelect
+    // in the presets popover lets the user switch on the fly. Auto-match
+    // (`getPresetConfig`) is also scoped to the active domain so a
+    // legal preset doesn't accidentally fire when the user is filling
+    // an insurance review.
+    const { profile } = useUserProfile();
+    const userDefaultDomain =
+        (profile?.defaultDomain as Domain | null | undefined) ?? DEFAULT_DOMAIN;
+    const [domainFilter, setDomainFilter] = useState<Domain>(userDefaultDomain);
+
     useEffect(() => {
         if (!open) return;
+        // Reset domain filter to user default every open.
+        setDomainFilter(userDefaultDomain);
         let cancelled = false;
         listColumnPresets()
             .then((list) => {
@@ -75,19 +92,38 @@ export function AddColumnModal({ open, existingCount, onClose, onAdd, editingCol
         return () => {
             cancelled = true;
         };
-    }, [open]);
+    }, [open, userDefaultDomain]);
+
+    // Domains that have ≥1 column preset. Falls back to [userDefault]
+    // during the loading skeleton so the combo isn't empty on cold
+    // start. The visible preset list and the auto-match are both
+    // narrowed to the selected domain.
+    const availableDomains: Domain[] = (() => {
+        const s = new Set<Domain>();
+        for (const p of presets) {
+            s.add(((p.domain as Domain | undefined) ?? "legal") as Domain);
+        }
+        const arr = [...s].sort();
+        return arr.length > 0 ? arr : [userDefaultDomain];
+    })();
+    const effectiveDomain: Domain = availableDomains.includes(domainFilter)
+        ? domainFilter
+        : (availableDomains[0] ?? userDefaultDomain);
+    const visiblePresets = presets.filter(
+        (p) => ((p.domain as Domain | undefined) ?? "legal") === effectiveDomain,
+    );
 
     /** Auto-suggest a preset when the user types a column name —
-     *  walks the loaded list, returns the first preset whose regex
-     *  matches the typed title. Null when nothing matches. */
+     *  walks the domain-scoped list, returns the first preset whose
+     *  regex matches the typed title. Null when nothing matches. */
     function getPresetConfig(name: string): {
         prompt: string;
         format: ColumnFormat;
         tags?: string[];
     } | null {
         const trimmed = name.trim();
-        if (!trimmed || presets.length === 0) return null;
-        for (const p of presets) {
+        if (!trimmed || visiblePresets.length === 0) return null;
+        for (const p of visiblePresets) {
             try {
                 const rx = new RegExp(p.match_pattern, p.match_flags || "");
                 if (rx.test(trimmed)) {
@@ -325,46 +361,61 @@ export function AddColumnModal({ open, existingCount, onClose, onAdd, editingCol
                                             />
                                         </button>
                                         {presetsOpenIndex === index && (
-                                            <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-100 bg-white shadow-lg overflow-y-auto max-h-64">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        updateColumn(index, { ...EMPTY_DRAFT });
-                                                        setPresetsOpenIndex(null);
-                                                    }}
-                                                    className="w-full px-3 py-2 text-left text-sm text-gray-400 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                                                >
-                                                    No Preset
-                                                </button>
-                                                {presets.map(
-                                                    (preset) => (
-                                                        <button
-                                                            key={preset.name}
-                                                            type="button"
-                                                            onClick={() => {
-                                                                updateColumn(
-                                                                    index,
-                                                                    {
-                                                                        name: preset.name,
-                                                                        prompt: preset.prompt,
-                                                                        format: preset.format as ColumnFormat,
-                                                                        tags:
-                                                                            preset.tags ??
-                                                                            [],
-                                                                        tagInput:
-                                                                            "",
-                                                                    },
-                                                                );
-                                                                setPresetsOpenIndex(
-                                                                    null,
-                                                                );
-                                                            }}
-                                                            className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                                        >
-                                                            {preset.name}
-                                                        </button>
-                                                    ),
+                                            <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden flex flex-col max-h-72">
+                                                {availableDomains.length > 1 && (
+                                                    <div
+                                                        className="px-3 py-2 border-b border-gray-100 bg-gray-50 flex items-center"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <DomainSelect
+                                                            value={effectiveDomain}
+                                                            onChange={setDomainFilter}
+                                                            restrictTo={availableDomains}
+                                                            className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs flex-1"
+                                                        />
+                                                    </div>
                                                 )}
+                                                <div className="overflow-y-auto flex-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            updateColumn(index, { ...EMPTY_DRAFT });
+                                                            setPresetsOpenIndex(null);
+                                                        }}
+                                                        className="w-full px-3 py-2 text-left text-sm text-gray-400 hover:bg-gray-50 transition-colors border-b border-gray-100"
+                                                    >
+                                                        No Preset
+                                                    </button>
+                                                    {visiblePresets.map(
+                                                        (preset) => (
+                                                            <button
+                                                                key={preset.name}
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    updateColumn(
+                                                                        index,
+                                                                        {
+                                                                            name: preset.name,
+                                                                            prompt: preset.prompt,
+                                                                            format: preset.format as ColumnFormat,
+                                                                            tags:
+                                                                                preset.tags ??
+                                                                                [],
+                                                                            tagInput:
+                                                                                "",
+                                                                        },
+                                                                    );
+                                                                    setPresetsOpenIndex(
+                                                                        null,
+                                                                    );
+                                                                }}
+                                                                className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                                            >
+                                                                {preset.name}
+                                                            </button>
+                                                        ),
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                     </div>

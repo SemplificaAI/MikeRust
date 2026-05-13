@@ -6,8 +6,11 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, Search, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { MikeWorkflow } from "../shared/types";
+import type { MikeWorkflow, Domain } from "../shared/types";
+import { DEFAULT_DOMAIN } from "../shared/types";
 import { listWorkflows } from "@/app/lib/mikeApi";
+import { DomainSelect } from "../shared/DomainControls";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 
 interface Props {
     open: boolean;
@@ -30,11 +33,18 @@ export function AssistantWorkflowModal({
     const tCommon = useTranslations("Common");
     const tProj = useTranslations("Projects");
     const tWf = useTranslations("Workflows");
+    const tDomains = useTranslations("Domains");
+    const { profile } = useUserProfile();
+    const userDefaultDomain =
+        (profile?.defaultDomain as Domain | null | undefined) ?? DEFAULT_DOMAIN;
     const [workflows, setWorkflows] = useState<MikeWorkflow[]>([]);
     const [loading, setLoading] = useState(false);
     const [selected, setSelected] = useState<MikeWorkflow | null>(null);
     const [search, setSearch] = useState("");
     const [rightVisible, setRightVisible] = useState(false);
+    // Domain slice — pre-selects the user's default on open. Combo
+    // surfaces only domains that have ≥1 assistant-type workflow.
+    const [domainFilter, setDomainFilter] = useState<Domain>(userDefaultDomain);
 
     useEffect(() => {
         if (!selected) {
@@ -49,6 +59,11 @@ export function AssistantWorkflowModal({
         if (!open) {
             setSelected(null);
             setSearch("");
+            // Re-seed the domain filter to the user's default every time
+            // the modal opens (the value lingers across closes otherwise
+            // and confuses the next session). Available-domain narrowing
+            // happens below once `workflows` has loaded.
+            setDomainFilter(userDefaultDomain);
             return;
         }
         // /workflow now returns merged custom + system-shipped presets,
@@ -75,9 +90,28 @@ export function AssistantWorkflowModal({
 
     if (!open) return null;
 
-    const filteredWorkflows = search
-        ? workflows.filter((w) => w.title.toLowerCase().includes(search.toLowerCase()))
-        : workflows;
+    // Build the set of domains that have ≥1 assistant workflow so the
+    // combo only offers populated slices. Sorted alphabetically for a
+    // stable order. Falls back to [userDefault] when the fetch hasn't
+    // returned yet so the combo isn't empty during the skeleton phase.
+    const availableDomains: Domain[] = (() => {
+        const s = new Set<Domain>();
+        for (const w of workflows) {
+            s.add(((w.domain as Domain | undefined) ?? "legal") as Domain);
+        }
+        const arr = [...s].sort();
+        return arr.length > 0 ? arr : [userDefaultDomain];
+    })();
+
+    const effectiveDomain: Domain = availableDomains.includes(domainFilter)
+        ? domainFilter
+        : (availableDomains[0] ?? userDefaultDomain);
+
+    const filteredWorkflows = workflows
+        .filter((w) => ((w.domain as Domain | undefined) ?? "legal") === effectiveDomain)
+        .filter((w) =>
+            search ? w.title.toLowerCase().includes(search.toLowerCase()) : true,
+        );
 
     function handleUse() {
         if (!selected) return;
@@ -130,9 +164,13 @@ export function AssistantWorkflowModal({
                     <div
                         className={`overflow-y-auto ${selected ? "w-80 shrink-0" : "flex-1"}`}
                     >
-                        {/* Search */}
-                        <div className="px-4 pt-3 pb-2 shrink-0">
-                            <div className="flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1">
+                        {/* Search + domain picker (only domains with
+                            ≥1 assistant workflow are offered). The
+                            picker defaults to the user's saved
+                            default_domain at open and persists across
+                            search keystrokes within the same session. */}
+                        <div className="px-4 pt-3 pb-2 shrink-0 flex items-center gap-2">
+                            <div className="flex-1 flex items-center gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1">
                                 <Search className="h-3 w-3 text-gray-400 shrink-0" />
                                 <input
                                     type="text"
@@ -147,6 +185,14 @@ export function AssistantWorkflowModal({
                                     </button>
                                 )}
                             </div>
+                            {availableDomains.length > 1 && (
+                                <DomainSelect
+                                    value={effectiveDomain}
+                                    onChange={setDomainFilter}
+                                    restrictTo={availableDomains}
+                                    className="rounded-md border border-gray-200 bg-white px-2 py-1 text-xs"
+                                />
+                            )}
                         </div>
 
                         {loading ? (
