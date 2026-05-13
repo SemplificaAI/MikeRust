@@ -546,7 +546,7 @@ display name. Rebuild the frontend (or wait for the dev-mode HMR pass).
 ### 11.2 Ship a built-in workflow for your domain
 
 Built-in workflows live as **JSON preset files** under
-[`workflow-presets/<domain>/`](../workflow-presets/), loaded once at
+[`config/workflow-presets/<domain>/`](../config/workflow-presets/), loaded once at
 startup by the backend and merged into the `/workflow` API response
 with `is_system: true`. The on-disk JSON is the single source of truth
 — no DB row is written, no rebuild required. To add one:
@@ -583,7 +583,7 @@ hiding per-user) or **duplicate** it to get an editable custom copy.
 ### 11.3 Ship a column-preset shortcut
 
 Same story for column presets — they live under
-[`column-presets/<domain>/<slug>.json`](../column-presets/) and feed
+[`config/column-presets/<domain>/<slug>.json`](../config/column-presets/) and feed
 the "presets dropdown" in the AddColumnModal. Each file shape:
 
 ```json

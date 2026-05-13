@@ -578,14 +578,17 @@ pub fn plugins_dir() -> PathBuf {
         }
     }
 
-    PathBuf::from("./corpora-plugins")
+    PathBuf::from("./config/corpora-plugins")
 }
 
 /// Walk from `start` up the parent chain, returning the first
-/// directory that contains a `corpora-plugins/` subdirectory.
+/// directory that contains a `config/corpora-plugins/` subtree. The
+/// `config/` consolidation groups every on-disk JSON config family
+/// (corpus plugins, workflow presets, column presets) under one
+/// top-level folder so the repo root stays tidy.
 fn walk_ancestors_for_plugins(start: &Path) -> Option<PathBuf> {
     for anc in start.ancestors() {
-        let candidate = anc.join("corpora-plugins");
+        let candidate = anc.join("config").join("corpora-plugins");
         if candidate.is_dir() {
             return Some(candidate);
         }

@@ -193,7 +193,7 @@ embed). No Rust patch, no rebuild, no per-corpus bespoke UI. The user
 keeps a fully offline mirror of the parts of public law they care about,
 under their own AGPL-licensed copy of MikeRust.
 
-The first implementation lives in [`corpora-plugins/`](corpora-plugins/)
+The first implementation lives in [`config/corpora-plugins/`](config/corpora-plugins/)
 and is documented in [docs/CORPUS_PLUGINS.md](docs/CORPUS_PLUGINS.md).
 Today three strategies are supported:
 
@@ -306,7 +306,7 @@ See `.env.example` for the full reference.
 | Italia legale V1 (Normattiva + Corte Cost via HF dataset) | ✅ |
 | Italia legale V2 (OpenGA opt-in, Cassazione, live Normattiva) | 🔲 see [CORPORA.md](docs/CORPORA.md) |
 | Italia legale V3 (regional laws, GU, ministerial decrees) | 🔲 |
-| **JSON-manifest plugin system** (`corpora-plugins/*.json`) | ✅ schema + loader + adapter registry + generic /corpora routes |
+| **JSON-manifest plugin system** (`config/corpora-plugins/*.json`) | ✅ schema + loader + adapter registry + generic /corpora routes |
 | **`dila-bulk-xml` strategy** (download tar.gz → walk XML → FTS5) | ✅ end-to-end test + live import |
 | CNIL via DILA OPENDATA (declarative plugin) | ✅ — first proof-of-concept consumer of the plugin system |
 | Other DILA fondi (LEGI, JORF, CASS, KALI) as plugins | 🔲 — same strategy, one manifest each |

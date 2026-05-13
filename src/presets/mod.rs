@@ -26,14 +26,16 @@ use std::path::{Path, PathBuf};
 /// Resolve the on-disk directory for a preset family. Lookup order:
 ///
 ///   1. `MIKE_<KIND>_PRESETS_DIR` env var (absolute path).
-///   2. Walk ancestors from CWD looking for `<kind>-presets/`.
+///   2. Walk ancestors from CWD looking for `config/<kind>-presets/`.
 ///   3. Walk ancestors from the current executable's path.
-///   4. Fallback to `./<kind>-presets`.
+///   4. Fallback to `./config/<kind>-presets`.
 ///
 /// `kind` is the lowercase prefix used both in the env var and in the
 /// directory name — `"workflow"` resolves to `MIKE_WORKFLOW_PRESETS_DIR`
-/// and `workflow-presets/`; `"column"` resolves to
-/// `MIKE_COLUMN_PRESETS_DIR` and `column-presets/`.
+/// and `config/workflow-presets/`; `"column"` resolves to
+/// `MIKE_COLUMN_PRESETS_DIR` and `config/column-presets/`. All
+/// JSON-driven config families live under the single `config/` root
+/// at the repository top level (alongside `config/corpora-plugins/`).
 pub fn presets_dir(kind: &str) -> PathBuf {
     let env_var = format!("MIKE_{}_PRESETS_DIR", kind.to_ascii_uppercase());
     let dir_name = format!("{kind}-presets");
@@ -51,12 +53,12 @@ pub fn presets_dir(kind: &str) -> PathBuf {
             return found;
         }
     }
-    PathBuf::from(format!("./{dir_name}"))
+    PathBuf::from(format!("./config/{dir_name}"))
 }
 
 fn walk_ancestors_for(start: &Path, dir_name: &str) -> Option<PathBuf> {
     for anc in start.ancestors() {
-        let candidate = anc.join(dir_name);
+        let candidate = anc.join("config").join(dir_name);
         if candidate.is_dir() {
             return Some(candidate);
         }

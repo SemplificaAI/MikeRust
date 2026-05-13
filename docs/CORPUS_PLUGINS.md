@@ -1,7 +1,7 @@
 # Corpus plugin manifests
 
 MikeRust discovers legal-corpus connectors through **JSON manifest
-files** in [`corpora-plugins/`](../corpora-plugins). One file per
+files** in [`config/corpora-plugins/`](../corpora-plugins). One file per
 corpus. The runtime parses them at startup, validates them, and
 exposes the registry to the UI (`GET /corpora`) and the chat's
 `<USER LIBRARY>` system prompt block.
@@ -16,18 +16,18 @@ AWS-WAF detection + retry-with-backoff, Italian Legal's parquet bulk
 import + HF row fetch) into a JSON DSL.
 
 When `http-fetch-per-id` and `hf-dataset-bulk` strategies land later,
-adding a new corpus becomes: drop a JSON file in `corpora-plugins/`.
+adding a new corpus becomes: drop a JSON file in `config/corpora-plugins/`.
 
 ## Layout
 
 ```
-corpora-plugins/
+config/corpora-plugins/
 ├── eurlex.json
 ├── italian-legal.json
 └── …
 ```
 
-By default the runtime scans `./corpora-plugins/` relative to the
+By default the runtime scans `./config/corpora-plugins/` relative to the
 working directory. Override with the `MIKE_CORPUS_PLUGINS_DIR`
 environment variable (useful for tests or alternative installations).
 
@@ -210,7 +210,7 @@ declarative-future strategy. Marked `runnable: false` today (the
 runtime only honours `builtin` strategies), but the manifest is the
 real shape the JSON will take once `http-fetch-per-id` lands.
 
-[`corpora-plugins/cnil.json`](../corpora-plugins/cnil.json):
+[`config/corpora-plugins/cnil.json`](../config/corpora-plugins/cnil.json):
 
 ```json
 {
@@ -269,7 +269,7 @@ Two things to notice:
 
 ### EUR-Lex
 
-[`corpora-plugins/eurlex.json`](../corpora-plugins/eurlex.json):
+[`config/corpora-plugins/eurlex.json`](../config/corpora-plugins/eurlex.json):
 
 ```json
 {
@@ -291,7 +291,7 @@ Two things to notice:
 
 ### Italian Legal Corpus
 
-[`corpora-plugins/italian-legal.json`](../corpora-plugins/italian-legal.json):
+[`config/corpora-plugins/italian-legal.json`](../config/corpora-plugins/italian-legal.json):
 
 ```json
 {
@@ -318,7 +318,7 @@ Two things to notice:
 1. Implement `LegalCorpusAdapter` for the corpus in `src/corpora/<name>.rs`.
 2. Add the builtin id to `KNOWN_BUILTINS` in
    [`src/corpora/plugin.rs`](../src/corpora/plugin.rs).
-3. Drop a manifest in `corpora-plugins/<id>.json` with
+3. Drop a manifest in `config/corpora-plugins/<id>.json` with
    `"strategy": { "kind": "builtin", "builtin_id": "<your-id>" }`.
 4. Restart MikeRust. `GET /corpora` will include the new entry,
    and the settings panel will list it.
