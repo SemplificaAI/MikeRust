@@ -29,8 +29,8 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 // ---------------------------------------------------------------------------
-// GET /user/locale  →  { locale: "it" | "en" | "fr" | null }
-// PUT /user/locale  body { locale: "it" | "en" | "fr" }
+// GET /user/locale  →  { locale: "it" | "en" | "fr" | "de" | "es" | "pt" | null }
+// PUT /user/locale  body { locale: "it" | "en" | "fr" | "de" | "es" | "pt" }
 //
 // Persists the UI locale in user_settings so the choice follows the data
 // folder rather than living only in the browser. The Next.js frontend
@@ -62,7 +62,7 @@ async fn update_locale(
     Json(body): Json<UpdateLocaleBody>,
 ) -> ApiResult {
     let normalized = match body.locale.as_str() {
-        "it" | "en" | "fr" => body.locale,
+        "it" | "en" | "fr" | "de" | "es" | "pt" => body.locale,
         _ => return Err(err(StatusCode::BAD_REQUEST, "unsupported locale")),
     };
     sqlx::query(

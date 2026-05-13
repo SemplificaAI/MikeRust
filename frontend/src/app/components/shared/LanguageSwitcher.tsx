@@ -53,6 +53,9 @@ export function LanguageSwitcher() {
         it: t("languageItalian"),
         en: t("languageEnglish"),
         fr: t("languageFrench"),
+        de: t("languageGerman"),
+        es: t("languageSpanish"),
+        pt: t("languagePortuguese"),
     };
 
     return (

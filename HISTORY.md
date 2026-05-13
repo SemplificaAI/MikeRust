@@ -283,6 +283,27 @@ by the user's `docs/insurance-workflows-plan.md`):
   (104 lines) — single source of truth is now the JSON files on
   disk under `config/`.
 
+### Added — German, Spanish, Portuguese locales (evening)
+
+- **`de.json`, `es.json`, `pt.json`** — full UI catalogues translated
+  from the English source (767 lines each, every key present, no
+  missing or extra strings). Lawyer-appropriate formal register: "Sie"
+  in German, "usted" in Spanish, European Portuguese with formal
+  pronouns. Practice-area labels and professional-domain values
+  translated to natural local conventions (e.g. "Corporate" →
+  "Gesellschaftsrecht" / "Mercantil" / "Direito Societário").
+- **English fallback chain** — `src/i18n/request.ts` now deep-merges
+  the active locale onto the English catalogue, so any string that
+  hasn't been translated in a non-English locale silently falls back
+  to English instead of rendering the literal key. Makes future
+  catalogue additions safe: drop a new key into `en.json` and the UI
+  works in all six locales immediately while translations catch up.
+- **`/user/locale` whitelist** expanded to accept `de` / `es` / `pt`
+  alongside the existing `it` / `en` / `fr`.
+- **LanguageSwitcher** picks up the three new options
+  (`Deutsch` / `Español` / `Português`) added under `Account.*` in all
+  six message files.
+
 ### Added — LLM model catalogue (evening)
 
 - **`config/model.json`** — single source of truth for the LLM
