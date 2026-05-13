@@ -1,3 +1,7 @@
+<p align="left">
+  <img src="src/assets/mikerust_logo_3x3.svg" alt="MikeRust logo" width="120" height="120">
+</p>
+
 # MikeRust
 
 Sovereign local AI document assistant — Rust+axum backend, SQLite, local filesystem storage, ONNX-based embeddings, Tauri shell, Next.js frontend (forked from [`willchen96/mike`][upstream] upstream).
