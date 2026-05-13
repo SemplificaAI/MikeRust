@@ -120,6 +120,8 @@
         "generalLink": "General",
         "groupConfig": "Configuration",
         "groupSources": "Documents & sources",
+        "comingSoonSuffix": " (coming soon)",
+        "corporaLoadFailed": "Could not load the sources list.",
         "errorPinTooShort": "New PIN must be at least 4 digits",
         "errorPinMismatch": "New PINs don't match",
         "errorWrongPin": "Current PIN is incorrect",

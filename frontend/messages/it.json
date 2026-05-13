@@ -120,6 +120,8 @@
         "generalLink": "Generali",
         "groupConfig": "Configurazione",
         "groupSources": "Documenti & fonti",
+        "comingSoonSuffix": " (in arrivo)",
+        "corporaLoadFailed": "Impossibile caricare l'elenco delle fonti.",
         "errorPinTooShort": "Il nuovo PIN deve avere almeno 4 cifre",
         "errorPinMismatch": "I nuovi PIN non coincidono",
         "errorWrongPin": "PIN attuale errato",

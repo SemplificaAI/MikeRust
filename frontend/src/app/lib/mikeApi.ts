@@ -84,6 +84,58 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------------------------------------------------------------------------
+// Corpora (JSON manifest registry — see docs/CORPUS_PLUGINS.md)
+// ---------------------------------------------------------------------------
+
+export interface CorpusCapabilities {
+    search: boolean;
+    fetch: boolean;
+    documents: boolean;
+    documents_delete: boolean;
+    documents_resync: boolean;
+    embed_progress: boolean;
+    bulk_import: boolean;
+    user_config: boolean;
+}
+
+export interface CorpusSource {
+    id: string;
+    display_name: string;
+    subtitle?: string | null;
+    description?: string | null;
+    available: boolean;
+    default_enabled: boolean;
+    status_label?: string | null;
+}
+
+export interface CorpusItem {
+    id: string;
+    display_name: string;
+    description?: string | null;
+    homepage?: string | null;
+    languages: string[];
+    default_language: string;
+    supports_language_fallback: boolean;
+    fallback_language?: string | null;
+    identifier_label: string;
+    identifier_example?: string | null;
+    enabled_by_default: boolean;
+    runnable: boolean;
+    capabilities: CorpusCapabilities;
+    sources: CorpusSource[];
+}
+
+/**
+ * Read the corpus plugin registry loaded from `corpora-plugins/*.json`
+ * at backend startup. Used by the settings sidebar to render a row
+ * per corpus, and by future panels that consume `/corpora/:id`.
+ */
+export async function listCorpora(): Promise<CorpusItem[]> {
+    const data = await apiRequest<{ corpora: CorpusItem[] }>("/corpora");
+    return data?.corpora ?? [];
+}
+
+// ---------------------------------------------------------------------------
 // Projects
 // ---------------------------------------------------------------------------
 

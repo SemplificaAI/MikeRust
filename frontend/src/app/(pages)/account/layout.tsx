@@ -1,22 +1,46 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { listCorpora, type CorpusItem } from "@/app/lib/mikeApi";
 
 interface TabDef {
     id: string;
     label: string;
-    href: string;
+    /**
+     * When `href` is null the tab renders dimmed and non-clickable.
+     * Used for corpora declared in a manifest but not yet wired
+     * (e.g. CNIL while the `http-fetch-per-id` strategy is in
+     * roadmap, or any corpus the backend marked `runnable: false`).
+     */
+    href: string | null;
+    /** Optional tooltip text — manifest description for corpora. */
+    title?: string;
 }
 
 interface TabGroup {
-    /** Lowercase section header rendered above the group's tabs. */
     heading: string;
     tabs: TabDef[];
 }
+
+/**
+ * Map a corpus id (from the JSON manifest registry) to its existing
+ * settings page route. Today this is a small hardcoded table: only
+ * corpora that already have a hand-written React page are
+ * navigable. New corpora declared in JSON show up in the sidebar but
+ * are dimmed until a page exists (or until we land the generic
+ * `/account/corpora/:id` panel).
+ *
+ * Kept here on purpose — not in the manifest — because the routing
+ * decision is a frontend concern, not a corpus-config concern.
+ */
+const CORPUS_ROUTE_BY_ID: Record<string, string> = {
+    eurlex: "/account/eurlex",
+    "italian-legal": "/account/italia-legale",
+};
 
 export default function AccountLayout({
     children,
@@ -28,33 +52,91 @@ export default function AccountLayout({
     const { isAuthenticated, authLoading } = useAuth();
     const tAccount = useTranslations("Account");
     const tCommon = useTranslations("Common");
+    const locale = useLocale();
+
+    // Corpora come from the backend registry (/corpora) at mount time.
+    // Three observable states:
+    //   - corpora === null  → still loading
+    //   - corpora !== null && loadError === null → loaded (possibly empty)
+    //   - loadError !== null → fetch failed; we render the static fallback
+    //                          (Documenti locali only) so the sidebar
+    //                          isn't completely broken.
+    const [corpora, setCorpora] = useState<CorpusItem[] | null>(null);
+    const [loadError, setLoadError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (authLoading || !isAuthenticated) return;
+        let cancelled = false;
+        listCorpora()
+            .then((items) => {
+                if (!cancelled) setCorpora(items);
+            })
+            .catch((err) => {
+                console.error("[settings] /corpora load failed", err);
+                if (!cancelled) {
+                    setCorpora([]);
+                    setLoadError(tAccount("corporaLoadFailed"));
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [authLoading, isAuthenticated, tAccount]);
 
     // Two semantic groups:
-    //  1. Configurazione — what you set once and forget (account
-    //     profile, LLM provider keys, MCP servers).
-    //  2. Documenti & fonti — the live, ever-growing piece (local
-    //     folder sync, authoritative legal corpora).
-    // The split keeps the "set up the model" path far from the
-    // "manage the daily knowledge base" path, which until now were
-    // collapsed into one flat list.
-    const groups: TabGroup[] = [
-        {
-            heading: tAccount("groupConfig"),
-            tabs: [
-                { id: "general", label: tAccount("generalLink"), href: "/account" },
-                { id: "models", label: tAccount("modelsLink"), href: "/account/models" },
-                { id: "mcp", label: tAccount("mcpLink"), href: "/account/mcp" },
-            ],
-        },
-        {
-            heading: tAccount("groupSources"),
-            tabs: [
-                { id: "local-docs", label: tAccount("localDocsLink"), href: "/account/sync" },
-                { id: "eurlex", label: tAccount("eurlexLink"), href: "/account/eurlex" },
-                { id: "italia-legale", label: tAccount("italianLegalLink"), href: "/account/italia-legale" },
-            ],
-        },
-    ];
+    //  1. Configurazione — hardcoded (account profile, LLM provider
+    //     keys, MCP servers). These are intrinsically not "data
+    //     sources" so they don't belong in the registry.
+    //  2. Documenti & fonti — data-driven from /corpora. The static
+    //     "Documenti locali" entry stays first (it's local-folder
+    //     sync, not a corpus); every corpus the backend declared
+    //     appears below it. Runnable corpora are clickable;
+    //     not-yet-wired ones render dimmed with the manifest
+    //     description as tooltip.
+    const groups: TabGroup[] = useMemo(() => {
+        const sourcesTabs: TabDef[] = [
+            {
+                id: "local-docs",
+                label: tAccount("localDocsLink"),
+                href: "/account/sync",
+            },
+        ];
+        for (const c of corpora ?? []) {
+            const route = CORPUS_ROUTE_BY_ID[c.id] ?? null;
+            const runnable = c.runnable && route !== null;
+            // Per-locale name resolution at the consumer (the
+            // manifest sends the full map but the API projection
+            // already collapsed it to `display_name` at the
+            // user's locale via /corpora — for now we just trust
+            // it). When we add locale-aware resolution server-side
+            // this `c.display_name` reads will pick up the right
+            // language automatically.
+            const baseLabel = c.display_name;
+            const label = runnable
+                ? baseLabel
+                : `${baseLabel}${tAccount("comingSoonSuffix")}`;
+            sourcesTabs.push({
+                id: `corpus-${c.id}`,
+                label,
+                href: runnable ? route : null,
+                title: c.description ?? undefined,
+            });
+        }
+        return [
+            {
+                heading: tAccount("groupConfig"),
+                tabs: [
+                    { id: "general", label: tAccount("generalLink"), href: "/account" },
+                    { id: "models",  label: tAccount("modelsLink"),  href: "/account/models" },
+                    { id: "mcp",     label: tAccount("mcpLink"),     href: "/account/mcp" },
+                ],
+            },
+            {
+                heading: tAccount("groupSources"),
+                tabs: sourcesTabs,
+            },
+        ];
+    }, [corpora, tAccount, locale]);
 
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
@@ -94,16 +176,28 @@ export default function AccountLayout({
                                 <h2 className="hidden md:block text-[11px] font-semibold uppercase tracking-wider text-gray-400 px-3 mb-1 select-none">
                                     {group.heading}
                                 </h2>
-                                {/* Mobile: show a thin divider between groups. */}
+                                {/* Mobile: thin divider between groups. */}
                                 {groupIdx > 0 && (
                                     <div className="md:hidden self-center w-px h-6 bg-gray-200 mx-2" />
                                 )}
                                 {group.tabs.map((tab) => {
+                                    if (tab.href === null) {
+                                        return (
+                                            <span
+                                                key={tab.id}
+                                                title={tab.title}
+                                                className="text-left whitespace-nowrap px-3 py-2 rounded-md text-sm font-medium text-gray-300 select-none cursor-not-allowed"
+                                            >
+                                                {tab.label}
+                                            </span>
+                                        );
+                                    }
                                     const active = pathname === tab.href;
                                     return (
                                         <button
                                             key={tab.id}
-                                            onClick={() => router.push(tab.href)}
+                                            onClick={() => router.push(tab.href!)}
+                                            title={tab.title}
                                             className={`text-left whitespace-nowrap px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                                                 active
                                                     ? "bg-gray-100 text-gray-900"
@@ -114,6 +208,15 @@ export default function AccountLayout({
                                         </button>
                                     );
                                 })}
+                                {/* Inline load-error for the sources group. */}
+                                {groupIdx === 1 && loadError && (
+                                    <span
+                                        className="hidden md:block text-[10px] text-red-500 px-3"
+                                        role="status"
+                                    >
+                                        {loadError}
+                                    </span>
+                                )}
                             </div>
                         ))}
                     </nav>
