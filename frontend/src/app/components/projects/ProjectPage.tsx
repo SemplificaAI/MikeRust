@@ -1,13 +1,15 @@
 "use client";
 
-// Refactor in progress (tracks upstream willchen96/mike f39f175 PR #64):
+// Upstream sync complete (tracks willchen96/mike f39f175 PR #64):
 //   ✅ Step A+B — layout helpers + DocVersionHistory in ProjectPageParts.
 //   ✅ Step C   — ProjectPageSkeleton extracted (Header deferred — diverges).
 //   ✅ Step D   — ProjectAssistantTab extracted.
 //   ✅ Step E   — ProjectReviewsTab extracted.
-//   ⏭️  Step F  — `initialTab` prop + URL hash deep-linking.
-//   ⏭️  Step G  — PATCH project-document rename (backend + frontend wiring).
-//   ⏭️  Step H  — ProjectsOverview auth gating + cancel + loadError.
+//   ✅ Step F   — URL `?tab=` deep-linking (already implemented in MikeRust).
+//   ✅ Step G   — PATCH project-document rename (backend + UI wiring).
+//   ✅ Step H   — ProjectsOverview auth gating + cancel + loadError.
+//   ⏭️ Header   — substantial divergence (RAG isolation toggle, share/export/
+//                 members modals, i18n) — its own design pass when extracted.
 // See docs/UPSTREAM_SYNC.md for the meticulous plan and divergence notes.
 
 import { useEffect, useRef, useState } from "react";
@@ -62,6 +64,7 @@ import {
     listDocumentVersions,
     uploadDocumentVersion,
     renameDocumentVersion,
+    renameProjectDocument,
     getProjectPeople,
     type MikeDocumentVersion,
 } from "@/app/lib/mikeApi";
@@ -270,6 +273,8 @@ export function ProjectPage({ projectId }: Props) {
     const [renameChatValue, setRenameChatValue] = useState("");
     const [renamingReviewId, setRenamingReviewId] = useState<string | null>(null);
     const [renameReviewValue, setRenameReviewValue] = useState("");
+    const [renamingDocId, setRenamingDocId] = useState<string | null>(null);
+    const [renameDocValue, setRenameDocValue] = useState("");
 
     // Folder state
     const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
@@ -543,6 +548,41 @@ export function ProjectPage({ projectId }: Props) {
         }
         setProjectReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, title: trimmed } : r)));
         await updateTabularReview(reviewId, { title: trimmed });
+    }
+
+    async function submitDocRename(docId: string) {
+        const trimmed = renameDocValue.trim();
+        setRenamingDocId(null);
+        if (!trimmed) return;
+        // `docs` is derived from `project.documents` (see further down),
+        // so the rename optimistic update has to go through setProject.
+        const doc = project?.documents?.find((d) => d.id === docId);
+        if (!doc) return;
+        if (user?.id && doc.user_id != null && doc.user_id !== user.id) {
+            setOwnerOnlyAction("rename this document");
+            return;
+        }
+        try {
+            const updated = await renameProjectDocument(
+                projectId,
+                docId,
+                trimmed,
+            );
+            setProject((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          documents: prev.documents?.map((d) =>
+                              d.id === docId
+                                  ? { ...d, filename: updated.filename }
+                                  : d,
+                          ),
+                      }
+                    : prev,
+            );
+        } catch (e) {
+            console.error("renameProjectDocument failed", e);
+        }
     }
 
     async function downloadDoc(docId: string) {
@@ -1274,7 +1314,22 @@ export function ProjectPage({ projectId }: Props) {
                                                     <div className={`sticky left-8 z-[60] ${NAME_COL_W} p-2 ${selectedDocIds.includes(doc.id) ? "bg-gray-50" : "bg-white"} group-hover:bg-gray-50`}>
                                                     <div className="flex items-center gap-2">
                                                         {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-gray-400 shrink-0" /> : isError ? <AlertCircle className="h-4 w-4 text-red-500 shrink-0" /> : <DocIcon fileType={doc.file_type} />}
-                                                        <span className="text-sm text-gray-800 truncate">{doc.filename}</span>
+                                                        {renamingDocId === doc.id ? (
+                                                            <input
+                                                                autoFocus
+                                                                value={renameDocValue}
+                                                                onChange={(e) => setRenameDocValue(e.target.value)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === "Enter") void submitDocRename(doc.id);
+                                                                    if (e.key === "Escape") setRenamingDocId(null);
+                                                                }}
+                                                                onBlur={() => void submitDocRename(doc.id)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="min-w-0 flex-1 text-sm text-gray-800 bg-transparent outline-none border-b border-gray-300 focus:border-gray-500"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-sm text-gray-800 truncate">{doc.filename}</span>
+                                                        )}
                                                     </div>
                                                     </div>
                                                     <div className="ml-auto w-20 shrink-0 text-xs text-gray-500 uppercase truncate">{doc.file_type ?? <span className="text-gray-300">—</span>}</div>
@@ -1308,6 +1363,18 @@ export function ProjectPage({ projectId }: Props) {
                                                     <div className="w-8 shrink-0 flex justify-end">
                                                         {!isProcessing && (
                                                             <RowActions
+                                                                onRename={() => {
+                                                                    if (
+                                                                        user?.id &&
+                                                                        doc.user_id != null &&
+                                                                        doc.user_id !== user.id
+                                                                    ) {
+                                                                        setOwnerOnlyAction("rename this document");
+                                                                        return;
+                                                                    }
+                                                                    setRenameDocValue(doc.filename);
+                                                                    setRenamingDocId(doc.id);
+                                                                }}
                                                                 onDownload={() => downloadDoc(doc.id)}
                                                                 onShowAllVersions={
                                                                     hasVersions && !isVersionsOpen
