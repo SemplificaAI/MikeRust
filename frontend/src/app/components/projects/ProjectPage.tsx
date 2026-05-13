@@ -3,7 +3,10 @@
 // Refactor in progress (tracks upstream willchen96/mike f39f175 PR #64):
 //   ✅ Step A+B — layout helpers + DocVersionHistory extracted to
 //      ProjectPageParts.tsx (with MikeRust i18n preserved, no `depth` prop).
-//   ⏭️  Step C — ProjectPageSkeleton + ProjectPageHeader extraction.
+//   ✅ Step C — ProjectPageSkeleton extracted. ProjectPageHeader deferred:
+//      MikeRust's header has substantial additions (RAG isolation toggle,
+//      export/share modals, i18n) that diverge from the upstream prop
+//      shape; extracting it cleanly is its own step.
 //   ⏭️  Step D/E — ProjectAssistantTab / ProjectReviewsTab extraction.
 //   ⏭️  Step F — `initialTab` prop + URL hash deep-linking.
 //   ⏭️  Step G — PATCH project-document rename (backend + frontend wiring).
@@ -37,6 +40,7 @@ import {
     formatBytes,
     formatDate,
     NAME_COL_W,
+    ProjectPageSkeleton,
 } from "./ProjectPageParts";
 import { ProjectExportModal } from "@/app/components/projects/ProjectExportModal";
 import { HeaderSearchBtn } from "@/app/components/shared/HeaderSearchBtn";
@@ -935,42 +939,7 @@ export function ProjectPage({ projectId }: Props) {
     // ── Loading skeleton ──────────────────────────────────────────────────────
 
     if (loading) {
-        return (
-            <div className="flex-1 overflow-y-auto bg-white">
-                <div className="flex items-start justify-between px-8 py-4">
-                    <div className="flex items-center gap-1.5 text-2xl font-medium font-serif">
-                        <span className="text-gray-400">Projects</span>
-                        <span className="text-gray-300">›</span>
-                        <div className="h-6 w-40 rounded bg-gray-100 animate-pulse" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="h-8 w-16 rounded bg-gray-100 animate-pulse" />
-                        <div className="h-8 w-28 rounded bg-gray-100 animate-pulse" />
-                    </div>
-                </div>
-                <div className="flex items-center h-10 px-8 border-b border-gray-200 gap-5">
-                    <div className="h-3 w-20 rounded bg-gray-100 animate-pulse" />
-                    <div className="h-3 w-10 rounded bg-gray-100 animate-pulse" />
-                    <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
-                </div>
-                <div className="flex items-center h-8 pr-8 border-b border-gray-200">
-                    <div className="w-8 shrink-0" />
-                    <div className="flex-1 min-w-0 pl-3 pr-4"><div className="h-2.5 w-8 rounded bg-gray-100 animate-pulse" /></div>
-                    <div className="w-20 shrink-0"><div className="h-2.5 w-8 rounded bg-gray-100 animate-pulse" /></div>
-                    <div className="w-24 shrink-0"><div className="h-2.5 w-8 rounded bg-gray-100 animate-pulse" /></div>
-                    <div className="w-8 shrink-0" />
-                </div>
-                {[1, 2, 3, 4, 5].map((i) => (
-                    <div key={i} className="flex items-center h-10 pr-8 border-b border-gray-50">
-                        <div className="w-8 shrink-0" />
-                        <div className="flex-1 min-w-0 pl-3 pr-4"><div className="h-3.5 w-56 rounded bg-gray-100 animate-pulse" /></div>
-                        <div className="w-20 shrink-0"><div className="h-3 w-8 rounded bg-gray-100 animate-pulse" /></div>
-                        <div className="w-24 shrink-0"><div className="h-3 w-12 rounded bg-gray-100 animate-pulse" /></div>
-                        <div className="w-8 shrink-0" />
-                    </div>
-                ))}
-            </div>
-        );
+        return <ProjectPageSkeleton />;
     }
 
     if (!project) {

@@ -60,6 +60,58 @@ export function DocIcon({ fileType }: { fileType: string | null }) {
     return <File className="h-4 w-4 text-gray-500 shrink-0" />;
 }
 
+// ---------------------------------------------------------------------------
+// Loading skeleton
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure-markup loading state for the project page. Same overall layout
+ * as the populated view (header row + tab bar + table header + 5 row
+ * placeholders) so the page doesn't shift when data lands.
+ */
+export function ProjectPageSkeleton() {
+    return (
+        <div className="flex-1 overflow-y-auto bg-white">
+            <div className="flex items-start justify-between px-8 py-4">
+                <div className="flex items-center gap-1.5 text-2xl font-medium font-serif">
+                    <span className="text-gray-400">Projects</span>
+                    <span className="text-gray-300">›</span>
+                    <div className="h-6 w-40 rounded bg-gray-100 animate-pulse" />
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="h-8 w-16 rounded bg-gray-100 animate-pulse" />
+                    <div className="h-8 w-28 rounded bg-gray-100 animate-pulse" />
+                </div>
+            </div>
+            <div className="flex items-center h-10 px-8 border-b border-gray-200 gap-5">
+                <div className="h-3 w-20 rounded bg-gray-100 animate-pulse" />
+                <div className="h-3 w-10 rounded bg-gray-100 animate-pulse" />
+                <div className="h-3 w-24 rounded bg-gray-100 animate-pulse" />
+            </div>
+            <div className="flex items-center h-8 pr-8 border-b border-gray-200">
+                <div className="w-8 shrink-0" />
+                <div className="flex-1 min-w-0 pl-3 pr-4"><div className="h-2.5 w-8 rounded bg-gray-100 animate-pulse" /></div>
+                <div className="w-20 shrink-0"><div className="h-2.5 w-8 rounded bg-gray-100 animate-pulse" /></div>
+                <div className="w-24 shrink-0"><div className="h-2.5 w-8 rounded bg-gray-100 animate-pulse" /></div>
+                <div className="w-8 shrink-0" />
+            </div>
+            {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center h-10 pr-8 border-b border-gray-50">
+                    <div className="w-8 shrink-0" />
+                    <div className="flex-1 min-w-0 pl-3 pr-4"><div className="h-3.5 w-56 rounded bg-gray-100 animate-pulse" /></div>
+                    <div className="w-20 shrink-0"><div className="h-3 w-8 rounded bg-gray-100 animate-pulse" /></div>
+                    <div className="w-24 shrink-0"><div className="h-3 w-12 rounded bg-gray-100 animate-pulse" /></div>
+                    <div className="w-8 shrink-0" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Per-document version history (extracted from the Documents tab)
+// ---------------------------------------------------------------------------
+
 /**
  * Stacked rows rendered beneath a doc row when its Version column is
  * expanded. Each row shows a past (or current) version with its number,
