@@ -111,7 +111,12 @@ The first run will:
 Browser / Tauri webview (Next.js :3000)
        │  HTTP + SSE
        ▼
-axum backend (:3001)
+axum backend (127.0.0.1:<random>)   ← OS-assigned high port; the Tauri
+                                      shell publishes it to the frontend
+                                      via the `api_base_url` invoke
+                                      command at boot.
+                                      Override with PORT=3001 for the
+                                      standalone-backend dev story.
    ├── SQLite          mike.db          (schema, vector store, settings)
    ├── sqlite-vec      doc_chunks       (768-dim embeddings, partition-keyed)
    ├── fastembed/ort   multilingual-e5-base ONNX  (CPU / DirectML / QNN)
@@ -266,6 +271,7 @@ See `.env.example` for the full reference.
 | `STORAGE_PATH` | no | `./data/storage` |
 | `FASTEMBED_CACHE_DIR` | no | `%USERPROFILE%/mikerust-data/fastembed` |
 | `PDFIUM_DYNAMIC_LIB_PATH` | no | walks ancestors of cwd / exe for `libs/pdfium/` |
+| `PORT` | no | `0` (OS picks a free high port — see Architecture) |
 | `VLLM_BASE_URL` | for local LLM | — |
 | `VLLM_API_KEY` | no | `local` |
 | `ANTHROPIC_API_KEY` | for Claude | — |
@@ -345,6 +351,8 @@ preserved, only the dispatcher mechanics are in scope. See
 - [docs/SESSION_RECAP.md](docs/SESSION_RECAP.md) — historical session notes
 - [docs/UPSTREAM_SYNC.md](docs/UPSTREAM_SYNC.md) — policy + audit log for syncing fixes from upstream `willchen96/mike`
 - [docs/CORPUS_PLUGINS.md](docs/CORPUS_PLUGINS.md) — JSON-manifest plugin system for legal corpora (schema, strategies, add-a-corpus guide)
+- [docs/WORKFLOWS.md](docs/WORKFLOWS.md) — user manual for Workflows, Tabular Reviews, and Assistant injection. Includes 7 non-legal examples (medical, finance, real estate, HR, insurance, IP, compliance) for designing your own templates.
+- [HISTORY.md](HISTORY.md) — release notes / changelog, date-grouped
 - For the pristine upstream README, see [`willchen96/mike`][upstream] directly
 
 ## License
