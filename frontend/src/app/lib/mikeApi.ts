@@ -225,6 +225,25 @@ export async function moveDocumentToFolder(
     );
 }
 
+// Rename a document inside a project. Mirrors upstream willchen96/mike
+// f39f175 PATCH /projects/:projectId/documents/:documentId. MikeRust's
+// implementation only updates documents.filename (no updated_at/no
+// version display_name) — see comments in src/routes/projects.rs.
+export async function renameProjectDocument(
+    projectId: string,
+    documentId: string,
+    filename: string,
+): Promise<{ id: string; filename: string; project_id: string }> {
+    return apiRequest<{ id: string; filename: string; project_id: string }>(
+        `/projects/${projectId}/documents/${documentId}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename }),
+        },
+    );
+}
+
 export async function addDocumentToProject(
     projectId: string,
     documentId: string,

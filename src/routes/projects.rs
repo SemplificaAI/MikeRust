@@ -23,6 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/{id}", get(get_project).put(update_project).delete(delete_project))
         .route("/{id}/export", post(export_project))
         .route("/import", post(import_project))
+        .route("/{id}/documents/{doc_id}", axum::routing::patch(rename_project_document))
 }
 
 // ---------------------------------------------------------------------------
@@ -474,4 +475,174 @@ async fn import_project(
         "document_count": doc_id_remap.len(),
         "chat_count": chat_count,
     })))
+}
+
+// ---------------------------------------------------------------------------
+// PATCH /project/:id/documents/:doc_id  — rename a project document
+// ---------------------------------------------------------------------------
+//
+// Mirror of upstream willchen96/mike `f39f175` endpoint
+// PATCH /projects/:projectId/documents/:documentId. Scope-reduced for
+// MikeRust's leaner schema:
+//   - Upstream also bumps documents.updated_at and propagates
+//     document_versions.display_name on current_version_id. MikeRust's
+//     documents table has no updated_at column and document_versions
+//     has no display_name; both are upstream-only additions to a
+//     larger version-tracking pipeline we haven't ported. The rename
+//     here updates only `documents.filename`.
+//   - Ownership is enforced via (id, project_id, user_id) on the
+//     UPDATE so a caller can't rename someone else's doc by guessing
+//     UUIDs (the same defense MikeRust uses for project-level edits).
+
+#[derive(Deserialize)]
+struct RenameDocumentBody {
+    filename: String,
+}
+
+/// Normalise a user-supplied filename:
+///   - trim whitespace, cap at 200 chars
+///   - reject empty after trim
+///   - preserve the current extension when the new name has no
+///     extension (avoids accidental "report" overwriting "report.pdf")
+fn normalize_document_filename(
+    next_name: &str,
+    current_name: &str,
+) -> Option<String> {
+    let trimmed: String = next_name.trim().chars().take(200).collect();
+    if trimmed.is_empty() {
+        return None;
+    }
+    // Has its own extension? e.g. "report.pdf" or "X.docx"
+    let has_ext = trimmed
+        .rsplit_once('.')
+        .map(|(_, ext)| {
+            !ext.is_empty()
+                && ext.len() <= 6
+                && ext.chars().all(|c| c.is_ascii_alphanumeric())
+        })
+        .unwrap_or(false);
+    if has_ext {
+        return Some(trimmed);
+    }
+    // Append current extension if any.
+    let cur_ext = current_name
+        .rsplit_once('.')
+        .filter(|(_, e)| {
+            !e.is_empty()
+                && e.len() <= 6
+                && e.chars().all(|c| c.is_ascii_alphanumeric())
+        })
+        .map(|(_, e)| format!(".{e}"))
+        .unwrap_or_default();
+    Some(format!("{trimmed}{cur_ext}"))
+}
+
+async fn rename_project_document(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path((project_id, doc_id)): Path<(String, String)>,
+    Json(body): Json<RenameDocumentBody>,
+) -> ApiResult {
+    // Confirm the doc belongs to this project + this user before we
+    // accept the new name. Returns the current filename so the
+    // normaliser can preserve its extension if the user only typed a
+    // bare name.
+    let current: Option<(String,)> = sqlx::query_as(
+        "SELECT filename FROM documents \
+         WHERE id = ? AND project_id = ? AND user_id = ?",
+    )
+    .bind(&doc_id)
+    .bind(&project_id)
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let (current_filename,) = current
+        .ok_or_else(|| err(StatusCode::NOT_FOUND, "Document not found"))?;
+
+    let new_filename = normalize_document_filename(&body.filename, &current_filename)
+        .ok_or_else(|| err(StatusCode::BAD_REQUEST, "filename is required"))?;
+
+    sqlx::query(
+        "UPDATE documents SET filename = ? \
+         WHERE id = ? AND project_id = ? AND user_id = ?",
+    )
+    .bind(&new_filename)
+    .bind(&doc_id)
+    .bind(&project_id)
+    .bind(&auth.user_id)
+    .execute(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    Ok(Json(json!({
+        "id": doc_id,
+        "filename": new_filename,
+        "project_id": project_id,
+    })))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_document_filename;
+
+    #[test]
+    fn normalize_keeps_user_supplied_extension() {
+        assert_eq!(
+            normalize_document_filename("report-final.pdf", "old.pdf").as_deref(),
+            Some("report-final.pdf"),
+        );
+    }
+
+    #[test]
+    fn normalize_appends_current_extension_when_missing() {
+        assert_eq!(
+            normalize_document_filename("report-final", "old.pdf").as_deref(),
+            Some("report-final.pdf"),
+        );
+    }
+
+    #[test]
+    fn normalize_appends_docx_extension() {
+        assert_eq!(
+            normalize_document_filename("Notes", "draft.docx").as_deref(),
+            Some("Notes.docx"),
+        );
+    }
+
+    #[test]
+    fn normalize_trims_whitespace_and_caps_at_200() {
+        let huge: String = std::iter::repeat('a').take(250).collect();
+        let out = normalize_document_filename(&format!("   {huge}  "), "x.pdf")
+            .unwrap();
+        // 200 'a's plus ".pdf" appended (input has no extension).
+        assert_eq!(out.len(), 204);
+        assert!(out.starts_with('a'));
+        assert!(out.ends_with(".pdf"));
+    }
+
+    #[test]
+    fn normalize_rejects_empty() {
+        assert_eq!(normalize_document_filename("", "x.pdf"), None);
+        assert_eq!(normalize_document_filename("   ", "x.pdf"), None);
+    }
+
+    #[test]
+    fn normalize_handles_no_current_extension() {
+        // No source extension → user name kept as-is even if bare.
+        assert_eq!(
+            normalize_document_filename("untitled", "blob").as_deref(),
+            Some("untitled"),
+        );
+    }
+
+    #[test]
+    fn normalize_distinguishes_dot_in_middle_from_extension() {
+        // "my.file.v2" → ext is ".v2"; recognised as having extension.
+        assert_eq!(
+            normalize_document_filename("my.file.v2", "old.pdf").as_deref(),
+            Some("my.file.v2"),
+        );
+    }
 }
