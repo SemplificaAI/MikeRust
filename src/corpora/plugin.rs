@@ -414,13 +414,53 @@ fn is_known_builtin(id: &str) -> bool {
 }
 
 /// Resolve the directory to scan for plugin manifests.
-///   1. `MIKE_CORPUS_PLUGINS_DIR` env var, if set.
-///   2. `./corpora-plugins` relative to CWD.
+///
+/// Resolution order:
+///   1. `MIKE_CORPUS_PLUGINS_DIR` env var, if set. Used verbatim.
+///   2. Walk the ancestors of the current working directory looking
+///      for a `corpora-plugins/` folder. Picks up the repo-root copy
+///      when the dev binary runs from `src-tauri/target/...`.
+///   3. Walk the ancestors of the current executable path the same way.
+///      Picks up the installed copy when the manifests are shipped
+///      alongside the binary in a packaged build.
+///   4. Fallback: `./corpora-plugins` relative to CWD (the historical
+///      behaviour). Returned even when it doesn't exist so the loader
+///      can emit a "directory not found" info log against a stable
+///      path.
+///
+/// Same ancestor-walking idea as `PDFIUM_DYNAMIC_LIB_PATH` and other
+/// asset locators in this codebase — keeps `cargo run` / `tauri dev`
+/// / installer scenarios working without an env var.
 pub fn plugins_dir() -> PathBuf {
     if let Ok(dir) = std::env::var("MIKE_CORPUS_PLUGINS_DIR") {
         return PathBuf::from(dir);
     }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        if let Some(found) = walk_ancestors_for_plugins(&cwd) {
+            return found;
+        }
+    }
+
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(found) = walk_ancestors_for_plugins(&exe) {
+            return found;
+        }
+    }
+
     PathBuf::from("./corpora-plugins")
+}
+
+/// Walk from `start` up the parent chain, returning the first
+/// directory that contains a `corpora-plugins/` subdirectory.
+fn walk_ancestors_for_plugins(start: &Path) -> Option<PathBuf> {
+    for anc in start.ancestors() {
+        let candidate = anc.join("corpora-plugins");
+        if candidate.is_dir() {
+            return Some(candidate);
+        }
+    }
+    None
 }
 
 /// Scan `dir` for `*.json` files, parse each as a `CorpusPlugin`,
@@ -894,6 +934,38 @@ mod tests {
                 p.id
             );
         }
+    }
+
+    #[test]
+    fn walk_ancestors_finds_corpora_plugins() {
+        // Create a temp tree:  root/level1/level2/level3
+        //                       └─ corpora-plugins/
+        // walking from level3 should return root/corpora-plugins.
+        let root = tempfile::tempdir().unwrap();
+        let target = root.path().join("corpora-plugins");
+        std::fs::create_dir_all(&target).unwrap();
+        let leaf = root.path().join("level1").join("level2").join("level3");
+        std::fs::create_dir_all(&leaf).unwrap();
+
+        let found = walk_ancestors_for_plugins(&leaf)
+            .expect("expected to find corpora-plugins in an ancestor");
+        // Compare canonical paths — on Windows Temp directories often
+        // round-trip via short ("8.3") names and back, and std's
+        // canonicalize returns a UNC-prefixed form; comparing canonical
+        // to canonical is the only stable equality.
+        assert_eq!(
+            std::fs::canonicalize(&found).unwrap(),
+            std::fs::canonicalize(&target).unwrap()
+        );
+    }
+
+    #[test]
+    fn walk_ancestors_returns_none_when_no_corpora_plugins_anywhere() {
+        let root = tempfile::tempdir().unwrap();
+        let leaf = root.path().join("a").join("b");
+        std::fs::create_dir_all(&leaf).unwrap();
+        // Don't create corpora-plugins anywhere in the tree.
+        assert!(walk_ancestors_for_plugins(&leaf).is_none());
     }
 
     #[test]
