@@ -54,15 +54,21 @@ const GROUP_ORDER: ModelGroup[] = ["Anthropic", "Google", "OpenAI", "Local"];
 export function buildAvailableModelsFromConfig(llm: LLMConfig | null | undefined): ModelOption[] {
     const out: ModelOption[] = [];
     const presetIds = new Set(PRESET_MODELS.map((m) => m.id));
-    if (!llm) return [...PRESET_MODELS];
+    // Until the profile has loaded we don't yet know which providers
+    // the user configured — show nothing rather than suggest models
+    // for unconfigured providers (which the Settings page also gates).
+    if (!llm) return [];
 
-    // Anthropic
+    // Anthropic — both preset and custom entries require a saved API
+    // key. The custom-model branch used to fire on `claudeModel` alone,
+    // which surfaced stale model ids (e.g. `claude-opus-4-5` left over
+    // in user_settings) in the picker even after the key was cleared.
     if (llm.claudeApiKey?.trim()) {
         out.push(...PRESET_MODELS.filter((m) => m.group === "Anthropic"));
-    }
-    const claudeCustom = llm.claudeModel?.trim();
-    if (claudeCustom && !presetIds.has(claudeCustom)) {
-        out.push({ id: claudeCustom, label: claudeCustom, group: "Anthropic" });
+        const claudeCustom = llm.claudeModel?.trim();
+        if (claudeCustom && !presetIds.has(claudeCustom)) {
+            out.push({ id: claudeCustom, label: claudeCustom, group: "Anthropic" });
+        }
     }
 
     // Google
