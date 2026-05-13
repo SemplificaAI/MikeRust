@@ -1,97 +1,64 @@
 "use client";
 
-import React, { useId } from "react";
+import React from "react";
 
-const DEGREES = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
-const STOP_TRANSITION = "stop-color 220ms ease, stop-opacity 220ms ease";
-const FLOOD_TRANSITION = "flood-color 220ms ease, flood-opacity 220ms ease";
+/**
+ * MikeRust brand logo — 3x3 grid with a diagonal rust gradient.
+ *
+ * Source of truth: `src/assets/mikerust_logo_3x3.svg` at the repo root.
+ * This React component renders the same shape inline (so it inherits
+ * the host page's `currentColor` story and animates cheaply via
+ * `animationPlayState`) and adds two state-variant palettes used by
+ * the chat tool-call status indicator:
+ *
+ *   - default — rust gradient (`#431407` → `#F97316`)
+ *   - done    — emerald gradient (success states)
+ *   - error   — red gradient (failure states)
+ *
+ * `spin = true` runs a slow 360° rotation (3s linear infinite); paused
+ * by default so the brand contexts (sidebar, workflow list, initial
+ * view) render a static logo while the chat status renderer can opt
+ * in to motion.
+ */
 
-type IconPalette = {
-    shadowColor: string;
-    shadowOpacity: number;
-    fillStops: [string, string, string, string];
-    fillOpacities: [number, number, number, number];
-    specularStops: [number, number, number, number];
-    borderStops: [string, string, string];
-    borderOpacities: [number, number, number];
-    innerStops: [string, string, string, string];
-    innerOpacities: [number, number, number, number];
-};
+const RUST_PALETTE: readonly [
+    string, string, string,
+    string, string, string,
+    string, string, string,
+] = [
+    "#431407", "#7C2D0A", "#9A3412",
+    "#7C2D0A", "#C2410C", "#EA580C",
+    "#9A3412", "#EA580C", "#F97316",
+];
 
-const DEFAULT_PALETTE: IconPalette = {
-    shadowColor: "#000000",
-    shadowOpacity: 0.3,
-    fillStops: ["#0a0a0a", "#151515", "#080808", "#111111"],
-    fillOpacities: [0.9, 0.8, 0.85, 0.9],
-    specularStops: [0.5, 0.2, 0, 0],
-    borderStops: ["#ffffff", "#666666", "#ffffff"],
-    borderOpacities: [0.3, 0.1, 0.2],
-    innerStops: ["#ffffff", "#777777", "#222222", "#ffffff"],
-    innerOpacities: [0, 0.08, 0.05, 0],
-};
+const EMERALD_PALETTE: readonly [
+    string, string, string,
+    string, string, string,
+    string, string, string,
+] = [
+    "#052e16", "#14532d", "#166534",
+    "#14532d", "#16a34a", "#22c55e",
+    "#166534", "#22c55e", "#4ade80",
+];
 
-const DONE_PALETTE: IconPalette = {
-    shadowColor: "#166534",
-    shadowOpacity: 0.18,
-    fillStops: ["#4ade80", "#86efac", "#22c55e", "#bbf7d0"],
-    fillOpacities: [0.95, 0.88, 0.9, 0.94],
-    specularStops: [0.68, 0.32, 0.03, 0],
-    borderStops: ["#f0fdf4", "#86efac", "#dcfce7"],
-    borderOpacities: [0.42, 0.24, 0.3],
-    innerStops: ["#ffffff", "#dcfce7", "#4ade80", "#ffffff"],
-    innerOpacities: [0, 0.16, 0.08, 0],
-};
-
-const ERROR_PALETTE: IconPalette = {
-    shadowColor: "#991b1b",
-    shadowOpacity: 0.18,
-    fillStops: ["#f87171", "#fca5a5", "#ef4444", "#fecaca"],
-    fillOpacities: [0.95, 0.88, 0.9, 0.94],
-    specularStops: [0.68, 0.32, 0.03, 0],
-    borderStops: ["#fef2f2", "#fca5a5", "#fee2e2"],
-    borderOpacities: [0.42, 0.24, 0.3],
-    innerStops: ["#ffffff", "#fee2e2", "#f87171", "#ffffff"],
-    innerOpacities: [0, 0.16, 0.08, 0],
-};
-
-function Blades({ ids }: { ids: Record<string, string> }) {
-    return (
-        <g transform="translate(250, 250)">
-            {DEGREES.map((deg) => (
-                <g
-                    key={deg}
-                    transform={`rotate(${deg})`}
-                    filter={`url(#${ids.shadow})`}
-                >
-                    <use
-                        href={`#${ids.blade}`}
-                        fill={`url(#${ids.glassFill})`}
-                    />
-                    <use
-                        href={`#${ids.blade}`}
-                        fill={`url(#${ids.innerLight})`}
-                    />
-                    <use
-                        href={`#${ids.blade}`}
-                        fill={`url(#${ids.specular})`}
-                        clipPath={`url(#${ids.topClip})`}
-                    />
-                    <use
-                        href={`#${ids.blade}`}
-                        fill="none"
-                        stroke={`url(#${ids.glassBorder})`}
-                        strokeWidth="0.8"
-                    />
-                </g>
-            ))}
-        </g>
-    );
-}
+const RED_PALETTE: readonly [
+    string, string, string,
+    string, string, string,
+    string, string, string,
+] = [
+    "#450a0a", "#7f1d1d", "#991b1b",
+    "#7f1d1d", "#dc2626", "#ef4444",
+    "#991b1b", "#ef4444", "#f87171",
+];
 
 export function MikeIcon({
     spin = false,
     done = false,
     error = false,
+    // Kept for backward compatibility — older AssistantMessage calls
+    // pass `mike` as the implicit "default state" flag. The component
+    // already infers default-vs-done-vs-error from the other three
+    // booleans, so this prop is silently ignored.
     mike = false,
     size = 24,
     style,
@@ -104,21 +71,7 @@ export function MikeIcon({
     style?: React.CSSProperties;
 }) {
     void mike;
-    const id = useId().replace(/:/g, "");
-    const palette = error
-        ? ERROR_PALETTE
-        : done
-          ? DONE_PALETTE
-          : DEFAULT_PALETTE;
-    const m = {
-        shadow: `${id}-m-shadow`,
-        glassFill: `${id}-m-glassFill`,
-        specular: `${id}-m-specular`,
-        glassBorder: `${id}-m-glassBorder`,
-        innerLight: `${id}-m-innerLight`,
-        topClip: `${id}-m-topClip`,
-        blade: `${id}-m-blade`,
-    };
+    const palette = error ? RED_PALETTE : done ? EMERALD_PALETTE : RUST_PALETTE;
 
     return (
         <span
@@ -130,190 +83,36 @@ export function MikeIcon({
         >
             <svg
                 xmlns="http://www.w3.org/2000/svg"
-                viewBox="100 100 300 300"
+                viewBox="0 0 500 500"
                 width={size}
                 height={size}
                 style={{ display: "block" }}
+                role="img"
+                aria-label="MikeRust"
             >
-                <defs>
-                    <filter
-                        id={m.shadow}
-                        x="-20%"
-                        y="-20%"
-                        width="140%"
-                        height="140%"
-                    >
-                        <feDropShadow
-                            dx="0"
-                            dy="1.5"
-                            stdDeviation="3"
-                            floodColor={palette.shadowColor}
-                            floodOpacity={palette.shadowOpacity}
-                            style={{ transition: FLOOD_TRANSITION }}
-                        />
-                    </filter>
-                    <linearGradient
-                        id={m.glassFill}
-                        x1="0%"
-                        y1="0%"
-                        x2="100%"
-                        y2="100%"
-                    >
-                        <stop
-                            offset="0%"
-                            style={{
-                                stopColor: palette.fillStops[0],
-                                stopOpacity: palette.fillOpacities[0],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="30%"
-                            style={{
-                                stopColor: palette.fillStops[1],
-                                stopOpacity: palette.fillOpacities[1],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="70%"
-                            style={{
-                                stopColor: palette.fillStops[2],
-                                stopOpacity: palette.fillOpacities[2],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="100%"
-                            style={{
-                                stopColor: palette.fillStops[3],
-                                stopOpacity: palette.fillOpacities[3],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id={m.specular}
-                        x1="0%"
-                        y1="0%"
-                        x2="0%"
-                        y2="100%"
-                    >
-                        <stop
-                            offset="0%"
-                            style={{
-                                stopColor: "#ffffff",
-                                stopOpacity: palette.specularStops[0],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="15%"
-                            style={{
-                                stopColor: "#ffffff",
-                                stopOpacity: palette.specularStops[1],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="35%"
-                            style={{
-                                stopColor: "#ffffff",
-                                stopOpacity: palette.specularStops[2],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="100%"
-                            style={{
-                                stopColor: "#ffffff",
-                                stopOpacity: palette.specularStops[3],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id={m.glassBorder}
-                        x1="0%"
-                        y1="0%"
-                        x2="0%"
-                        y2="100%"
-                    >
-                        <stop
-                            offset="0%"
-                            style={{
-                                stopColor: palette.borderStops[0],
-                                stopOpacity: palette.borderOpacities[0],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="50%"
-                            style={{
-                                stopColor: palette.borderStops[1],
-                                stopOpacity: palette.borderOpacities[1],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="100%"
-                            style={{
-                                stopColor: palette.borderStops[2],
-                                stopOpacity: palette.borderOpacities[2],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                    </linearGradient>
-                    <linearGradient
-                        id={m.innerLight}
-                        x1="100%"
-                        y1="0%"
-                        x2="0%"
-                        y2="100%"
-                    >
-                        <stop
-                            offset="0%"
-                            style={{
-                                stopColor: palette.innerStops[0],
-                                stopOpacity: palette.innerOpacities[0],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="40%"
-                            style={{
-                                stopColor: palette.innerStops[1],
-                                stopOpacity: palette.innerOpacities[1],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="60%"
-                            style={{
-                                stopColor: palette.innerStops[2],
-                                stopOpacity: palette.innerOpacities[2],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                        <stop
-                            offset="100%"
-                            style={{
-                                stopColor: palette.innerStops[3],
-                                stopOpacity: palette.innerOpacities[3],
-                                transition: STOP_TRANSITION,
-                            }}
-                        />
-                    </linearGradient>
-                    <clipPath id={m.topClip}>
-                        <rect x="30" y="-25" width="130" height="23" />
-                    </clipPath>
-                    <path
-                        id={m.blade}
-                        d="M 40,0 A 4,4 0 0 1 43,-3 Q 95,-22 147,-3 A 4,4 0 0 1 150,0 A 4,4 0 0 1 147,3 Q 95,22 43,3 A 4,4 0 0 1 40,0 Z"
-                    />
-                </defs>
-
-                <Blades ids={m} />
+                <g transform="translate(250,250)">
+                    {palette.map((color, i) => {
+                        const col = i % 3;
+                        const row = Math.floor(i / 3);
+                        // 80px squares with 10px gap → centre block spans
+                        // 80*3 + 10*2 = 270px around (0,0).
+                        const x = col * 90 - 135;
+                        const y = row * 90 - 135;
+                        return (
+                            <rect
+                                key={i}
+                                x={x}
+                                y={y}
+                                width={80}
+                                height={80}
+                                fill={color}
+                                style={{
+                                    transition: "fill 220ms ease",
+                                }}
+                            />
+                        );
+                    })}
+                </g>
             </svg>
         </span>
     );
