@@ -312,6 +312,14 @@ See `.env.example` for the full reference.
 | Other DILA fondi (LEGI, JORF, CASS, KALI) as plugins | 🔲 — same strategy, one manifest each |
 | MCP-backend alternative for ingestion (Légifrance / Bundesanzeiger / …) | 🔲 design phase — see "Authoritative legal corpora" |
 | Other corpus ingestors (Retsinformation, BOE, …) | 🔲 planned |
+| **Professional-domain column** across workflows / tabular_reviews / projects / documents (migration 0018) | ✅ 9 canonical domains, validated at API boundary, filter chips in list views |
+| **Per-user `default_domain`** preference (migration 0019, Account → Generali UI) | ✅ pre-selects in every create / picker modal |
+| **JSON-driven workflow & column-preset registries** (`config/workflow-presets/` + `config/column-presets/`) | ✅ in-memory loaders, no DB seed, merged into `/workflow` list; replaces the legacy TS constants |
+| Built-in workflows shipped (legal vertical) | ✅ 14 — Generate CP Checklist, NDA Review, SPA Review, Credit Agreement Review/Summary, Commercial Agreement/Lease/Supply Review, LPA, Shareholder Agreement Review/Summary, Change of Control Review, E-Discovery Review, Employment Agreement Review |
+| Built-in workflows shipped (insurance vertical) | ✅ 6 — 3 tabular comparison (RC Professionale, RC Prodotti, D&O, 24 cols each) + 3 assistant (Riassunto copertura, Due Diligence assicurativa, Inventario beni assicurati) |
+| Insurance phase-2 workflows (Cyber / RC Generale / Property review / RC Medica / Key Man) | 🔲 see `docs/insurance-workflows-plan.md` |
+| Column-preset shortcuts (auto-suggest column prompt+format from name match) | ✅ 13 legal + 17 insurance, domain-scoped auto-match |
+| Picker modals with on-the-fly domain switch | ✅ workflow / tabular-template / column-preset pickers all expose a `DomainSelect` combo, pre-seeded with the user's default at every open |
 
 ### Note: MCP client — async multi-step flows
 

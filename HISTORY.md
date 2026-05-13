@@ -12,7 +12,7 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
-## 2026-05-13 — Plugin system, French locale, project refactor, dynamic port, migration auto-heal
+## 2026-05-13 — Plugin system, French locale, project refactor, dynamic port, migration auto-heal, domain column, JSON-preset registries, insurance vertical
 
 The big day for declarative ingestion. The medium-term goal of the
 project ("download legal documents locally via a plugin manifest") goes
@@ -22,10 +22,15 @@ proof-of-concept consumer — CNIL — that imports ~26 000 délibérations
 from the French Open Data archive into a local FTS5 index in a single
 click. The same day brings a project-page refactor mirrored from
 upstream `willchen96/mike`, the French locale, a UX polish pass on the
-new corpus panel, and in the afternoon two pieces of platform hardening:
-the axum backend no longer binds to a hardcoded port, and sqlx
+new corpus panel, two pieces of platform hardening in the afternoon
+(the axum backend no longer binds to a hardcoded port, and sqlx
 migration checksum drift now self-heals at startup instead of crashing
-the app.
+the app), and — in the late afternoon — a second wave that lifts the
+workflow / column-preset built-ins out of TypeScript constants into
+JSON files, adds a professional-vertical `domain` column across the
+four config tables, ships the insurance vertical with 6 workflows
+plus 17 column-presets, and polishes the picker modals so the user
+can switch domain on the fly.
 
 ### Added — plugin system
 
@@ -149,6 +154,134 @@ the app.
   detected — auto-healing` then `INFO [migrations] checksum drift
   healed; resume normal startup` in the log
   ([`src/db/mod.rs`](src/db/mod.rs)).
+
+### Added — professional domain column (late afternoon)
+
+- **`domain` column on 4 tables** (migration 0018) — `workflows`,
+  `tabular_reviews`, `projects`, `documents` each gain a
+  `TEXT NOT NULL DEFAULT 'legal'` column with a `(user_id, domain)`
+  composite index. Mike-inherited rows backfill to `legal` (the
+  upstream tool was law-firm-focused). Canonical 9-domain set
+  validated at the API boundary (`crate::domain::DOMAINS`): `legal`,
+  `medical`, `finance`, `real_estate`, `hr`, `insurance`, `ip`,
+  `compliance`, `others`. No SQL CHECK — adding a future domain is a
+  one-line edit to the Rust constant + the frontend `Domain` union +
+  one i18n label per locale.
+- **Backend filters** — list endpoints accept `?domain=…`; create
+  endpoints accept an optional `domain` body field (normalised to
+  `legal` when missing/invalid); update endpoints are strict (reject
+  unknown values with 400, treat omitted as "leave unchanged"). The
+  document upload path inherits from the parent project at INSERT
+  time when `project_id` is set; standalone uploads accept the
+  `domain` form field.
+- **Frontend wiring** — `Domain` union + `DOMAINS` array constant in
+  `shared/types.ts`; `MikeWorkflow` / `MikeProject` / `MikeDocument`
+  / `TabularReview` gain an optional `domain` field. New
+  `DomainSelect` + `DomainFilter` shared components,
+  i18n-backed via the `Domains.values.*` namespace (it/en/fr, 9
+  labels per locale). All 14 built-in workflows tagged
+  `domain: "legal"`. Domain filter chip in the Workflows list page;
+  domain dropdown in the new-workflow modal (above the practice
+  chips).
+- **Per-user default domain** (migration 0019) —
+  `user_settings.default_domain TEXT` lets the user pick a
+  preferred vertical once in Account → Generali (next to the
+  language switcher). The `NewWorkflowModal`, `AddNewTRModal`,
+  `AddColumnModal` and `WFEditColumnModal` all pre-select this
+  default on every open instead of hard-coding `legal`. Persisted
+  via `PUT /user/default-domain`; cached in `UserProfileContext`.
+
+### Added — JSON-driven workflow & column-preset registries (late afternoon)
+
+- **System-shipped workflow templates moved out of TypeScript** —
+  the 14 built-in workflows that used to live as a 1244-line
+  `BUILT_IN_WORKFLOWS` constant in
+  `frontend/.../builtinWorkflows.ts` are now per-file JSONs under
+  `config/workflow-presets/<domain>/<slug>.json`. The backend
+  loads them once at startup into `AppState.workflow_presets`
+  (mirror of the corpus-plugin pattern: ancestor-walking directory
+  resolution, fail-soft parsing, override via
+  `MIKE_WORKFLOW_PRESETS_DIR`). The `/workflow` list endpoint
+  merges them with user-owned DB rows at response time
+  (`is_system: true`, `user_id: null` for presets). The
+  `/workflow/:id` handler short-circuits the lookup to the in-memory
+  registry before falling through to the DB so the detail page
+  works for built-ins too. Built-ins remain immutable from the API:
+  update/delete handlers keep their `WHERE user_id = ?` filter, so
+  a row with `user_id NULL` never matches.
+- **Column-preset registry** — same pattern. The 13 column
+  shortcuts that lived as a `PROMPT_PRESETS` array in
+  `columnPresets.ts` move to `config/column-presets/<domain>/*.json`
+  and serve over a new `/column-presets` endpoint. Regex pattern
+  is split into `match_pattern` + `match_flags` so the JSON is
+  portable; the frontend rebuilds `new RegExp(...)` at use time in
+  `AddColumnModal` / `WFEditColumnModal`. Both consumers fetch on
+  open and scope the auto-match (column-name → preset) to the
+  active domain so a legal preset doesn't fire when the user is
+  filling an insurance review.
+- **`config/` consolidation** — three preset families that used to
+  sit at the repo root (`corpora-plugins/`, `workflow-presets/`,
+  `column-presets/`) now live together under `config/`. The
+  ancestor-walking loaders look for `config/<dir-name>/` instead
+  of `<dir-name>/`. Repo root stays tidy, future config families
+  inherit the convention.
+- **Picker modals — on-the-fly domain switch** — `AssistantWorkflowModal`
+  (chat composer's "Aggiungi workflow"), `AddNewTRModal` (tabular
+  template picker), `AddColumnModal` and `WFEditColumnModal`
+  (column presets popover) each render a `DomainSelect` inline
+  (full 9-domain set, sempre visibile). Selection persists during
+  the modal session, resets to the user's saved default on every
+  next open. Empty-slice case is allowed (no entries shown) so
+  the user can scout other verticals freely.
+
+### Added — insurance vertical (late afternoon)
+
+First non-legal vertical shipped with real, useful content (driven
+by the user's `docs/insurance-workflows-plan.md`):
+
+- **3 tabular comparison workflows** — `RC Professionale Review`,
+  `RC Prodotti Review`, `D&O Review`. Each has **24 columns**: 16
+  common (Blocco A — assicuratore, contraente, decorrenza/scadenza,
+  premio, massimali, franchigia/SIR, territorialità, condizioni di
+  rinnovo, recesso infrannuale, liquidazione sinistri, subrogazione,
+  legge applicabile, foro/ADR) plus 8 type-specific (RCP: trigger
+  di copertura, retroattività, ultrattività, copertura sanzioni
+  disciplinari, …; RCD: product recall, completed operations,
+  copertura USA/Canada, …; D&O: Side A/B/C, esclusione condotte
+  fraudolente con final-adjudication clause, …). Column prompts
+  in Italian, style guard: cite article, "Non previsto" fallback,
+  ISO dates, currency always specified.
+- **3 assistant-type workflows** for the chat composer —
+  `Riassunto copertura polizza` (single-policy 1-page Markdown
+  brief in 8 sections), `Due Diligence assicurativa`
+  (portfolio-level M&A review with inventory table, per-policy
+  analysis, gap list prioritised 🔴/🟡/🟢, suggested
+  rep&warranties for the SPA), `Inventario beni assicurati`
+  (Property/All-Risks asset extraction → 9-column Markdown table
+  with category, descrizione, identificativo, ubicazione, valore,
+  criterio valutazione, sottolimite, note, plus a "Totale
+  assicurato" sum check and red-flag section).
+- **17 column-presets** under `config/column-presets/insurance/` —
+  the 16 Blocco-A columns extracted as shortcuts plus "Esclusioni
+  principali" (recurring across all three specific blocks). Regex
+  patterns accept Italian and English variants
+  (`insurer`/`assicuratore`, `deductible`/`franchigia`, …) so
+  international users get the suggestion when typing in either
+  language.
+
+### Changed (late afternoon)
+
+- Workflow list "Origine" column renamed `Mike` → `MikeRust` for
+  system-shipped rows. The two sibling labels `Myself` / `Shared`
+  that were also hardcoded got i18n'd to
+  `Workflows.originSelf` / `originShared` in it/en/fr.
+
+### Removed (late afternoon)
+
+- `frontend/src/app/components/workflows/builtinWorkflows.ts`
+  (1244 lines) and `frontend/src/app/components/tabular/columnPresets.ts`
+  (104 lines) — single source of truth is now the JSON files on
+  disk under `config/`.
 
 ### Added — branding & docs
 
