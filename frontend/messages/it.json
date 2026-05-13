@@ -83,6 +83,8 @@
         "workflows": "Workflow",
         "tabularReviews": "Revisioni tabellari",
         "account": "Account",
+        "semplifica": "Semplifica",
+        "semplificaTitle": "Apri semplifica.ai nel browser",
         "recentChats": "Chat recenti",
         "noChats": "Nessuna chat",
         "search": "Cerca chat",

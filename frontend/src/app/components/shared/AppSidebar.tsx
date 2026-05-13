@@ -10,7 +10,27 @@ import {
     User,
     ChevronsUpDown,
     ChevronDown,
+    ExternalLink,
 } from "lucide-react";
+
+/**
+ * Open a URL in the OS default browser. Inside Tauri the
+ * `open_external_url` command spawns the user's actual default
+ * (Edge / Chrome / Firefox / Safari / xdg-open) via the `open`
+ * crate, instead of letting a plain `<a target="_blank">` navigate
+ * the Tauri WebView. Outside Tauri we fall back to `window.open` so
+ * the page still works in Next.js dev. Same shape EUR-Lex and the
+ * generic corpus page use — inline duplication is intentional
+ * (cheap, no module wrangling) until a 4th caller wants it.
+ */
+async function openExternal(url: string) {
+    try {
+        const tauri = await import("@tauri-apps/api/core");
+        await tauri.invoke("open_external_url", { url });
+    } catch {
+        window.open(url, "_blank", "noopener,noreferrer");
+    }
+}
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
@@ -304,6 +324,37 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 >
                                     <User className="h-4 w-4" />
                                     {tSidebar("account")}
+                                </button>
+                                <div
+                                    className="my-1 border-t border-gray-100"
+                                    aria-hidden="true"
+                                />
+                                <button
+                                    onClick={() => {
+                                        void openExternal("https://semplifica.ai");
+                                        setIsDropdownOpen(false);
+                                    }}
+                                    title={tSidebar("semplificaTitle")}
+                                    className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 rounded-md"
+                                >
+                                    {/* Semplifica brand logo — served from
+                                        frontend/public/semplifica/logo.png at
+                                        runtime. Sized to align visually with the
+                                        other 16px icons in this menu. Plain
+                                        <img> (not next/image) because the menu
+                                        rerenders frequently and the logo is
+                                        tiny — the optimizer overhead isn't
+                                        worth it here. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                        src="/semplifica/logo.png"
+                                        alt=""
+                                        className="h-4 w-auto"
+                                    />
+                                    <span className="flex-1">
+                                        {tSidebar("semplifica")}
+                                    </span>
+                                    <ExternalLink className="h-3 w-3 text-gray-400" />
                                 </button>
                             </div>
                         )}
