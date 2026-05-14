@@ -12,6 +12,92 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-14 — DOCX renderer (Phase 1.A.1 — end-to-end rendering)
+
+The other half of the template subsystem: the actual pipeline that
+turns a sidecar JSON + LLM-produced Markdown + a metadata bag into a
+print-ready `.docx`. No `.dotx` intermediate — every template ships
+as JSON only and the renderer builds styles.xml and document.xml
+from scratch at request time. Aligns with the architectural
+decision recorded yesterday: the tool is the closing formatter, not
+a Word template management system.
+
+### Added — `src/docx/` module
+
+Five sub-modules, all pure-function, all zero-I/O on the hot path:
+
+- **`it_helpers.rs`** — Italian-locale formatters: `format_italian_date`
+  ("Cremona, 14 maggio 2026"), `format_italian_amount` ("€ 1.234,56"
+  with dot-thousands / comma-decimal), `format_protocol_block`
+  ("Prot. n. 12345/2026<TAB>Cremona, 14 maggio 2026" for PA letters).
+- **`placeholders.rs`** — `[NAME]` substitution against a HashMap bag.
+  Pure-text, UTF-8-safe (regression test guards against
+  `bytes[i] as char` corrupting multi-byte sequences), with grammar
+  `[A-Z0-9_.]+` so `[label](url)` Markdown links and lowercase
+  brackets are correctly ignored. `find_remaining_tokens` reports
+  the unfilled fields back to the renderer.
+- **`styles_xml.rs`** — builds `word/styles.xml` from the sidecar's
+  `typography` + `style_map_baseline` + `style_map`. Every conversion
+  in one place: points → half-points, cm → twips
+  (`cm_to_twips(3.5) == 1984` matches Word's own value),
+  line-spacing multiplier → 240-base, alignment → `<w:jc>`. Style
+  IDs are PascalCase ASCII (Word's grammar); `w:name` carries the
+  localised Italian text. The 4 baseline styles (`BodyText`,
+  `SectionHeading` with `<w:b/>` + `<w:caps/>` and +2pt bump,
+  `Citation` with italic + 1.5cm indent, `Footnote` 10pt single)
+  are always emitted; extra per-template styles inherit from
+  `BodyText`.
+- **`document_xml.rs`** — `pulldown-cmark` events → WML paragraphs.
+  Headings 1/2/3 → `SectionHeading`, paragraphs → `BodyText`,
+  ordered/unordered lists with manual marker (`•` / `1.`), bold +
+  italic + code spans. Page size from `paper`, margins from
+  `margins_cm` via `cm_to_twips`. Tables / footnotes / blockquotes /
+  page-break directive deferred to Phase 2 (the 4 shipped templates
+  don't need them yet).
+- **`package.rs`** — zip the result with the canonical OOXML layout:
+  `[Content_Types].xml`, `_rels/.rels`, `word/_rels/document.xml.rels`,
+  `word/document.xml`, `word/styles.xml`. The three boilerplate
+  fragments are const strings (they never vary).
+- **`mod.rs`** — public API: `render(template, body_md, metadata) →
+  RenderOutcome` with `bytes` + `unresolved_placeholders`. Pipeline
+  is: substitute on the Markdown source (BEFORE the parser, so
+  pulldown-cmark doesn't consume `[X]` as a CommonMark
+  shortcut-reference link) → render body XML → wrap with page setup
+  → build styles.xml → package zip. Missing required_metadata fields
+  log a warning but the render proceeds anyway — gaps surface as
+  `[UNFILLED_TOKEN]` in the document, which is the loudest possible
+  proofread cue. The Markdown parser's text-event escape pass writes
+  every text run with `xml_escape`, so values with `&`, `<`, `>`,
+  apostrophe end up as proper XML entities (`&amp;`, `&lt;`, …).
+
+### Tests
+
+- 58 unit tests across the 5 sub-modules: every public function has
+  at least one focused test for its contract; cross-cutting
+  invariants (XML well-formedness, ASCII style IDs, UTF-8 round-trip,
+  alignment-to-OOXML mapping) covered by dedicated tests.
+- 3 integration tests in `src/docx/mod.rs::tests` exercising the
+  full render against the shipped `it/diffida-messa-in-mora`
+  template: end-to-end zip output with the canonical 5 parts,
+  XML-special-char escaping in metadata values, and the
+  unresolved-placeholder reporting on missing fields. All 294 crate
+  tests green (the 58 new + the 236 pre-existing).
+- Drive-by fix to `corpora::plugin::tests::walk_ancestors_finds_corpora_plugins`
+  whose test fixture predated commit f9d6bf5 (which moved
+  `corpora-plugins/` under `config/`).
+
+### What's still deferred to later sub-phases
+
+- Phase 2 in module: tables (GFM), footnotes (`[^N]`), blockquotes
+  (`> testo` → `Citation` style), `---PAGE---` directive, YAML
+  front-matter parser for cover-page metadata.
+- Phase 1.A.2 (next commit): wire `generate_docx` builtin tool +
+  `list_docx_templates` + `describe_docx_template` so the LLM can
+  discover and use the registry; the `POST /docx-templates/:id/render`
+  HTTP endpoint that streams the bytes.
+
+---
+
 ## 2026-05-14 — DOCX template registry (Phase 1.A foundation)
 
 First lap of the structured-output system. The DOCX template registry

@@ -1088,10 +1088,12 @@ mod tests {
     #[test]
     fn walk_ancestors_finds_corpora_plugins() {
         // Create a temp tree:  root/level1/level2/level3
-        //                       └─ corpora-plugins/
-        // walking from level3 should return root/corpora-plugins.
+        //                       └─ config/corpora-plugins/
+        // walking from level3 should return root/config/corpora-plugins.
+        // The `config/` parent comes from commit f9d6bf5 which moved
+        // every JSON-driven registry under a unified `config/` root.
         let root = tempfile::tempdir().unwrap();
-        let target = root.path().join("corpora-plugins");
+        let target = root.path().join("config").join("corpora-plugins");
         std::fs::create_dir_all(&target).unwrap();
         let leaf = root.path().join("level1").join("level2").join("level3");
         std::fs::create_dir_all(&leaf).unwrap();
