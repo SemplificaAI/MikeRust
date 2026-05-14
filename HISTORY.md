@@ -12,6 +12,116 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-14 — Toolkit commercialista (22 workflows + 3 DOCX templates)
+
+Mirror del toolkit medico-legale shipped earlier today, this time for
+the Italian commercialista / dottore commercialista vertical. Maps
+the 6 operational areas of `docs/piano_toolkit_commercialista.md`
+under the canonical `finance` domain.
+
+### Added — Workflow tabular (17)
+
+**Trasversale (Fase 1 del piano, working life dello studio):**
+- `commerc-inventario-documenti` (8 cols) — classificazione
+  documentale universale per tutte le aree, ancorata a `DOC-NN`.
+- `commerc-scadenzario-annuale` (7 cols) — calendario adempimenti
+  fiscali italiani con responsabile interno.
+- `commerc-portafoglio-clienti-stato` (10 cols) — dashboard
+  semaforica per cliente su tutti gli adempimenti dell'anno.
+- `commerc-quality-check-preinvio` (6 cols) — checklist quality
+  pre-invio dichiarazioni (Mod. Redditi / IVA / 770).
+
+**Area 1 — Perizie e stime di valore:**
+- `commerc-riclassificazione-bilanci` (8 cols) — riclassificazione
+  CE pluriennale a valore aggiunto.
+- `commerc-indicatori-econ-finanz` (8 cols) — ROE/ROI/EBITDA
+  margin/PFN-EBITDA/Current/DSO/DPO con benchmark di settore.
+- `commerc-metodi-valutativi` (7 cols) — patrimoniale / reddituale
+  / DCF / multipli ponderati → valore finale.
+
+**Area 2 — CTU tributaria:**
+- `commerc-contestazioni-ufficio` (7 cols) — estrazione rilievi
+  da avviso di accertamento / PVC / cartella.
+- `commerc-analisi-bancaria` (8 cols) — mappa movimenti c/c ex
+  Art. 32 DPR 600/73 con classificazione Cass. SS.UU. 24823/2015.
+- `commerc-rideterminazione-reddito` (6 cols) — confronto importi
+  ufficio vs rideterminati.
+
+**Area 3 — Crisi d'impresa e procedure concorsuali (CCII):**
+- `commerc-indicatori-crisi` (7 cols) — DSCR / PFN-EBITDA / PN /
+  liquidità / CCN con soglie di allerta.
+- `commerc-stato-passivo` (8 cols) — classificazione creditori per
+  rango (privilegiati / chirografari / postergati Art. 2467 c.c.).
+- `commerc-confronto-piano-liquidatoria` (6 cols) — best interest
+  of creditors test ex Art. 88 c.4 CCII.
+- `commerc-cashflow-previsionale` (7 cols) — FCF previsionale
+  5 anni con DSCR di piano.
+
+**Area 4 — Due diligence fiscale e societaria:**
+- `commerc-checklist-dd-documenti` (6 cols) — tracking documenti
+  per area (fiscale / societario / previdenziale / giuslavoristico).
+- `commerc-rischi-dd-semaforo` (10 cols) — risk map con semaforo
+  🔴 / 🟡 / 🟢 + azione SPA consigliata (accantonamento / escrow /
+  monitoraggio).
+- `commerc-esposizione-fiscale-anno-tributo` (11 cols) — matrice
+  anno × tributo (IRES / IRAP / IVA / Ritenute / INPS+INAIL) +
+  sanzioni min/max + interessi → esposizione worst case.
+
+**Area 5 — Contenzioso tributario (D.Lgs. 546/92):**
+- `commerc-rilievi-controdeduzioni` (10 cols) — matrice
+  rilievo × tesi difensiva × giurisprudenza × DOC probanti.
+- `commerc-scadenze-processuali` (6 cols) — termini D.Lgs. 546/92
+  (60 gg ricorso, 90 gg reclamo, 30 gg costituzione, 20 gg memoria,
+  appello, Cassazione) con giorni residui.
+
+**Area 6 — Adempimenti periodici:**
+- `commerc-checklist-redditi-pf` (6 cols) — documenti per
+  dichiarazione persone fisiche (CU, oneri detraibili / deducibili
+  con soglie normative).
+
+### Added — Workflow assistant (5)
+
+Narrative output che chiude ciascuna area con la relazione
+professionale finale:
+
+- `commerc-relazione-stima` (Area 1) — relazione di stima d'azienda
+  per cessione / conferimento / fusione / asseverata / Art. 2343 c.c.
+- `commerc-relazione-ctu-tributaria` (Area 2) — relazione CTU /
+  perizia di parte tributaria.
+- `commerc-relazione-att-33-ccii` (Area 3) — attestazione del
+  professionista indipendente ex Art. 33 CCII (D.Lgs. 14/2019).
+- `commerc-report-due-diligence` (Area 4) — executive summary +
+  raccomandazioni SPA.
+- `commerc-ricorso-tributario` (Area 5) — ricorso tributario di
+  primo grado ex Art. 18 D.Lgs. 546/92.
+
+### Added — DOCX templates (3)
+
+A4 portrait, Calibri 11pt justify. `also_applicable_to` cross-domain
+per le perizie e contenziosi che attraversano legal / insurance /
+compliance:
+
+- `it/relazione-stima-valore` — Area 1, 9 sezioni dal Premessa agli
+  Allegati. `also_applicable_to: [legal, real_estate, insurance,
+  compliance]`.
+- `it/attestazione-art-33-ccii` — Area 3, 11 sezioni con la formula
+  finale ATTESTAZIONE POSITIVA / NEGATIVA in grassetto centrato.
+  `also_applicable_to: [legal, compliance]`.
+- `it/ricorso-tributario` — Area 5, 8 sezioni conformi a D.Lgs.
+  546/92: intestazione → fatto → motivi → richieste → valore →
+  istanza cautelare opzionale → firma → allegati.
+  `also_applicable_to: [legal]`.
+
+### Verified at boot
+
+  55 workflow-preset(s) loaded (was 31, +22 finance + +2 ribilanciamenti)
+  9 docx-template(s) loaded (was 6, +3 finance)
+
+Backend Tauri dev ha auto-rilevato ciascun file e ricaricato senza
+manual intervention. Test `presets::*` continuano a passare.
+
+---
+
 ## 2026-05-14 — Medico-legale toolkit + chat-history persistence + generated-doc cleanup
 
 Three converging streams shipped on the same day, all addressing the

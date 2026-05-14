@@ -1,0 +1,46 @@
+{
+    "id": "builtin-commerc-checklist-redditi-pf",
+    "title": "Checklist documenti — Dichiarazione redditi PF",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nChecklist standard dei **documenti necessari** per la dichiarazione dei redditi delle persone fisiche (Mod. 730 o Mod. Redditi PF). Una riga per categoria di documento, con stato di ricezione e soglie applicabili.\n\nL'output è la **tabella checklist redditi PF** del Modulo Area 6 (piano sezione 7.5): è la traccia che il commercialista usa con il cliente persona fisica per richiedere/spuntare la documentazione di supporto alla dichiarazione.\n\n## Stile\n- Una riga per voce documentale, raggruppata per categoria (Redditi lavoro, Redditi fondiari, Redditi capitale, Oneri detraibili, Oneri deducibili, Immobili, Altro).\n- Lo `Stato ricezione` è simbolico: `✓ Ricevuto`, `⏳ Atteso`, `✗ Non applicabile / Non posseduto`, `⚠ Da chiarire`.\n- Le `Soglie / Limiti` riportano i tetti normativi rilevanti per la detrazione/deduzione (es. soglia €129,11 per spese sanitarie franchigia, max €4.000 interessi mutuo prima casa, max €5.164,57 contributi fondo pensione).\n- Per ogni voce specifica nelle `Note` la sezione del Mod. 730/Redditi PF in cui il dato confluisce (quadro E, quadro RP, ecc.).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Categoria",
+            "format": "tag",
+            "prompt": "Una sola tra: `Redditi lavoro`, `Redditi fondiari`, `Redditi capitale`, `Oneri detraibili`, `Oneri deducibili`, `Immobili`, `Familiari a carico`, `Altro`."
+        },
+        {
+            "index": 1,
+            "name": "Documento",
+            "format": "text",
+            "prompt": "Nome del documento. Esempi: 'CU dipendente/pensione', 'CU collaborazione/lavoro autonomo', 'Visura catastale', 'Contratti di affitto', 'Estratto conto titoli/dividendi', 'Spese sanitarie (scontrini/ricevute)', 'Interessi mutuo prima casa', 'Spese istruzione', 'Spese ristrutturazione (bonifico parlante)', 'Ecobonus / Superbonus', 'Contributi previdenziali artigiani/commercianti', 'Contributi fondi pensione', 'Atti acquisto/vendita immobili nell'anno', 'Codici fiscali familiari a carico'."
+        },
+        {
+            "index": 2,
+            "name": "Obbligatorio",
+            "format": "tag",
+            "prompt": "Una sola tra: `Sì` (documento sempre richiesto per il tipo di reddito del cliente), `Se presente` (documento da richiedere solo se la fattispecie esiste), `Opzionale` (documento utile ma non necessario per la dichiarazione)."
+        },
+        {
+            "index": 3,
+            "name": "Stato ricezione",
+            "format": "tag",
+            "prompt": "Una sola tra: `✓ Ricevuto` (documento acquisito dallo studio), `⏳ Atteso` (richiesto al cliente, in attesa), `✗ Non applicabile` (la fattispecie non si verifica per il cliente, es. mutuo prima casa per cliente affittuario), `⚠ Da chiarire` (cliente ha indicato ma documento non perviene o è ambiguo)."
+        },
+        {
+            "index": 4,
+            "name": "Soglie / Limiti",
+            "format": "text",
+            "prompt": "Soglie normative rilevanti per la voce (detraibilità/deducibilità massima). Esempi: 'Franchigia €129,11 per spese sanitarie', 'Max €4.000 interessi mutuo prima casa', 'Max €5.164,57 contributi fondo pensione', 'Detrazione 50% su max €96.000 ristrutturazione', 'Tassazione separata se requisiti', 'Plusvalenza tassabile in dichiarazione se cessione entro 5 anni dall'acquisto'. Per voci senza soglie particolari scrivi '—'."
+        },
+        {
+            "index": 5,
+            "name": "Note / Quadro",
+            "format": "text",
+            "prompt": "Annotazioni operative + sezione del Mod. 730/Redditi PF in cui il dato si riporta. Esempi: 'Quadro RC Redditi PF — Mod. 730: quadro C', 'Quadro RP/E1 — limite globale detrazioni €19.000', 'Quadro RP/E2 — interessi mutuo casa principale', 'Quadro RB — fabbricati', 'Quadro RT — plusvalenze finanziarie', 'Quadro RW — investimenti esteri'. Quando la voce richiede particolare attenzione (es. cessione del credito Superbonus), annotalo qui."
+        }
+    ]
+}

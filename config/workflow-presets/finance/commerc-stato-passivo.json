@@ -1,0 +1,58 @@
+{
+    "id": "builtin-commerc-stato-passivo",
+    "title": "Stato passivo — classificazione creditori",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nClassifica i **creditori** dell'impresa in crisi per **rango di soddisfazione** secondo la legge fallimentare e il CCII. Una riga per ciascun creditore (o categoria di creditori omogenea). È la base per il piano di risanamento (Art. 56 CCII) o concordato preventivo (Artt. 84-120 CCII).\n\nL'output è la **tabella stato passivo** del Modulo Area 3 (piano sezione 4.4): determina chi viene soddisfatto e in che misura nei diversi scenari (continuità aziendale vs liquidazione).\n\n## Ranghi di soddisfazione (gerarchia CCII)\n\nIn ordine di priorità decrescente:\n\n1. **Prededucibili** (Art. 6 CCII) — Crediti sorti durante la procedura per garantirne la prosecuzione (compensi del commissario, professionisti, finanziamenti autorizzati ex Art. 99 CCII).\n2. **Privilegiati speciali** (Artt. 2746-2754 c.c.) — Privilegi su singoli beni (es. privilegio del locatore sui mobili nell'immobile, privilegio dell'artigiano sulle cose lavorate).\n3. **Ipotecari** — Crediti garantiti da ipoteca su immobili (Banche con mutuo ipotecario). Soddisfatti sul valore di realizzo del bene ipotecato.\n4. **Pignoratizi** — Crediti garantiti da pegno su mobili (es. titoli, crediti).\n5. **Privilegiati generali** (Art. 2751-bis c.c.) — Lavoratori dipendenti (stipendi 3 mesi + TFR maturando), professionisti, agenti, artigiani, coltivatori diretti, INPS, INAIL, erario per IRPEF/IRES/IRAP, IVA (Art. 2752 c.c.).\n6. **Chirografari** — Crediti non garantiti: fornitori, finanziatori senza garanzie, soci postergati. Soddisfatti nell'ordine se restano attivi.\n7. **Postergati** (Art. 2467 c.c.) — Finanziamenti dei soci alla società in crisi: soddisfatti solo dopo gli altri creditori chirografari.\n\n## Stile\n- Una riga per creditore distinto. Per categorie omogenee (es. 'Tutti i fornitori chirografari piccoli') puoi aggregarli e annotarlo nelle Note.\n- L'`Importo capitale` è il debito vivo al netto di interessi e sanzioni. Gli `Interessi / sanzioni` maturati sono separati: tipicamente seguono il rango del capitale (es. sanzioni tributarie hanno stesso privilegio del capitale ex Art. 2752 c.c.).\n- Le `Garanzie` indicano se il credito è assistito da ipoteca, pegno, fideiussione personale o privilegio speciale.\n- L'ultima riga `TOTALE PASSIVO` somma gli importi capitale + interessi.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Creditore",
+            "format": "text",
+            "prompt": "Denominazione del creditore. Esempi: 'Banca Intesa Sanpaolo', 'Agenzia delle Entrate', 'INPS — Sede di Milano', 'Fornitore Alfa Srl', 'Dipendente Rossi Mario (TFR)', 'Avv. Bianchi (compenso CTU)'. Per gruppi aggregati, indica 'Fornitori chirografari minori (N creditori)'."
+        },
+        {
+            "index": 1,
+            "name": "Tipo credito",
+            "format": "tag",
+            "prompt": "Una sola tra: `Mutuo ipotecario`, `Finanziamento bancario`, `Leasing`, `Tributario` (erario), `Previdenziale` (INPS/INAIL), `Lavoro dipendente`, `Lavoro subordinato (TFR)`, `Lavoro autonomo / Professionisti`, `Commerciale` (fornitori), `Bonifici / finanziamenti soci`, `Cambiale / pagherò`, `Altro`."
+        },
+        {
+            "index": 2,
+            "name": "Importo capitale",
+            "format": "monetary_amount",
+            "prompt": "Importo del credito al netto di interessi e sanzioni, formato '€ X.XXX,XX'. Per le banche, il debito residuo del mutuo / finanziamento al periodo di riferimento. Per il fisco, l'imposta non versata. Per i dipendenti, gli stipendi non corrisposti + il TFR maturando."
+        },
+        {
+            "index": 3,
+            "name": "Interessi / sanzioni",
+            "format": "monetary_amount",
+            "prompt": "Importo degli interessi maturati e/o delle sanzioni applicate, formato '€ X.XXX,XX'. Per crediti bancari: interessi corrispettivi + di mora. Per crediti tributari: sanzioni (es. 90-180% del recupero) + interessi. Per crediti commerciali: interessi di mora ex D.Lgs. 231/2002. Se zero o non applicabile, scrivi '€ 0'."
+        },
+        {
+            "index": 4,
+            "name": "Rango",
+            "format": "tag",
+            "prompt": "Una sola tra: `Prededucibile` (sorto in corso di procedura), `Ipotecario`, `Pignoratizio`, `Privilegiato speciale` (su singoli beni), `Privilegiato generale` (lavoratori, professionisti, fisco, INPS), `Chirografario` (non garantito), `Postergato` (finanziamenti soci ex Art. 2467 c.c.)."
+        },
+        {
+            "index": 5,
+            "name": "Garanzie",
+            "format": "text",
+            "prompt": "Garanzie reali o personali che assistono il credito. Esempi: 'Ipoteca I grado su immobile via … Roma' (per mutui), 'Pegno su titoli — c/c …' (per finanziamenti garantiti), 'Privilegio generale Art. 2751-bis c.c.' (per lavoratori), 'Fideiussione personale del socio Sig. X — non escussa', 'Privilegio Art. 2752 c.c.' (per fisco). Se nessuna garanzia, scrivi '—'."
+        },
+        {
+            "index": 6,
+            "name": "Titolo esecutivo",
+            "format": "yes_no",
+            "prompt": "Indica se il creditore dispone di un titolo esecutivo (cartella esattoriale, decreto ingiuntivo definitivo, sentenza esecutiva, contratto autoesecutivo come il mutuo). `Sì` o `No`. Per fisco e INPS che procedono direttamente con cartella, sempre `Sì`."
+        },
+        {
+            "index": 7,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codice DOC-NN del documento che attesta il credito (contratto, sentenza, cartella, fattura) della tabella inventario Modulo 1 trasversale. Formato 'DOC-NN'. Per categorie aggregate cita uno o più documenti rappresentativi separati da virgola."
+        }
+    ]
+}

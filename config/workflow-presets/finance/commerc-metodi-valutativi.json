@@ -1,0 +1,52 @@
+{
+    "id": "builtin-commerc-metodi-valutativi",
+    "title": "Metodi valutativi d'azienda — risultato ponderato",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nApplica i **metodi di valutazione d'azienda** standard (patrimoniale, reddituale, DCF, multipli di mercato) all'oggetto della stima, calcolando il valore secondo ogni metodo e ponderandolo per ottenere il valore finale proposto. Una riga per metodo, con base di calcolo, parametri chiave, valore ottenuto e peso assegnato.\n\nL'output è la **tabella metodi valutativi** del Modulo Area 1 (piano sezione 2.5): è la sintesi finale della perizia di stima — il numero che il giudice o la controparte vedono per primo.\n\n## Metodi standard\n\nProduci una riga per ciascuno dei metodi seguenti (ordinati come elencati). I metodi non applicabili al caso (es. multipli per società senza comparable di mercato) vanno comunque inclusi con peso 0% e motivazione nelle Note.\n\n### Metodo patrimoniale\n1. **Patrimoniale semplice** — PN contabile + rettifiche di valore correnti\n2. **Patrimoniale complesso** — PN rettificato + avviamento autonomo (capitalizzazione sovraredditi)\n\n### Metodo reddituale\n3. **Reddituale a rendita perpetua** — R / r (reddito medio normalizzato capitalizzato a tasso r)\n4. **Reddituale a periodo limitato** — R × a(n,r) (capitalizzazione su n anni)\n\n### Metodo misto\n5. **UEC (Unione Europea Esperti Contabili)** — PN + (Reddito - Rendimento normale) × a(n,r)\n6. **EVA / Misto patrimoniale-reddituale (avviamento)** — PN + Avviamento\n\n### Metodo dei flussi (DCF)\n7. **DCF (Discounted Cash Flow)** — Σ FCF_t / (1+WACC)^t + Terminal Value / (1+WACC)^n\n\n### Metodo dei multipli\n8. **EV/EBITDA** — EBITDA × multiplo medio comparable\n9. **P/E** — Utile netto × P/E medio comparable\n10. **EV/Sales** — Ricavi × multiplo (solo per settori a basso margine)\n\n## Stile\n- Una riga per metodo. Compila almeno i metodi 1, 3, 7 (patrimoniale semplice + reddituale + DCF) come default; aggiungi gli altri se l'azienda lo consente.\n- Il **peso** è una percentuale da 0% a 100%. La somma dei pesi su tutti i metodi applicati deve essere 100% (eccetto i metodi con peso 0). Il peso riflette la confidenza del professionista nell'applicabilità del metodo al caso specifico: per società mature il DCF e i multipli tipicamente pesano di più; per società in startup il patrimoniale conta meno.\n- L'ultima riga sintetica `Valore finale proposto` riporta la **somma ponderata** dei valori (`valore × peso`), con motivazione completa nella colonna Note (es. 'Range proposto € 4,2-5,8 mln, valore medio € 5,0 mln applicando pesi 25% patrimoniale + 35% reddituale + 30% DCF + 10% multipli').\n- I valori sono in Euro: formato '€ X.XXX.XXX' per importi > €1M, '€ X.XXX' per importi minori, sempre formato italiano.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Metodo",
+            "format": "tag",
+            "prompt": "Una sola tra: `Patrimoniale semplice`, `Patrimoniale complesso`, `Reddituale rendita perpetua`, `Reddituale periodo limitato`, `UEC misto`, `EVA misto`, `DCF`, `Multiplo EV/EBITDA`, `Multiplo P/E`, `Multiplo EV/Sales`, oppure `Valore finale proposto` (riga di sintesi finale)."
+        },
+        {
+            "index": 1,
+            "name": "Base di calcolo",
+            "format": "text",
+            "prompt": "Grandezza economica utilizzata come base. Esempi: 'PN rettificato 2024: € 2.500.000', 'Reddito medio normalizzato 3 esercizi: € 800.000', 'FCF previsionali 2025-2029 + TV', 'EBITDA normalizzato 2024: € 1.200.000', 'Utile netto medio 3 anni: € 650.000'. Per la riga `Valore finale proposto` lascia '—'."
+        },
+        {
+            "index": 2,
+            "name": "Parametro chiave",
+            "format": "text",
+            "prompt": "Parametro centrale del metodo applicato + valore scelto + motivazione breve. Esempi: 'Tasso capitalizzazione r = 8% (CAPM: rf 3,5% + β 1,1 × ERP 4,5%)', 'WACC = 9,2% (struttura D/E 30/70, kd 4,5% post-tax, ke 11%)', 'Multiplo EV/EBITDA = 6,5x (media comparable mid-cap mecc. 2024, fonte Mergermarket)', 'Periodo capitalizzazione n = 8 anni (vita utile commercializzazione brand)'. Per `Patrimoniale semplice` può essere '—' (il parametro è il PN stesso)."
+        },
+        {
+            "index": 3,
+            "name": "Valore ottenuto",
+            "format": "monetary_amount",
+            "prompt": "Valore d'azienda ottenuto applicando il metodo. Formato '€ X.XXX.XXX' (italiano, milioni con punti migliaia). Per `Multiplo P/E` solo Equity Value; per `EV/EBITDA`, `EV/Sales`, `DCF` Enterprise Value (da convertire in Equity Value sottraendo PFN — annota nelle Note la conversione applicata)."
+        },
+        {
+            "index": 4,
+            "name": "Peso assegnato",
+            "format": "text",
+            "prompt": "Peso del metodo nella sintesi finale, formato 'X%'. La somma su tutti i metodi applicati deve essere 100%. Metodi non applicati hanno peso 0% (e Note 'Non applicato — motivazione'). Per la riga `Valore finale proposto`, lascia '—'."
+        },
+        {
+            "index": 5,
+            "name": "Valore ponderato",
+            "format": "monetary_amount",
+            "prompt": "Valore ottenuto × Peso. Formato '€ X.XXX.XXX'. La riga `Valore finale proposto` riporta la **somma** dei valori ponderati di tutti i metodi applicati, ossia il valore finale d'azienda."
+        },
+        {
+            "index": 6,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Motivazioni tecniche specifiche del metodo applicato: assunzioni di normalizzazione (es. 'Reddito medio depurato di plusvalenza one-off 2023 € 320.000'), riferimenti metodologici (es. 'Tasso r determinato secondo PIV 2015 cap. 5'), sensitivity considerate (es. 'Range valore con WACC ±0,5%: € 4,8-5,3 mln'), motivazione del peso assegnato (es. 'Peso 30% giustificato da disponibilità di piano industriale documentato e affidabile'). Per metodi NON applicati: motivazione (es. 'Multiplo EV/EBITDA non applicato — assenza di comparable quotati nel sub-settore'). Per la riga `Valore finale proposto`, sintetizza la motivazione complessiva (es. 'Valore finale € 5.000.000, range complessivo € 4,2-5,8 mln. Valore proposto si colloca nel quartile superiore in considerazione della forte continuità contrattuale documentata.')."
+        }
+    ]
+}

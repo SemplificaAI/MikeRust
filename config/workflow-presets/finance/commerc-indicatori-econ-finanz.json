@@ -1,0 +1,58 @@
+{
+    "id": "builtin-commerc-indicatori-econ-finanz",
+    "title": "Indicatori economico-finanziari",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nCalcola gli **indicatori economico-finanziari** chiave (ROE, ROI, EBITDA margin, PFN/EBITDA, current ratio, DSO, ecc.) sui bilanci riclassificati pluriennali. Una riga per indicatore, una colonna per anno + media + benchmark di settore + giudizio.\n\nL'output è la **tabella indicatori** del Modulo Area 1 (piano sezione 2.4): è il pannello di controllo della salute aziendale, utilizzato sia per perizie di stima che per diagnosi di crisi.\n\n## Indicatori standard\n\nProduci almeno le seguenti voci (ordine importante):\n\n**Redditività:**\n1. **ROE** (Return on Equity) = Utile netto / Patrimonio netto\n2. **ROI** (Return on Investment) = EBIT / Capitale investito netto\n3. **ROA** (Return on Assets) = EBIT / Totale attivo\n4. **ROS** (Return on Sales) = EBIT / Ricavi\n5. **EBITDA margin** = EBITDA / Ricavi\n\n**Struttura finanziaria:**\n6. **PFN / EBITDA** (Posizione Finanziaria Netta su EBITDA, leva netta)\n7. **D / E** (Debt to Equity, leva contabile)\n8. **Indice di autonomia finanziaria** = PN / Totale fonti\n\n**Liquidità:**\n9. **Current ratio** = Attivo corrente / Passivo corrente\n10. **Quick ratio (acid test)** = (Att. corr. - Rimanenze) / Pass. corr.\n11. **Capitale Circolante Netto (CCN)** = Att. corr. - Pass. corr.\n\n**Efficienza operativa:**\n12. **Rotazione magazzino** = Ricavi / Rimanenze medie (volte/anno)\n13. **DSO** (Days Sales Outstanding) = Crediti commerciali / (Ricavi/365) (gg medi di incasso)\n14. **DPO** (Days Payable Outstanding) = Debiti commerciali / (Acquisti/365) (gg medi di pagamento)\n\n## Stile\n- Una riga per indicatore. Tutti gli indicatori sopra anche se non calcolabili (in tal caso valore '—' e Note 'Dati insufficienti').\n- Le colonne anno seguono ordine cronologico ascendente come per la riclassificazione bilanci.\n- La colonna `Media` è la media aritmetica del periodo.\n- La colonna `Benchmark settore` è il valore tipico per il settore di appartenenza dell'azienda (chiedi all'utente il codice ATECO se non specificato). Per indici universali con soglia di crisi (es. DSCR > 1, current ratio > 1.2), usa quella soglia. Per indici di redditività, usa la media di settore Cerved/UniCredit o equivalenti se disponibile.\n- Il `Giudizio` è qualitativo, in 1-2 parole: `Buono`, `Adeguato`, `Sotto media`, `Allerta`, `Critico`. Per indici di crisi (DSCR, PFN/EBITDA), il `Critico` indica superamento della soglia di allerta (cfr. workflow `commerc-indicatori-crisi`).\n- I valori percentuali (ROE, ROI, EBITDA margin, ROS) sono numeri con 1 decimale + `%`. Gli indici puri (Current ratio, PFN/EBITDA) sono numeri con 2 decimali, senza unità. I gg (DSO, DPO) sono interi + ` gg`. La rotazione magazzino è decimale + ` volte/anno`.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Indicatore",
+            "format": "text",
+            "prompt": "Nome dell'indicatore come elencato sopra (ROE, ROI, ROA, ROS, EBITDA margin, PFN/EBITDA, D/E, Indice autonomia finanziaria, Current ratio, Quick ratio, CCN, Rotazione magazzino, DSO, DPO)."
+        },
+        {
+            "index": 1,
+            "name": "Formula",
+            "format": "text",
+            "prompt": "Formula dell'indicatore in forma sintetica (es. 'Utile netto / PN', 'EBIT / Cap. investito', 'PFN / EBITDA', 'Att. corr. / Pass. corr.', 'Crediti commerciali / (Ricavi/365)')."
+        },
+        {
+            "index": 2,
+            "name": "Anno N-2",
+            "format": "text",
+            "prompt": "Valore dell'indicatore nell'anno N-2. Per percentuali '12,5%'; per indici puri '0,85'; per gg '45 gg'; per rotazione '8,2 volte/anno'. Se i dati di bilancio non consentono il calcolo, scrivi '—'."
+        },
+        {
+            "index": 3,
+            "name": "Anno N-1",
+            "format": "text",
+            "prompt": "Valore dell'indicatore nell'anno N-1. Stesso formato della colonna precedente."
+        },
+        {
+            "index": 4,
+            "name": "Anno N",
+            "format": "text",
+            "prompt": "Valore dell'indicatore nell'anno N (più recente). Stesso formato."
+        },
+        {
+            "index": 5,
+            "name": "Media",
+            "format": "text",
+            "prompt": "Media aritmetica dei valori sui 3 anni (o sugli anni disponibili). Stesso formato dei valori annuali."
+        },
+        {
+            "index": 6,
+            "name": "Benchmark settore",
+            "format": "text",
+            "prompt": "Valore di riferimento per il settore di appartenenza (es. 'EBITDA margin meccanica: 10-15%', 'Current ratio target > 1,2', 'PFN/EBITDA target < 3,0x'). Se il settore non è specificato e non si dispone di benchmark, usa le soglie universali (es. 'Current ratio > 1,2 = adeguato', 'PFN/EBITDA < 3 = sostenibile'). Cita la fonte (Cerved, UniCredit, Bilanci Cerved Settoriali, OIC) quando disponibile."
+        },
+        {
+            "index": 7,
+            "name": "Giudizio",
+            "format": "tag",
+            "prompt": "Una sola tra: `Buono` (valore superiore al benchmark di settore, indicatore di salute), `Adeguato` (valore in linea col benchmark, nessuna allerta), `Sotto media` (valore inferiore al benchmark ma non in zona critica), `Allerta` (valore prossimo alla soglia di crisi, da monitorare), `Critico` (valore oltre la soglia di crisi, richiede intervento)."
+        }
+    ]
+}

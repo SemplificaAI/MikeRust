@@ -1,0 +1,70 @@
+{
+    "id": "builtin-commerc-rilievi-controdeduzioni",
+    "title": "Rilievi e controdeduzioni — ricorso tributario",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nCostruisci la **matrice rilievo / controdeduzione** del ricorso tributario o della memoria illustrativa. Una riga per ogni singolo rilievo contestato, con tesi difensiva, norme di supporto, giurisprudenza, documenti probanti, e calcolo dell'importo rideterminato.\n\nL'output è la **tabella rilievi e controdeduzioni** del Modulo Area 5 (piano sezione 6.3): è la **strategia difensiva strutturata** del ricorso. Ogni riga corrisponde a un motivo di ricorso autonomo nel D.Lgs. 546/92.\n\n## Differenza rispetto a `commerc-rideterminazione-reddito`\n\nQuesta tabella è simile ma con focus **processuale**:\n- Include esplicitamente la `Giurisprudenza` a supporto (Cassazione, CGT, sentenze rilevanti) — necessaria per la motivazione del ricorso.\n- Documenti probanti riferiti puntualmente: ogni controdeduzione è ancorata a un set di prove allegate.\n- L'`Importo rideterminato` è la richiesta al giudice (quanto chiediamo che venga abbattuto).\n\nIn una CTU tributaria su atti, usa `commerc-rideterminazione-reddito` (focus quantitativo). In un ricorso strutturato, usa questo workflow (focus argomentativo-processuale).\n\n## Stile\n- Una riga per ciascun rilievo / motivo di ricorso.\n- La `Tesi difensiva` è sintetica (1-2 frasi). I dettagli vanno nel ricorso completo.\n- La `Norma difesa` cita la base giuridica: articoli TUIR, DPR 600/73, DPR 633/72, Statuto del Contribuente (L. 212/2000), giurisprudenza costante (Cass. SS.UU.), prassi (Circolari AdE).\n- La `Giurisprudenza` cita le sentenze specifiche: 'Cass. n. NNNN/AAAA' o 'CGT [città] n. NNN/AAAA' o 'Corte Cost. n. NNN/AAAA'.\n- L'`Importo rideterminato` rappresenta quanto chiediamo al giudice: €0 = abbattimento totale, ¼/½/¾ = abbattimento parziale.\n- La colonna `Doc. prova` cita i DOC-NN delle prove documentali allegate al ricorso.\n- Cita sempre il `Ref. atto` (DOC-NN dell'atto impugnato dalla tabella inventario).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Rilievo ufficio",
+            "format": "text",
+            "prompt": "Descrizione sintetica del rilievo dell'ufficio, come riportato nell'atto impugnato. Esempi: 'Rilievo n. 1 — Indeducibilità costo consulenza Alfa Srl 2022, € 80.000', 'Rilievo n. 2 — Ricavi non dichiarati ricostruiti da movimenti c/c, € 120.000'. Per atti con rilievi numerati, anteponi 'Rilievo n. X —'."
+        },
+        {
+            "index": 1,
+            "name": "Norma ufficio",
+            "format": "text",
+            "prompt": "Articolo di legge invocato dall'ufficio nell'atto impugnato. Formato 'Art. N c.X DPR/L/D.Lgs. NNN/AAAA'. Esempi: 'Art. 109 c.1 TUIR' (deducibilità costi), 'Art. 39 c.1 lett. d DPR 600/73' (accertamento analitico-induttivo), 'Art. 32 c.1 n.2 DPR 600/73' (presunzione bancaria), 'Art. 19 DPR 633/72' (detrazione IVA), 'Art. 110 c.7 TUIR' (transfer pricing)."
+        },
+        {
+            "index": 2,
+            "name": "Importo ripreso",
+            "format": "monetary_amount",
+            "prompt": "Importo recuperato a tassazione dall'ufficio per il rilievo, formato '€ X.XXX,XX' italiano."
+        },
+        {
+            "index": 3,
+            "name": "Sanzione",
+            "format": "text",
+            "prompt": "Sanzione applicata dall'ufficio per il rilievo, in percentuale. Esempi: '90%' (sanzione minima Art. 1 D.Lgs. 471/97), '90%-180%' (range applicato), '30%' (omessi versamenti Art. 13)."
+        },
+        {
+            "index": 4,
+            "name": "Tesi difensiva",
+            "format": "text",
+            "prompt": "Sintesi della tesi difensiva in 1-2 frasi. Esempi: 'Il costo è inerente all'attività e regolarmente documentato; l'ufficio omette di considerare il contratto e l'output della consulenza prodotti', 'I versamenti contestati sono giustificati da operazioni commerciali documentate; la presunzione ex Art. 32 è vinta dalla documentazione probante', 'Il rilievo è infondato in quanto la dichiarazione è già stata oggetto di adesione con efficacia di giudicato sostanziale'."
+        },
+        {
+            "index": 5,
+            "name": "Norma difesa",
+            "format": "text",
+            "prompt": "Riferimento normativo della tesi difensiva. Esempi: 'Art. 109 c.1 TUIR + Art. 2697 c.c. (onere prova)', 'Art. 32 DPR 600/73 + Cass. SS.UU. 24823/2015 (presunzione bancaria su impresa individuale)', 'Art. 19 DPR 633/72 + Statuto del Contribuente Art. 7', 'Art. 2 L. 212/2000 (chiarezza degli atti)'. Combina norme + sentenze + prassi."
+        },
+        {
+            "index": 6,
+            "name": "Giurisprudenza",
+            "format": "text",
+            "prompt": "Sentenze specifiche a supporto della tesi difensiva. Formato 'Cass. n. NNNN/AAAA — [breve massima]' o 'CGT [città] n. NNN/AAAA'. Per giurisprudenza costante, citare 1-2 sentenze chiave. Esempi: 'Cass. n. 12345/2023 (sull'inerenza del costo); Cass. SS.UU. n. 24823/2015 (presunzione bancaria impresa individuale)', 'CGT Lombardia n. 234/2024 (transfer pricing — onere prova)'."
+        },
+        {
+            "index": 7,
+            "name": "Doc. prova",
+            "format": "text",
+            "prompt": "Codici DOC-NN dei documenti probatori allegati al ricorso. Formato 'DOC-NN' separati da virgola. Esempi: 'DOC-15 (contratto), DOC-16 (fattura), DOC-17 (estratto conto bonifico)', 'DOC-22 (scrittura privata mutuo)'. Per rilievi senza prove documentali, scrivi '—' e annota nelle Note la limitazione."
+        },
+        {
+            "index": 8,
+            "name": "Importo rideterminato",
+            "format": "monetary_amount",
+            "prompt": "Importo richiesto come rideterminato al giudice (cosa chiediamo che residui dopo l'abbattimento). Formato '€ X.XXX,XX'. Valori tipici: €0 (abbattimento totale richiesto), l'importo ripreso (rilievo per cui chiediamo solo riduzione sanzioni), una quota parziale (es. 1/2 o 1/3 del ripreso)."
+        },
+        {
+            "index": 9,
+            "name": "Ref. atto",
+            "format": "text",
+            "prompt": "Codice DOC-NN dell'atto impugnato (avviso accertamento, cartella, PVC) dalla tabella inventario. Formato 'DOC-NN', eventualmente con numero di pagina ('DOC-02 p. 5')."
+        }
+    ]
+}

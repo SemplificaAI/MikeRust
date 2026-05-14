@@ -1,0 +1,46 @@
+{
+    "id": "builtin-commerc-scadenze-processuali",
+    "title": "Scadenze processuali — contenzioso tributario",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nTraccia le **scadenze processuali** del fascicolo di contenzioso tributario: termini di impugnazione, di reclamo-mediazione, di deposito memorie, di udienze. Una riga per atto / scadenza, con giorni residui calcolati sulla data corrente.\n\nL'output è la **tabella scadenze processuali** del Modulo Area 5 (piano sezione 6.4): è il **calendario operativo** del fascicolo. Il rispetto dei termini è dirimente: in caso di violazione, il ricorso è inammissibile e l'atto impositivo diventa definitivo.\n\n## Termini chiave del processo tributario (D.Lgs. 546/92)\n\n- **Ricorso** (Art. 21 c.1): **60 giorni** dalla notifica dell'atto impositivo. Termine di natura sostanziale, non sospeso dalla sospensione feriale (Art. 1 L. 742/1969).\n- **Reclamo / Mediazione** (Art. 17-bis): **OBBLIGATORIO** per valore controversia ≤ €50.000. Termine di **90 giorni** dalla notifica dell'atto; durante i 90 giorni l'ufficio può accogliere, rigettare o proporre mediazione. Decorso il termine senza accordo, il reclamo si converte automaticamente in ricorso.\n- **Costituzione in giudizio** (Art. 22 c.1): entro **30 giorni** dalla proposizione del ricorso (deposito del ricorso + fascicolo in segreteria CGT).\n- **Memoria illustrativa** (Art. 32 c.2): entro **20 giorni** liberi prima dell'udienza.\n- **Replica memoria** dell'altra parte: entro **10 giorni** liberi prima dell'udienza.\n- **Istanza cautelare** (Art. 47): può essere proposta in qualsiasi momento prima dell'udienza, con specifica trattazione anticipata.\n- **Appello** (Art. 51): entro **60 giorni** dalla notifica della sentenza di primo grado.\n- **Ricorso per Cassazione**: entro **60 giorni** dalla notifica della sentenza di appello.\n\nN.B.: Sospensione feriale dei termini processuali dal **1° al 31 agosto** (Art. 1 L. 742/1969) — applicabile a costituzione, memorie, appelli; NON al termine di 60 gg per ricorso (termine sostanziale ex Cass. SS.UU. 12644/2018).\n\n## Stile\n- Una riga per ciascun atto / scadenza del fascicolo.\n- Ordina cronologicamente per `Termine scadenza`.\n- I `Giorni residui` sono calcolati alla data odierna (o data specificata dall'utente). Per scadenze passate, valore negativo (es. '-15 gg' = scaduto 15 giorni fa).\n- Lo `Stato` è una tag-simbolica: `✓ Completato`, `⏳ In lavorazione`, `⚠ Imminente` (entro 7 gg), `🔴 Scaduto`, `📅 Pianificato` (futuro non urgente).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Atto",
+            "format": "tag",
+            "prompt": "Una sola tra: `Avviso di accertamento`, `Cartella esattoriale`, `PVC GdF`, `Diniego rimborso`, `Atto irrogazione sanzioni`, `Reclamo-mediazione`, `Ricorso CGT I grado`, `Costituzione in giudizio`, `Memoria illustrativa`, `Replica memoria`, `Istanza cautelare`, `Udienza CGT I grado`, `Sentenza CGT I grado`, `Appello CGT II grado`, `Udienza CGT II grado`, `Sentenza CGT II grado`, `Ricorso per Cassazione`, `Altro`."
+        },
+        {
+            "index": 1,
+            "name": "Data notifica / deposito",
+            "format": "date",
+            "prompt": "Data del fatto generatore della scadenza. Per l'avviso di accertamento, data di notifica al contribuente. Per la sentenza, data di notifica al difensore. Per il ricorso, data di deposito in segreteria CGT. Formato ISO YYYY-MM-DD."
+        },
+        {
+            "index": 2,
+            "name": "Termine scadenza",
+            "format": "date",
+            "prompt": "Data ultima entro cui adempiere all'azione successiva. Formato ISO YYYY-MM-DD. Esempi: 'Data notifica + 60 gg' per ricorso; 'Data notifica + 90 gg' per reclamo-mediazione; 'Data udienza − 20 gg liberi' per memoria illustrativa. Calcola applicando le regole di sospensione feriale quando appropriato (NON al termine ricorso, SÌ a costituzione e memorie)."
+        },
+        {
+            "index": 3,
+            "name": "Giorni residui",
+            "format": "text",
+            "prompt": "Giorni rimanenti dalla data corrente al termine scadenza. Formato 'N gg' per futuri (es. '30 gg', '7 gg'), '-N gg' per scaduti (es. '-15 gg'). Calcola sempre alla data odierna (o data specificata dall'utente nella chat)."
+        },
+        {
+            "index": 4,
+            "name": "Azione richiesta",
+            "format": "text",
+            "prompt": "Azione concreta da intraprendere prima della scadenza. Esempi: 'Redigere e notificare ricorso ex Art. 18 D.Lgs. 546/92', 'Depositare ricorso in segreteria CGT con fascicolo documenti', 'Redigere memoria illustrativa con repliche alle controdeduzioni AdE', 'Predisporre istanza cautelare per sospensione esecuzione', 'Partecipare a udienza per discussione orale'. Per atti già completati, descrivi cosa è stato fatto (es. 'Ricorso depositato in data gg/mm/aaaa, prot. NNNN/2025')."
+        },
+        {
+            "index": 5,
+            "name": "Stato",
+            "format": "tag",
+            "prompt": "Una sola tra: `✓ Completato` (azione svolta e protocollata), `⏳ In lavorazione` (bozza in preparazione), `⚠ Imminente` (entro 7 gg, attenzione massima), `🔴 Scaduto` (termine perso — verifica rimedi), `📅 Pianificato` (futuro non urgente, > 30 gg)."
+        }
+    ]
+}

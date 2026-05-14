@@ -1,0 +1,52 @@
+{
+    "id": "builtin-commerc-contestazioni-ufficio",
+    "title": "Contestazioni dell'ufficio (estrazione rilievi)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nEstrai le **contestazioni** sollevate dall'ufficio accertatore (Agenzia delle Entrate, Guardia di Finanza, Riscossione) da un avviso di accertamento, PVC (processo verbale di constatazione) o atto impositivo equivalente. Una riga per ciascun singolo rilievo distinto.\n\nL'output è la **tabella contestazioni ufficio** del Modulo Area 2 (piano sezione 3.3), prerequisito per: rideterminazione del reddito (workflow `commerc-rideterminazione-reddito`), costruzione delle controdeduzioni nel contenzioso tributario (workflow `commerc-rilievi-controdeduzioni`).\n\n## Tipologie di rilievo\n\nL'ufficio struttura tipicamente i rilievi per categoria:\n- **Ricavi non contabilizzati** (Art. 39 c.1 lett. d DPR 600/73, Art. 32 c.1 n.2 DPR 600/73 per prelevamenti bancari)\n- **Costi non deducibili / non inerenti** (Art. 109 TUIR)\n- **Costi non documentati** (Art. 109 TUIR)\n- **IVA detratta indebitamente** (Art. 19 DPR 633/72)\n- **Operazioni infragruppo / transfer pricing** (Art. 110 c.7 TUIR)\n- **Operazioni inesistenti** (Art. 8 c.2 D.Lgs. 471/97)\n- **Operazioni soggettivamente / oggettivamente inesistenti** (Art. 21 c.7 DPR 633/72)\n- **Plusvalenze non dichiarate** (Art. 67 TUIR per PF; Art. 86 TUIR per società)\n- **Rettifiche di valore** (Art. 110 TUIR per immobilizzazioni)\n- **Recupero a tassazione di proventi esteri** (CFC, Art. 167 TUIR; redditi finanziari, Art. 4 DL 167/90)\n\n## Stile\n- Una riga per ciascun rilievo distinto. Non aggregare rilievi della stessa tipologia se l'ufficio li ha quantificati separatamente.\n- Cita SEMPRE l'articolo di legge applicato dall'ufficio (formato: 'Art. 39 c.1 lett. d DPR 600/73').\n- L'`Importo recuperato` è il **maggior reddito imponibile** contestato (non l'imposta corrispondente).\n- La `Sanzione applicata` riporta il range previsto dalla norma (es. '90%-180%' per omessa dichiarazione di ricavi, ai sensi Art. 1 D.Lgs. 471/97).\n- L'ultima riga di sintesi `TOTALE RECUPERATO` somma tutti gli importi recuperati a tassazione.\n- Il `Ref. atto` punta al DOC-NN dell'atto sorgente (dalla tabella inventario, Modulo 1 trasversale).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Rilievo",
+            "format": "text",
+            "prompt": "Descrizione sintetica del rilievo, max 1-2 frasi. Esempi: 'Ricavi non contabilizzati ricostruiti dalle movimentazioni bancarie del c/c X', 'Costo non inerente: servizi di consulenza fattura n. 234/2022 ritenuti non riferibili all'attività', 'Prelevamenti c/c non giustificati anno 2022'. Cita brevemente la motivazione formale dell'ufficio."
+        },
+        {
+            "index": 1,
+            "name": "Norma applicata",
+            "format": "text",
+            "prompt": "Articolo di legge invocato dall'ufficio. Formato esatto: 'Art. N c.X lett. Y DPR/L/D.Lgs. NNN/AAAA'. Esempi: 'Art. 39 c.1 lett. d DPR 600/73' (accertamento analitico-induttivo), 'Art. 32 c.1 n.2 DPR 600/73' (presunzione bancaria), 'Art. 109 TUIR' (deducibilità costi), 'Art. 19 DPR 633/72' (detrazione IVA), 'Art. 110 c.7 TUIR' (transfer pricing). Se l'ufficio cita più norme per lo stesso rilievo, riportale separate da virgola."
+        },
+        {
+            "index": 2,
+            "name": "Anno imposta",
+            "format": "text",
+            "prompt": "Anno (o anni) d'imposta cui si riferisce il rilievo. Formato '2022' per singolo anno, '2020-2022' per più anni. Per rilievi su periodi non coincidenti con l'anno solare (es. esercizi a cavallo), indica l'esercizio fiscale (es. 'Esercizio 1/7/2022-30/6/2023')."
+        },
+        {
+            "index": 3,
+            "name": "Importo recuperato",
+            "format": "monetary_amount",
+            "prompt": "Maggior reddito imponibile recuperato a tassazione (NON l'imposta). Formato '€ X.XXX,XX' italiano. Per rilievi che incidono sulla base IVA, indica l'imponibile aggiuntivo (non l'IVA dovuta). Per recupero di costi non deducibili, l'importo è la quota indeducibile."
+        },
+        {
+            "index": 4,
+            "name": "Sanzione applicata",
+            "format": "text",
+            "prompt": "Range di sanzione applicato dall'ufficio, espresso in percentuale del recupero. Esempi: '90%-180%' (Art. 1 D.Lgs. 471/97 per dichiarazione infedele), '120%-240%' (omessa dichiarazione), '50%-200%' (operazioni inesistenti). Indica anche l'eventuale riduzione applicata (es. '90% min ridotto a 1/3 per adesione = 30%')."
+        },
+        {
+            "index": 5,
+            "name": "Tipo accertamento",
+            "format": "tag",
+            "prompt": "Una sola tra: `Analitico` (rettifica voce per voce, basata su prove documentali), `Analitico-induttivo` (analitico ma con presunzioni semplici per voci specifiche), `Induttivo puro` (Art. 39 c.2 DPR 600/73 — abbandono delle scritture contabili), `Sintetico/Redditometro` (per persone fisiche, Art. 38 DPR 600/73), `Bancario` (Art. 32 DPR 600/73 — presunzioni da movimenti bancari), `Studi di settore / ISA` (oggi ISA, Art. 9-bis DL 50/2017), `Transfer pricing` (Art. 110 c.7 TUIR)."
+        },
+        {
+            "index": 6,
+            "name": "Ref. atto",
+            "format": "text",
+            "prompt": "Codice DOC-NN dell'atto sorgente (avviso di accertamento, PVC, cartella, dalla tabella inventario Modulo 1 trasversale). Formato 'DOC-NN'. Aggiungi il numero di pagina dell'atto tra parentesi quando il rilievo si trova in un punto specifico di un atto lungo (es. 'DOC-02 (p. 14)')."
+        }
+    ]
+}

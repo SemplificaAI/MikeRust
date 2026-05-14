@@ -1,0 +1,46 @@
+{
+    "id": "builtin-commerc-confronto-piano-liquidatoria",
+    "title": "Confronto piano vs alternativa liquidatoria",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nConfronta la **soddisfazione dei creditori** secondo il piano di risanamento proposto vs l'**alternativa liquidatoria** (liquidazione giudiziale del patrimonio). Una riga per ciascuna classe di creditori (raggruppata per rango), con la percentuale di soddisfazione attesa nei due scenari.\n\nL'output è la **tabella confronto piano vs liquidatoria** del Modulo Area 3 (piano sezione 4.5): è il **test di convenienza** che il professionista attestatore ex Art. 33 CCII (o il commissario giudiziale ex Art. 110 CCII) deve documentare per giustificare l'omologazione del piano. Il piano è approvabile SE garantisce ai creditori una soddisfazione almeno pari a quella ottenibile in liquidazione.\n\n## Principio del test di convenienza\n\n- **Scenario piano** (continuità aziendale o liquidazione ordinata): l'attivo realizzabile è la combinazione di FCF futuri + valore residuo asset, con minori spese di procedura.\n- **Scenario liquidazione giudiziale**: l'attivo è il valore di realizzo degli asset (tipicamente con sconto rispetto al valore contabile) AL NETTO delle spese di procedura (compensi curatore, esperti, perizie, oneri di gestione del patrimonio nell'asse fallimentare).\n- **Best interest of creditors test**: il piano deve assicurare per CIASCUNA CLASSE una soddisfazione percentuale **non inferiore** a quella prevedibile nello scenario liquidatorio.\n- **Cram-down**: una classe dissenziente può essere superata se almeno una classe ha votato favorevole + il piano rispetta l'absolute priority rule modificato (CCII).\n\n## Stile\n- Una riga per classe di creditori, raggruppata per rango: Ipotecari → Privilegiati speciali → Privilegiati generali (fisco/INPS/lavoratori/professionisti) → Chirografari → Postergati.\n- Le percentuali di soddisfazione sono in 0-100% (es. '85%' = il creditore riceve l'85% del proprio credito). Per i privilegiati speciali su singoli beni, il calcolo è specifico al bene (la % è sull'ammontare del credito coperto dal bene).\n- Il `Delta` è la differenza percentuale (piano − liquidatoria) in punti percentuali: positivo = il piano è migliore, negativo = la liquidazione è migliore (in tal caso il piano potrebbe non essere omologabile per quella classe).\n- L'ultima riga `Totale` riporta i pesi medi di soddisfazione sul totale del passivo.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Classe creditori",
+            "format": "tag",
+            "prompt": "Una sola tra: `Prededucibili`, `Ipotecari`, `Pignoratizi`, `Privilegiati speciali`, `Privilegiati generali — Lavoro`, `Privilegiati generali — Fisco`, `Privilegiati generali — INPS/INAIL`, `Privilegiati generali — Professionisti`, `Chirografari finanziari` (banche, finanziatori senza garanzie), `Chirografari commerciali` (fornitori), `Postergati`."
+        },
+        {
+            "index": 1,
+            "name": "Passivo ammesso",
+            "format": "monetary_amount",
+            "prompt": "Importo totale del passivo della classe, formato '€ X.XXX,XX'. È la somma degli importi della tabella stato passivo (workflow `commerc-stato-passivo`) per la classe corrispondente. Include capitale + interessi + sanzioni quando applicabili."
+        },
+        {
+            "index": 2,
+            "name": "Soddisfazione piano %",
+            "format": "text",
+            "prompt": "Percentuale di soddisfazione dei creditori della classe nello scenario PIANO. Formato 'XX%' (intero) o 'XX,X%' (con decimale). Esempi: '100%' (creditori privilegiati pagati integralmente), '60%' (chirografari parzialmente soddisfatti), '0%' (postergati non pagati). Per Prededucibili tipicamente 100% in entrambi gli scenari."
+        },
+        {
+            "index": 3,
+            "name": "Soddisfazione liquidatoria %",
+            "format": "text",
+            "prompt": "Percentuale di soddisfazione attesa nello scenario LIQUIDAZIONE GIUDIZIALE, formato 'XX%'. Stima conservativa basata su: valore di realizzo asset al netto sconto di mercato (-20%/-40% rispetto a valore di bilancio per asset operativi; -50%/-80% per immobilizzazioni immateriali / avviamento) MENO spese di procedura (compensi curatore Art. 232 CCII, perizie, oneri di gestione)."
+        },
+        {
+            "index": 4,
+            "name": "Delta (piano − liq.)",
+            "format": "text",
+            "prompt": "Differenza tra le due percentuali, in punti percentuali. Formato '+XX pp' o '-XX pp'. Esempi: '+15 pp' (il piano dà 15 punti in più), '-5 pp' (il piano dà 5 punti in meno — in tal caso il piano potrebbe non essere omologabile per quella classe senza cram-down)."
+        },
+        {
+            "index": 5,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Annotazioni metodologiche: criteri di stima dello scenario liquidatorio (es. 'Immobile via X stimato a € 850.000 in continuità, € 600.000 in liquidazione — riduzione 30% per sconto vendita rapida'), motivazione di asimmetrie (es. 'Privilegiati pagati 100% anche in liquidazione perché coperti dal valore dell'ipoteca'), best interest test (es. 'Piano garantisce best interest test ex Art. 88 c.4 CCII per tutte le classi'). Per la riga `Totale` indica il peso medio ponderato."
+        }
+    ]
+}

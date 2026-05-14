@@ -1,0 +1,126 @@
+{
+    "schema_version": 1,
+    "id": "it/attestazione-art-33-ccii",
+    "source_reference": "docs/piano_toolkit_commercialista.md#4-area-3",
+    "display_name": {
+        "it": "Attestazione professionista ex Art. 33 CCII",
+        "en": "Independent professional's attestation (Italian insolvency code Art. 33)",
+        "fr": "Attestation du professionnel indépendant (Art. 33 CCII italien)",
+        "de": "Bescheinigung des unabhängigen Sachverständigen (Art. 33 CCII)",
+        "es": "Atestación del profesional independiente (Art. 33 CCII)",
+        "pt": "Atestação do profissional independente (Art. 33 CCII)"
+    },
+    "category": "insolvency-attestation",
+    "domain": "finance",
+    "also_applicable_to": ["legal", "compliance"],
+    "locale": "it-IT",
+    "automation_level": "L3",
+    "placeholder_syntax": "square_brackets",
+
+    "paper": { "size": "A4", "orientation": "portrait", "format": "standard" },
+    "margins_cm": { "top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5 },
+    "typography": {
+        "body_font": "Calibri",
+        "body_size_pt": 11.0,
+        "line_spacing": 1.15,
+        "paragraph_after_pt": 6.0,
+        "alignment": "justify",
+        "first_line_indent_cm": 0.0
+    },
+    "footnotes": { "font": "Calibri", "size_pt": 9.0, "line_spacing": 1.0 },
+
+    "style_map_baseline": {
+        "body_text":       "Corpo testo",
+        "section_heading": "Titolo sezione",
+        "citation":        "Citazione",
+        "footnote":        "Note piè pagina"
+    },
+    "style_map": {
+        "heading_1":            "AttestTitoloSezione",
+        "heading_2":            "AttestSottosezione",
+        "attestazione_finale":  "AttestDichiarazioneFinale",
+        "table_compact":        "AttestTabellaCompatta",
+        "signature_block":      "AttestFirma"
+    },
+    "directives_supported": ["page_break"],
+
+    "header_block": "perito_compact",
+    "footer_block": "page_number_with_total",
+    "section_numbering": "manual",
+
+    "section_skeleton": [
+        { "id": "title",
+          "render": "RELAZIONE DI ATTESTAZIONE EX ART. 33 CCII",
+          "guidance": "Titolo centrato in grassetto MAIUSCOLO. Sottotitolo con il tipo di procedura: 'Piano attestato di risanamento (Art. 56 CCII)', 'Concordato preventivo (Artt. 84 ss. CCII)', 'Composizione negoziata della crisi (Artt. 12-23 CCII)'." },
+
+        { "id": "incarico_attestatore",
+          "title": "1. Nomina e incarico dell'attestatore",
+          "guidance": "Estremi della nomina del professionista indipendente: atto di incarico (data, parti), qualifiche del professionista (iscrizione albo dottori commercialisti / revisori legali). Dichiarazione di indipendenza ai sensi dell'Art. 2 c.1 lett. o CCII: nessun rapporto col debitore o coi creditori che possa compromettere l'imparzialità del giudizio. Indicare l'eventuale collegio degli attestatori." },
+
+        { "id": "documentazione",
+          "title": "2. Documentazione esaminata",
+          "guidance": "Rimando alla tabella inventario in allegato. Distinguere: documentazione aziendale (bilanci, contabilità, banche), piano industriale presentato dal debitore, eventuale documentazione integrativa richiesta dall'attestatore durante l'analisi." },
+
+        { "id": "descrizione_crisi",
+          "title": "3. Descrizione dell'azienda e della crisi",
+          "guidance": "Dati anagrafici della società, settore e mercato, descrizione della crisi: cause esogene (mercato, eventi straordinari) e endogene (gestione, errori strategici, sotto-capitalizzazione). Riferimenti ai principali indicatori di crisi (rimando alla tabella `commerc-indicatori-crisi`)." },
+
+        { "id": "veridicita_dati",
+          "title": "4. Veridicità dei dati aziendali",
+          "guidance": "Verifica della veridicità dei dati aziendali su cui si fonda il piano (Art. 33 c.5 CCII). Procedure svolte: confronto con bilanci approvati, verifica dei movimenti bancari, riscontri presso fornitori/clienti chiave, analisi delle scritture contabili. Esito esplicito: i dati sono / non sono veridici. Eventuali rettifiche apportate dall'attestatore." },
+
+        { "id": "stato_passivo",
+          "title": "5. Analisi dello stato passivo",
+          "guidance": "Rimando alla tabella `commerc-stato-passivo` in allegato. Discussione della classificazione dei creditori per rango, dei privilegi (Artt. 2746-2754 c.c.), delle garanzie. Identificazione di passivi latenti (contenziosi, garanzie prestate, debiti tributari non ancora accertati)." },
+
+        { "id": "attivo",
+          "title": "6. Analisi dell'attivo",
+          "guidance": "Verifica del valore di realizzo degli asset aziendali in continuità vs liquidazione. Per gli immobili e impianti rilevanti, riferimento a perizie tecniche specifiche. Valutazione dell'avviamento e degli intangibili." },
+
+        { "id": "piano",
+          "title": "7. Il piano industriale e finanziario",
+          "guidance": "Descrizione del piano presentato dal debitore: assunzioni alla base (crescita ricavi, sostenibilità costi, finanza ponte ex Art. 99 CCII se prevista), scenari (base / pessimista / ottimista), proiezioni economico-finanziarie. Rimando alla tabella `commerc-cashflow-previsionale` per il dettaglio." },
+
+        { "id": "fattibilita",
+          "title": "8. Analisi della fattibilità",
+          "guidance": "Valutazione critica della fattibilità del piano: sostenibilità dei ricavi proiettati (giustificati da contratti in essere o nuove iniziative documentate?), realizzabilità dei costi proiettati (margini comparabili al settore?), DSCR di piano >1 negli anni di rimborso del debito, analisi sensitivity (il piano regge anche in scenario pessimista?), adeguatezza della finanza ponte e nuove risorse." },
+
+        { "id": "confronto_liquidatoria",
+          "title": "9. Confronto con l'alternativa liquidatoria",
+          "guidance": "Rimando alla tabella `commerc-confronto-piano-liquidatoria`. Verifica del **best interest of creditors test**: per ciascuna classe, la soddisfazione del piano è ≥ soddisfazione della liquidazione (Art. 88 c.4 CCII). Identificazione di eventuali classi dissenzienti e applicabilità del cram-down (Artt. 84-85 CCII)." },
+
+        { "id": "attestazione",
+          "title": "10. Attestazione",
+          "guidance": "Conclusione finale in forma esplicita, in **grassetto centrato**:\n\n'Il sottoscritto professionista indipendente [PERITO_NOME], in qualità di attestatore designato ai sensi dell'Art. 33 CCII, sulla base delle verifiche e delle analisi compiute, **ATTESTA** la **veridicità dei dati aziendali** e la **fattibilità del piano** di risanamento / concordato preventivo presentato dalla società [DEBITORE_RAGIONE_SOCIALE], ritenendo che il piano sia ragionevolmente attuabile e idoneo a garantire, in caso di omologazione, la soddisfazione dei creditori in misura non inferiore a quella conseguibile in caso di liquidazione giudiziale.'\n\nIn alternativa, in caso di **mancata attestazione**:\n\n'... il sottoscritto **NON ATTESTA** la fattibilità del piano per i seguenti motivi: [motivazioni specifiche e dettagliate].'" },
+
+        { "id": "allegati",
+          "title": "11. Allegati",
+          "guidance": "Elenco numerato delle tabelle e dei documenti in allegato: (1) Inventario documenti; (2) Indicatori di crisi; (3) Stato passivo per rango; (4) Cash flow previsionale; (5) Confronto piano vs liquidatoria. Eventuali perizie tecniche e documenti integrativi sono numerati separatamente." },
+
+        { "id": "signature_block",
+          "guidance": "Firma dell'attestatore in basso a destra: nome, qualifica (Dottore commercialista, iscrizione albo, Revisore legale), data di firma, eventuale apposizione di sigillo professionale. Per piani in CNC (composizione negoziata), può essere richiesta firma digitale CAdES per il deposito telematico." }
+    ],
+
+    "field_prompts": {
+        "PERITO_NOME":           "Nome completo dell'attestatore. Formato 'Dr./Dr.ssa Nome Cognome'.",
+        "PERITO_QUALIFICA":      "Qualifica e iscrizioni. Esempi: 'Dottore commercialista iscritto all'Ordine dei Dottori Commercialisti di [città] n. [N], Revisore legale n. [N], in possesso dei requisiti di indipendenza ex Art. 2 c.1 lett. o CCII'.",
+        "DEBITORE_RAGIONE_SOCIALE":"Ragione sociale completa del debitore. Es. 'Alfa Srl' o 'Beta Spa in liquidazione'.",
+        "DEBITORE_CF_PIVA":      "Codice fiscale e partita IVA del debitore.",
+        "DEBITORE_SEDE":         "Sede legale del debitore.",
+        "TIPO_PROCEDURA":        "Tipo di procedura. Opzioni: 'Piano attestato di risanamento (Art. 56 CCII)', 'Concordato preventivo in continuità aziendale (Art. 84 c.1 lett. a CCII)', 'Concordato preventivo liquidatorio (Art. 84 c.1 lett. b CCII)', 'Composizione negoziata della crisi (Artt. 12-23 CCII)', 'Convenzione di moratoria (Art. 62 CCII)'.",
+        "DATA_INCARICO":         "Data dell'atto di incarico, formato 'gg/mm/aaaa'.",
+        "DATA_PIANO":            "Data di presentazione del piano da parte del debitore, formato 'gg/mm/aaaa'.",
+        "ORIZZONTE_PIANO":       "Orizzonte temporale del piano in anni (es. '3 anni', '5 anni').",
+        "ESITO_ATTESTAZIONE":    "Esito dell'attestazione: 'ATTESTAZIONE POSITIVA' o 'ATTESTAZIONE NEGATIVA' (e in tal caso aggiungere il riferimento alla motivazione)."
+    },
+
+    "required_metadata": [
+        "PERITO_NOME",
+        "PERITO_QUALIFICA",
+        "DEBITORE_RAGIONE_SOCIALE",
+        "TIPO_PROCEDURA",
+        "DATA_INCARICO",
+        "DATA_PIANO",
+        "ESITO_ATTESTAZIONE"
+    ]
+}

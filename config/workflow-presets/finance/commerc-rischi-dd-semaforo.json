@@ -1,0 +1,70 @@
+{
+    "id": "builtin-commerc-rischi-dd-semaforo",
+    "title": "Rischi DD — semaforo",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nIdentifica e quantifica i **rischi latenti** emersi dalla due diligence sulla società target: rischi fiscali, previdenziali, giuslavoristici, societari, contrattuali, contenzioso. Una riga per ciascun rischio con classificazione semaforica e quantificazione dell'esposizione.\n\nL'output è la **tabella rischi DD** del Modulo Area 4 (piano sezione 5.4): è la **executive summary** del report di DD. Il colore del semaforo (🔴 / 🟡 / 🟢) determina l'azione consigliata in sede di SPA (Sale & Purchase Agreement): accantonamento, clausola di indennizzo, escrow, modifica del prezzo.\n\n## Legenda semaforo\n\n| Colore | Probabilità | Azione consigliata in SPA |\n|--------|-------------|--------------------------|\n| 🔴 **Rosso** | Certo / Molto probabile | Accantonamento pieno o riduzione prezzo; clausola indennizzo specifica |\n| 🟡 **Giallo** | Probabile / Possibile | Accantonamento parziale o clausola escrow (somma vincolata a un conto vincolato per un periodo di garanzia, tipicamente 18-36 mesi) |\n| 🟢 **Verde** | Possibile / Remoto | Monitoraggio + dichiarazione del venditore + clausola indennizzo generica |\n\n## Aree di rischio standard\n\n- **Fiscale**: omessa dichiarazione, costi non documentati, IVA detratta indebitamente, transfer pricing, operazioni infragruppo, presunzioni bancarie, ravvedimento operoso pendente.\n- **Previdenziale**: collaboratori riqualificabili come dipendenti, omessi versamenti, posizione INPS dirigenti, fondi pensione.\n- **Giuslavoristico**: contenzioso lavoristico pendente, irregolarità contrattuali (es. contratti a termine non legittimi), straordinari non pagati, classificazione professionale errata.\n- **Societario**: vizi di delibere, opzioni call/put esercitabili, diritti di prelazione non rispettati, vincoli su quote.\n- **Contrattuale**: clausole change of control nei contratti, garanzie escutibili da fornitori/clienti chiave, contratti scaduti / a tempo determinato in scadenza.\n\n## Stile\n- Una riga per rischio distinto.\n- L'`Esposizione max` quantifica il **worst case scenario**: imposte recuperabili + sanzioni massime + interessi da calcolo della prescrizione.\n- Il `Semaforo` è la valutazione finale del professionista basata su probabilità × magnitudo.\n- Il `Fondo in bilancio` indica se la società ha già stanziato un fondo rischi per la fattispecie (riduce la rilevanza per il compratore).\n- L'ultima riga `Esposizione totale` somma tutte le esposizioni max — è il **massimo potenziale impact** sul prezzo o sull'escrow.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Area",
+            "format": "tag",
+            "prompt": "Una sola tra: `Fiscale`, `Previdenziale`, `Giuslavoristico`, `Societario`, `Contrattuale`, `Contenzioso`."
+        },
+        {
+            "index": 1,
+            "name": "Descrizione rischio",
+            "format": "text",
+            "prompt": "Descrizione del rischio in 1-2 frasi. Esempi: 'Deduzione costi intercompany 2022-2024 non documentati da transfer pricing study formale — possibile contestazione ex Art. 110 c.7 TUIR', 'N. 4 collaboratori a P.IVA potenzialmente riqualificabili come dipendenti (parasubordinati ex Art. 2 D.Lgs. 81/2015) — controllo INPS in corso', 'IVA detratta su operazioni con cliente sospeso da albo nel 2023 — possibile contestazione ex Art. 19 DPR 633/72', 'Lite pendente CGT II grado, esito incerto — possibile soccombenza € 250.000'."
+        },
+        {
+            "index": 2,
+            "name": "Norma / base",
+            "format": "text",
+            "prompt": "Riferimento normativo o base contestuale del rischio. Esempi: 'Art. 110 c.7 TUIR', 'Art. 2 D.Lgs. 81/2015 + Art. 2094 c.c.', 'Art. 19 DPR 633/72 + Cass. n. …/…', 'Art. 25 c.1 D.Lgs. 81/2008 (sicurezza lavoro)'. Per rischi non normativi (es. contratti, controparti instabili), riporta la fattispecie contestuale (es. 'Clausola change of control art. 12 contratto fornitura cliente X')."
+        },
+        {
+            "index": 3,
+            "name": "Anni esposti",
+            "format": "text",
+            "prompt": "Anni di imposta o periodo cui si riferisce l'esposizione. Esempi: '2020-2024' (5 anni accertabili), '2022-2024' (anni accertabili residui dopo prescrizioni intervenute), 'Attuale' (per rischi non temporali tipo clausole contrattuali in vigore). Per liti pendenti, indica l'anno di insorgenza del fatto generatore."
+        },
+        {
+            "index": 4,
+            "name": "Esposizione max",
+            "format": "monetary_amount",
+            "prompt": "Quantificazione del worst case scenario: imposte recuperabili + sanzioni massime applicabili + interessi calcolati alla data di chiusura. Formato '€ X.XXX,XX' italiano. Includi tutte le imposte rilevanti (IRES + IRAP + IVA + ritenute + INPS/INAIL). Per rischi non monetariamente quantificabili (es. revoca di autorizzazione amministrativa), scrivi '€ TBD — non quantificabile' e annota nelle Note l'impatto qualitativo."
+        },
+        {
+            "index": 5,
+            "name": "Probabilità",
+            "format": "tag",
+            "prompt": "Una sola tra: `Certo` (accertamento già notificato o evento già verificato), `Molto probabile` (forte indizio di prossimo accertamento), `Probabile` (>50%), `Possibile` (30-50%), `Remoto` (<30%)."
+        },
+        {
+            "index": 6,
+            "name": "Semaforo",
+            "format": "tag",
+            "prompt": "Una sola tra: `🔴 Rosso` (Certo o Molto probabile, magnitudo significativa), `🟡 Giallo` (Probabile o Possibile, oppure Certo ma di magnitudo limitata), `🟢 Verde` (Possibile di magnitudo limitata o Remoto). Combina probabilità × magnitudo nella valutazione."
+        },
+        {
+            "index": 7,
+            "name": "Fondo in bilancio",
+            "format": "yes_no",
+            "prompt": "La società ha già stanziato un fondo rischi per la fattispecie? Una sola tra: `Sì` (fondo presente, anche se di entità inferiore al rischio), `No` (assente)."
+        },
+        {
+            "index": 8,
+            "name": "Azione SPA consigliata",
+            "format": "text",
+            "prompt": "Azione concreta da inserire nell'SPA (Sale & Purchase Agreement) o nelle condizioni di chiusura. Esempi: 'Accantonamento pieno € 250K + clausola indennizzo specifica per 5 anni', 'Escrow € 100K vincolato per 36 mesi a copertura del rischio', 'Dichiarazione del venditore + clausola indennizzo standard 18 mesi', 'Riduzione prezzo di € 80K per rischio incassato + clausola di rimborso se non si verifica'. Per rischi remoti / verde, può essere sufficiente 'Monitoraggio post-closing'."
+        },
+        {
+            "index": 9,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Annotazioni rilevanti: riferimenti a documenti DOC-NN della tabella inventario, eventuali sentenze giurisprudenziali a sostegno, raccomandazioni operative (es. 'Richiedere transfer pricing study formale prima del signing', 'Verificare possibilità di ravvedimento operoso con sconto sanzione 1/8 ex Art. 13 D.Lgs. 472/97'). Per la riga `Esposizione totale` indica il peso medio ponderato per probabilità."
+        }
+    ]
+}

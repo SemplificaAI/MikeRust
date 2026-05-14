@@ -1,0 +1,76 @@
+{
+    "id": "builtin-commerc-esposizione-fiscale-anno-tributo",
+    "title": "Esposizione fiscale per anno e tributo (DD)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nMatrice **anno × tributo** dell'esposizione fiscale potenziale della società target. Una riga per ciascun anno fiscale (tipicamente ultimi 5 accertabili), colonne con esposizione potenziale per ogni tributo + sanzioni + interessi + totale.\n\nL'output è la **tabella esposizione fiscale** del Modulo Area 4 (piano sezione 5.5): è la quantificazione monetaria del rischio fiscale complessivo, calcolata in modo strutturato per anno. Compagna naturale del workflow `commerc-rischi-dd-semaforo` (che è qualitativo/per area) — questa è quantitativa/per anno.\n\n## Periodi accertabili (DPR 600/73)\n\n- **Dichiarazione presentata**: termine accertamento entro il 31/12 del **5° anno successivo** a quello di presentazione (es. dichiarazione 2024 → accertabile fino al 31/12/2030).\n- **Dichiarazione omessa**: termine accertamento entro il 31/12 del **7° anno successivo** a quello di scadenza.\n- **Raddoppio termini per reati tributari** (Art. 43 c.3 DPR 600/73): possibili termini fino a 10 anni in caso di violazioni penali tributarie.\n\nQuindi nel 2026 sono accertabili gli anni di imposta 2020-2024 (ordinario). Anni precedenti sono prescritti salvo casi specifici.\n\n## Stile\n- Una riga per anno fiscale, dall'anno più antico accertabile (es. 2020) al più recente chiuso (es. 2024).\n- Tutte le colonne tributo sono in formato '€ X.XXX,XX' italiano. Per `€ 0` quando l'esposizione è assente.\n- Le `Sanzioni min` e `Sanzioni max` riflettono il range di sanzioni applicabili. Le sanzioni tipiche:\n  - Dichiarazione infedele Art. 1 D.Lgs. 471/97: 90%-180% del recupero.\n  - Dichiarazione omessa Art. 1 D.Lgs. 471/97: 120%-240% del recupero.\n  - Omessi versamenti Art. 13 D.Lgs. 471/97: 30% (riducibile a 1,5% in ravvedimento sprint).\n  - IVA fatturata indebitamente Art. 6 D.Lgs. 471/97: 90%-180%.\n- Gli `Interessi` sono calcolati al tasso legale per anno (variabile, ~2,5% medio negli ultimi anni).\n- L'`Esposizione totale` per anno = Imposte recuperabili + Sanzioni max + Interessi (worst case scenario).\n- L'ultima riga `Totale` somma tutte le esposizioni dei 5 anni.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Anno",
+            "format": "text",
+            "prompt": "Anno di imposta. Formato 'YYYY' (es. '2020', '2021', '2022', '2023', '2024'). Una riga per ciascun anno accertabile alla data di analisi."
+        },
+        {
+            "index": 1,
+            "name": "IRES",
+            "format": "monetary_amount",
+            "prompt": "Esposizione potenziale IRES (Imposta sui Redditi delle Società) per l'anno. Calcolata come: maggior reddito imponibile potenziale × 24% (aliquota IRES). Formato '€ X.XXX,XX'. Per società di persone questo importo è 0 (l'IRPEF è in capo ai soci)."
+        },
+        {
+            "index": 2,
+            "name": "IRAP",
+            "format": "monetary_amount",
+            "prompt": "Esposizione potenziale IRAP (Imposta Regionale sulle Attività Produttive). Calcolata come: maggior valore della produzione imponibile × 3,9% (aliquota IRAP standard). Per regioni con maggiorazione aliquota, riportare quella effettiva. Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 3,
+            "name": "IVA",
+            "format": "monetary_amount",
+            "prompt": "Esposizione potenziale IVA (Imposta sul Valore Aggiunto). Riflette: IVA non versata, IVA detratta indebitamente, operazioni imponibili non dichiarate. Calcolata applicando l'aliquota appropriata (22% standard, 10% ridotta, 4% beni essenziali, 5% specifica). Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 4,
+            "name": "Ritenute",
+            "format": "monetary_amount",
+            "prompt": "Esposizione potenziale ritenute IRPEF su redditi di lavoro dipendente, autonomo, o capitale non versate dal sostituto d'imposta. Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 5,
+            "name": "INPS/INAIL",
+            "format": "monetary_amount",
+            "prompt": "Esposizione potenziale contributi previdenziali e assicurativi (INPS Gestione Separata, INPS dipendenti, INAIL premi). Includi anche eventuali violazioni su collaboratori riqualificabili in dipendenti. Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 6,
+            "name": "Totale imposte",
+            "format": "monetary_amount",
+            "prompt": "Somma delle imposte recuperabili per l'anno (IRES + IRAP + IVA + Ritenute + INPS/INAIL). Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 7,
+            "name": "Sanzioni min",
+            "format": "monetary_amount",
+            "prompt": "Sanzioni minime applicabili sulla base del Totale imposte. Tipicamente 90% delle imposte recuperate per dichiarazioni infedeli. Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 8,
+            "name": "Sanzioni max",
+            "format": "monetary_amount",
+            "prompt": "Sanzioni massime applicabili. Tipicamente 180% delle imposte recuperate per dichiarazioni infedeli, 240% per dichiarazioni omesse. Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 9,
+            "name": "Interessi",
+            "format": "monetary_amount",
+            "prompt": "Interessi maturati al tasso legale dal termine di scadenza dell'imposta originaria alla data di calcolo. Approssimazione: 2,5% medio annuo × anni di ritardo × imposte recuperabili. Formato '€ X.XXX,XX'."
+        },
+        {
+            "index": 10,
+            "name": "Esposizione totale",
+            "format": "monetary_amount",
+            "prompt": "Worst case scenario per l'anno: Totale imposte + Sanzioni MAX + Interessi. Formato '€ X.XXX,XX'."
+        }
+    ]
+}

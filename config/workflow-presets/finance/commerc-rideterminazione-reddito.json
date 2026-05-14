@@ -1,0 +1,46 @@
+{
+    "id": "builtin-commerc-rideterminazione-reddito",
+    "title": "Rideterminazione del reddito (CTU tributaria)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nConfronta l'**importo recuperato dall'ufficio** con l'**importo rideterminato** dopo l'analisi delle controdeduzioni, voce per voce. Una riga per ciascun rilievo contestato (riprende dalla tabella `commerc-contestazioni-ufficio`).\n\nL'output è la **tabella rideterminazione del reddito** del Modulo Area 2 (piano sezione 3.5): è la sintesi quantitativa del valore difensivo della perizia / CTU. Il `Risparmio fiscale ottenuto` è il delta tra la pretesa originaria dell'ufficio e l'importo che residua dopo la difesa, ed è il principale KPI di successo del lavoro tributario.\n\n## Stile\n- Una riga per ogni rilievo che è stato analizzato dalla difesa (anche quelli che restano pieni o si abbandona).\n- Le `Controdeduzioni` riassumono in 1-3 frasi la tesi difensiva: documenti probanti + argomentazione giuridica + giurisprudenza a supporto.\n- L'`Importo rideterminato` rappresenta quanto residua come contestabile DOPO la difesa: può essere 0 (rilievo abbattuto), uguale all'importo ufficio (rilievo confermato per assenza di difesa efficace), o parziale.\n- La `Norma/giurispr. a supporto` cita la base giuridica della difesa: articoli di legge, sentenze Cassazione, sentenze CGT (Corte Giustizia Tributaria), prassi (circolari, risoluzioni).\n- L'ultima riga aggiuntiva — `TOTALE` — somma gli importi ufficio e gli importi rideterminati. Una riga finale `Risparmio fiscale ottenuto` riporta la **differenza** (€ ufficio − € rideterminato) sia in imponibile sia in imposte stimate (IRES 24% + IRAP 3,9% sull'imponibile recuperato; o aliquote diverse per persone fisiche secondo scaglioni IRPEF).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Rilievo",
+            "format": "text",
+            "prompt": "Descrizione sintetica del rilievo (lo stesso testo della colonna `Rilievo` nella tabella `commerc-contestazioni-ufficio`). Quando i rilievi sono numerati nell'atto originario, anteporli (es. 'Rilievo n. 3 — Costi non inerenti consulenze')."
+        },
+        {
+            "index": 1,
+            "name": "Importo ufficio",
+            "format": "monetary_amount",
+            "prompt": "Importo recuperato dall'ufficio per il rilievo (lo stesso valore della tabella `commerc-contestazioni-ufficio`). Formato '€ X.XXX,XX' italiano."
+        },
+        {
+            "index": 2,
+            "name": "Controdeduzioni",
+            "format": "text",
+            "prompt": "Sintesi della tesi difensiva in 1-3 frasi. Esempi: 'Documentazione disponibile dimostra inerenza del costo all'attività: contratto di consulenza, fattura, evidenza pagamento, output del consulente. Il costo è deducibile ex Art. 109 TUIR.', 'Presunzione bancaria vinta: i versamenti del 15/03 e 22/05 sono giustificati da bonifici di restituzione mutuo da familiari (scrittura privata DOC-15 e bonifici originari DOC-16, DOC-17).', 'Rilievo infondato — il costo è già stato dedotto nell'esercizio precedente, l'ufficio ha contestato per errore di competenza.', 'Rilievo accolto solo per la parte non documentata: € 12.000 su € 50.000 contestati.'"
+        },
+        {
+            "index": 3,
+            "name": "Importo rideterminato",
+            "format": "monetary_amount",
+            "prompt": "Importo che residua come contestabile DOPO la difesa, formato '€ X.XXX,XX'. Valori tipici: €0 per rilievi completamente abbattuti, l'importo ufficio se la difesa fallisce, una quota parziale se la difesa è parzialmente efficace. Per rilievi che l'utente decide di abbandonare (es. costo non difendibile per cui conviene accettare l'adesione), riporta l'importo pieno e annotalo nelle Note."
+        },
+        {
+            "index": 4,
+            "name": "Norma / giurispr. a supporto",
+            "format": "text",
+            "prompt": "Riferimento giuridico della difesa. Combina norme + sentenze + prassi quando rilevante. Esempi: 'Art. 109 TUIR + Cass. n. 12345/2023 (inerenza costi)', 'Art. 2697 c.c. + Cass. SS.UU. n. 24823/2015 (presunzione bancaria su impresa individuale)', 'Art. 19 DPR 633/72 + Cass. n. 67890/2024 (detrazione IVA su operazioni non soggettivamente inesistenti)', 'Circolare AdE n. 32/E del 18/06/2024 (interpretazione fattispecie)'. Per rilievi senza difesa giuridica specifica scrivi '—'."
+        },
+        {
+            "index": 5,
+            "name": "Documenti probanti",
+            "format": "text",
+            "prompt": "Codici DOC-NN dei documenti della tabella inventario (Modulo 1 trasversale) che provano la tesi difensiva. Formato 'DOC-NN' separati da virgola. Esempi: 'DOC-15, DOC-16, DOC-17', 'DOC-22 (contratto), DOC-23 (fatture), DOC-24 (estratto conto)'. Per rilievi senza prove documentali scrivi '—' e annota nelle Note la limitazione."
+        }
+    ]
+}

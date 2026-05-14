@@ -1,0 +1,120 @@
+{
+    "schema_version": 1,
+    "id": "it/relazione-stima-valore",
+    "source_reference": "docs/piano_toolkit_commercialista.md#2-area-1",
+    "display_name": {
+        "it": "Relazione di stima d'azienda",
+        "en": "Business valuation report",
+        "fr": "Rapport d'évaluation d'entreprise",
+        "de": "Unternehmensbewertungsbericht",
+        "es": "Informe de valoración empresarial",
+        "pt": "Relatório de avaliação empresarial"
+    },
+    "category": "valuation-report",
+    "domain": "finance",
+    "also_applicable_to": ["legal", "real_estate", "insurance", "compliance"],
+    "locale": "it-IT",
+    "automation_level": "L3",
+    "placeholder_syntax": "square_brackets",
+
+    "paper": { "size": "A4", "orientation": "portrait", "format": "standard" },
+    "margins_cm": { "top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5 },
+    "typography": {
+        "body_font": "Calibri",
+        "body_size_pt": 11.0,
+        "line_spacing": 1.15,
+        "paragraph_after_pt": 6.0,
+        "alignment": "justify",
+        "first_line_indent_cm": 0.0
+    },
+    "footnotes": { "font": "Calibri", "size_pt": 9.0, "line_spacing": 1.0 },
+
+    "style_map_baseline": {
+        "body_text":       "Corpo testo",
+        "section_heading": "Titolo sezione",
+        "citation":        "Citazione",
+        "footnote":        "Note piè pagina"
+    },
+    "style_map": {
+        "heading_1":     "ValutTitoloSezione",
+        "heading_2":     "ValutSottosezione",
+        "value_block":   "ValutValoreFinale",
+        "table_compact": "ValutTabellaCompatta",
+        "signature_block":"ValutFirma"
+    },
+    "directives_supported": ["page_break"],
+
+    "header_block": "perito_compact",
+    "footer_block": "page_number_with_total",
+    "section_numbering": "manual",
+
+    "section_skeleton": [
+        { "id": "title",
+          "render": "RELAZIONE DI STIMA D'AZIENDA",
+          "guidance": "Titolo centrato in grassetto MAIUSCOLO. Sottotitolo con tipo di incarico (CTU, CTP, perizia asseverata, perizia ex Art. 2343 c.c.)." },
+
+        { "id": "incarico",
+          "title": "1. Incarico e quesiti",
+          "guidance": "Tipo di incarico ricevuto. Per CTU: estremi della nomina del giudice (sentenza, ordinanza, RG). Per CTP / stragiudiziale: mandato della parte. Per perizia ex Art. 2343 c.c. (conferimento in S.p.A.): nomina del Presidente del Tribunale. Riportare letteralmente i quesiti." },
+
+        { "id": "documentazione",
+          "title": "2. Documentazione esaminata",
+          "guidance": "Sintesi narrativa per tipo di documento esaminato, rimandando alla tabella inventario in allegato. Distinguere bilanci, nota integrativa, statuto, contratti significativi, piano industriale." },
+
+        { "id": "descrizione_azienda",
+          "title": "3. Descrizione dell'azienda e del settore",
+          "guidance": "Dati anagrafici (ragione sociale, codice fiscale, sede legale), forma giuridica, oggetto sociale, settore di attività (codice ATECO), storia, prodotti / servizi principali, posizionamento competitivo. Almeno 2-3 paragrafi." },
+
+        { "id": "analisi_bilanci",
+          "title": "4. Analisi dei bilanci e normalizzazione",
+          "guidance": "Sintesi narrativa della riclassificazione pluriennale (rimando alla tabella `commerc-riclassificazione-bilanci` in allegato). Commento sui trend: andamento ricavi, EBITDA, marginalità. Esplicita le normalizzazioni applicate (componenti straordinari rimossi, rettifiche di competenza)." },
+
+        { "id": "indicatori",
+          "title": "5. Indicatori economico-finanziari",
+          "guidance": "Commento qualitativo sugli indicatori chiave (rimando alla tabella `commerc-indicatori-econ-finanz` in allegato). Confronto con benchmark di settore. Valutazione di redditività, struttura finanziaria, liquidità, efficienza operativa." },
+
+        { "id": "metodi_valutativi",
+          "title": "6. Metodi di valutazione applicati",
+          "guidance": "Una sotto-sezione per ciascun metodo applicato (patrimoniale, reddituale, DCF, multipli). Per ciascuno: presupposti teorici (PIV 2015 OIV, OIC, IFRS), parametri scelti con motivazione (es. WACC = 9,2% dettaglio CAPM), valore ottenuto. Cita la tabella `commerc-metodi-valutativi`." },
+
+        { "id": "riconciliazione",
+          "title": "7. Riconciliazione e range di valore",
+          "guidance": "Confronto tra i valori ottenuti dai diversi metodi. Range di valore (min-max). Motivazione della ponderazione applicata e del valore proposto entro il range. Considerazioni sul rischio idiosincratico dell'azienda valutata." },
+
+        { "id": "conclusioni",
+          "title": "8. Conclusioni e valore proposto",
+          "guidance": "Valore finale d'azienda proposto: importo in Euro con due decimali (es. '€ 5.000.000,00') in **grassetto centrato**, range di confidenza, sintesi della motivazione. Risposta puntuale ai quesiti peritali della sezione 1." },
+
+        { "id": "allegati",
+          "title": "9. Allegati",
+          "guidance": "Elenco numerato delle tabelle in allegato: (1) Inventario documenti — Modulo 1; (2) Riclassificazione bilanci pluriennale; (3) Indicatori economico-finanziari; (4) Metodi valutativi con valori ponderati. Le tabelle vanno incluse in coda alla relazione come tabelle Markdown (renderizzate dalla pipeline DOCX come tabelle Word vere)." },
+
+        { "id": "signature_block",
+          "guidance": "Firma del perito in basso a destra: nome, qualifica (Dr./Dr.ssa, iscrizione albo dottori commercialisti, eventuale registro revisori legali), data di firma. Per perizie asseverate, indicazione del giuramento prestato presso Tribunale di [città] in data [...]." }
+    ],
+
+    "field_prompts": {
+        "PERITO_NOME":         "Nome completo del perito firmatario. Formato 'Dr./Dr.ssa Nome Cognome'.",
+        "PERITO_QUALIFICA":    "Qualifica e iscrizione albi. Esempi: 'Dottore commercialista, Iscritto all'Ordine dei Dottori Commercialisti e degli Esperti Contabili di [città] n. [N], Iscritto al Registro dei Revisori Legali n. [N]', 'CTU del Tribunale di [città] iscritto al n. [N]'.",
+        "INCARICO_TIPO":       "Tipo di incarico. Esempi: 'CTU in procedimento civile R.G. [N]', 'CTP per [parte]', 'Perizia asseverata per finanziamento bancario', 'Perizia ex Art. 2343 c.c. per conferimento in [Ragione Sociale]', 'Perizia stragiudiziale di stima per cessione di azienda'.",
+        "INCARICO_RIFERIMENTO":"Riferimento al provvedimento di nomina o mandato. Per CTU: 'Ordinanza Tribunale [città] del [data], R.G. [N]'. Per stragiudiziale: 'Mandato del [data]'.",
+        "AZIENDA_RAGIONE_SOCIALE":"Ragione sociale completa della società oggetto di valutazione.",
+        "AZIENDA_CF_PIVA":     "Codice fiscale e partita IVA della società.",
+        "AZIENDA_SEDE":        "Sede legale della società.",
+        "DATA_RIFERIMENTO":    "Data di riferimento della valutazione, formato 'gg/mm/aaaa'. Tipicamente data di chiusura dell'ultimo bilancio analizzato, o data dell'evento generatore della perizia (es. data dell'atto di cessione).",
+        "QUESITI":             "Elenco dei quesiti peritali numerati, riprodotti letteralmente.",
+        "VALORE_PROPOSTO":     "Valore finale d'azienda proposto. Formato '€ X.XXX.XXX,XX' italiano.",
+        "RANGE_MIN":           "Estremo inferiore del range di valore. Formato '€ X.XXX.XXX'.",
+        "RANGE_MAX":           "Estremo superiore del range di valore. Formato '€ X.XXX.XXX'."
+    },
+
+    "required_metadata": [
+        "PERITO_NOME",
+        "PERITO_QUALIFICA",
+        "INCARICO_TIPO",
+        "AZIENDA_RAGIONE_SOCIALE",
+        "DATA_RIFERIMENTO",
+        "QUESITI",
+        "VALORE_PROPOSTO"
+    ]
+}

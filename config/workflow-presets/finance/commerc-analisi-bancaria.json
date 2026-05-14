@@ -1,0 +1,58 @@
+{
+    "id": "builtin-commerc-analisi-bancaria",
+    "title": "Analisi bancaria (Art. 32 DPR 600/73)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nMappa **movimento per movimento** gli estratti conto bancari rilevanti per un accertamento bancario ex Art. 32 DPR 600/73. Una riga per movimento contestato (o per gruppo omogeneo). Classifica versamenti / prelevamenti, identifica giustificativi disponibili, calcola l'importo effettivamente contestabile dopo la difesa.\n\nL'output è la **tabella analisi bancaria** del Modulo Area 2 (piano sezione 3.4): è la base di calcolo per battere la presunzione bancaria ex Art. 32, che equipara prelevamenti non giustificati a ricavi e versamenti non giustificati a maggiori ricavi.\n\n## Principio del Art. 32 DPR 600/73\n\n- **Comma 1, n. 2**: 'Sono posti, come ricavi o compensi, a base delle rettifiche... i prelevamenti annotati nei medesimi conti, salvo che il contribuente non ne indichi il soggetto beneficiario, sempreché non risultino dalle scritture contabili.'\n- **Versamenti non giustificati** = presunzione di maggiori ricavi (la presunzione si vince provando la natura non reddituale del versamento: storno, regalo, mutuo da familiare con scrittura privata, ecc.).\n- **Prelevamenti non giustificati** = presunzione di ricavi (la presunzione si vince indicando il beneficiario E provando che la spesa è personale o documentata).\n- **Cassazione SS.UU. n. 24823/2015**: la presunzione bancaria sui PRELEVAMENTI è stata dichiarata illegittima per le imprese individuali (non per le società).\n- Per professionisti, **Cassazione n. 7344/2018**: la presunzione vale per i versamenti ma NON per i prelevamenti.\n\n## Stile\n- Una riga per movimento contestato. Per c/c con migliaia di movimenti, **raggruppa** per causale omogenea (es. tutti i bonifici dal cliente Y in un mese) e specifica il numero di movimenti raggruppati nelle Note.\n- L'`Importo contestabile` è l'importo che residua come potenzialmente contestabile DOPO l'analisi documentale (può essere 0 se il giustificativo è pieno e probante).\n- Calcola sempre i totali in righe di sintesi finali (Totale versamenti, Totale prelevamenti, Importo contestabile netto).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Data",
+            "format": "date",
+            "prompt": "Data del movimento bancario, formato ISO YYYY-MM-DD. Per gruppi omogenei (più movimenti aggregati), usa la data del primo movimento del gruppo e annota nelle Note il range temporale ('dal gg/mm/aaaa al gg/mm/aaaa, N movimenti')."
+        },
+        {
+            "index": 1,
+            "name": "Banca / conto",
+            "format": "text",
+            "prompt": "Identificazione del conto: nome banca + ultime 4 cifre IBAN o numero conto. Esempi: 'Banca Intesa — c/c …1234', 'BPER — c/c azienda …5678', 'Banco BPM — c/c personale …9012'. Per c/c cointestati, indica '— cointestato con Nome Cognome'."
+        },
+        {
+            "index": 2,
+            "name": "Tipo movimento",
+            "format": "tag",
+            "prompt": "Una sola tra: `Versamento` (in entrata sul c/c: bonifico ricevuto, assegno, contante, accrediti vari), `Prelevamento` (in uscita: bonifico inviato, prelievo ATM, assegno emesso, addebito), `Storno` (rettifica di precedente movimento), `Interessi` (accredito o addebito interessi)."
+        },
+        {
+            "index": 3,
+            "name": "Importo",
+            "format": "monetary_amount",
+            "prompt": "Importo del movimento (positivo, segno indicato da `Tipo movimento`). Formato '€ X.XXX,XX' italiano. Per gruppi aggregati, riportare il totale del gruppo."
+        },
+        {
+            "index": 4,
+            "name": "Giustificativo disponibile",
+            "format": "text",
+            "prompt": "Tipo di giustificativo trovato nella documentazione difensiva. Esempi: 'Sì — bonifico cliente Y (fattura n. 234/2022)', 'Sì — vendita autovettura privata, contratto', 'Sì — mutuo da familiare, scrittura privata + bonifico originario', 'Parziale — solo dichiarazione sostitutiva', 'No — assenza di documento di supporto'. Cita il DOC-NN del giustificativo quando presente (es. 'Sì — fattura DOC-12')."
+        },
+        {
+            "index": 5,
+            "name": "Classificazione",
+            "format": "tag",
+            "prompt": "Esito dell'analisi del movimento. Una sola tra: `Ricavo contabilizzato` (versamento riconciliato con ricavi già dichiarati, presunzione vinta), `Movimento giustificato` (versamento o prelevamento con documentazione probante, esce dalla contestazione), `Movimento documentato parz.` (giustificativo presente ma incompleto, possibile contestazione parziale), `Presunto ricavo Art. 32` (versamento non giustificato → presunzione di maggior ricavo), `Prelevamento Art. 32 (società)` (per società, prelevamento non giustificato → presunzione di ricavo NON applicabile per imprese individuali post-Cass. SS.UU. 24823/2015), `Personale non rilevante` (movimento di chiara natura privata, non rileva ai fini fiscali)."
+        },
+        {
+            "index": 6,
+            "name": "Importo contestabile",
+            "format": "monetary_amount",
+            "prompt": "Importo che RESTA potenzialmente contestabile dopo l'analisi documentale. Formato '€ X.XXX,XX'. Per `Ricavo contabilizzato` e `Movimento giustificato` e `Personale non rilevante` scrivi '€ 0'. Per `Presunto ricavo Art. 32` riporta l'importo pieno. Per `Movimento documentato parz.` riporta la quota residua non documentata."
+        },
+        {
+            "index": 7,
+            "name": "Note / Ref. giustificativo",
+            "format": "text",
+            "prompt": "Annotazioni rilevanti: numero di movimenti aggregati nel gruppo; riferimento DOC-NN del giustificativo o del c/c sorgente; particolarità del movimento (es. 'Movimento storno errore banca'); riferimenti giurisprudenziali quando rilevanti (es. 'Cass. SS.UU. 24823/2015 — presunzione non applicabile a impresa individuale')."
+        }
+    ]
+}

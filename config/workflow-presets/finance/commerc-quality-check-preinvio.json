@@ -1,0 +1,46 @@
+{
+    "id": "builtin-commerc-quality-check-preinvio",
+    "title": "Quality check pre-invio dichiarazioni",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nEsegui il **controllo di qualità sistematico** della dichiarazione fiscale **prima dell'invio telematico**: quadrature interne, confronti con anno precedente, coerenza con dati esterni (CU ricevute, F24 versati), verifica formale (codice fiscale, dati anagrafici, deleghe).\n\nL'output è la **tabella quality check** del Modulo Area 6 (piano sezione 7.6): è la checklist di blocco anti-invio. Ogni check sotto soglia o con esito problematico richiede risoluzione prima dell'invio.\n\n## Set di check applicabili\n\nQuesta tabella è generica per **tutte le dichiarazioni** (Redditi PF, Redditi SC/SP, IVA annuale, 770, IRAP). L'utente seleziona la tipologia nel chat. I check si adattano:\n- Per Mod. Redditi: coerenza con CU ricevute, quadratura ritenute, ISA / voto di affidabilità.\n- Per IVA annuale: quadratura con liquidazioni periodiche, coerenza versamenti IVA / debito da dichiarazione.\n- Per 770: quadratura ritenute totali = somma CU rilasciate.\n- Per IRAP: base imponibile = scostamento da CE riclassificato per metodo applicabile.\n\n## Stile\n- Una riga per check eseguito. Per dichiarazioni complesse (es. Redditi SC con quadri RF, RS, RU, RW), produci righe specifiche per i check rilevanti per i quadri compilati.\n- L'`Esito` è una tag-symbolico: `✓ OK`, `⚠ Da motivare` (anomalia accettabile con motivazione), `✗ Bloccante` (errore da correggere prima dell'invio).\n- Per `✗ Bloccante`, la colonna `Azione richiesta` deve essere specifica e attuabile (es. 'Richiedere al cliente la CU del collaboratore Y mancante').\n- Per `⚠ Da motivare`, la colonna `Motivazione` riporta la giustificazione del professionista (es. 'Variazione +35% ricavi giustificata da contratto pluriennale entrato a regime nel 2024').",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Check",
+            "format": "text",
+            "prompt": "Nome breve del controllo (max 50 caratteri). Esempi: 'Coerenza reddito vs. anno prec.', 'Quadratura IVA dichiarazione vs. liquidazioni periodiche', 'Coerenza ritenute subite vs. CU ricevute', 'Verifica ISA / voto di affidabilità', 'F24 acconti vs. debito dichiarazione', 'Presenza deleghe firmate', 'Verifica codice fiscale e dati anagrafici', 'Costo lavoro coerente con LUL', 'Operazioni infragruppo a saldo zero'."
+        },
+        {
+            "index": 1,
+            "name": "Descrizione",
+            "format": "text",
+            "prompt": "Descrizione del controllo: cosa si verifica e con che tolleranza. Esempio: 'Variazione di ricavi/reddito vs. anno precedente. Soglia di attenzione: >20% in valore assoluto. Le anomalie >20% richiedono motivazione documentale (nuovo cliente, contratto pluriennale entrato a regime, perdita di un grosso cliente, riorganizzazione).'"
+        },
+        {
+            "index": 2,
+            "name": "Valore atteso",
+            "format": "text",
+            "prompt": "Valore o range atteso per superare il check senza segnalazione. Esempi: 'Δ ≤ ±20%', 'Δ < €5 tra dichiarazione IVA e somma liquidazioni periodiche', 'Totale CU dichiarate = totale ritenute subite', 'ISA ≥ 8 = no accertamenti presuntivi', 'Tutte le deleghe firmate dal cliente in data antecedente l'invio'."
+        },
+        {
+            "index": 3,
+            "name": "Valore rilevato",
+            "format": "text",
+            "prompt": "Valore effettivo riscontrato. Esempi: 'Δ ricavi +35%', 'Δ IVA €0', 'Totale CU €45.000 vs. ritenute €44.800 (Δ €200)', 'ISA = 9', 'Deleghe presenti per tutti i clienti'. Se il check è non applicabile alla dichiarazione (es. ISA per società non soggette), scrivi 'N/A'."
+        },
+        {
+            "index": 4,
+            "name": "Esito",
+            "format": "tag",
+            "prompt": "Una sola tra: `✓ OK` (valore rilevato dentro range atteso, nessuna azione richiesta), `⚠ Da motivare` (anomalia accettabile ma da documentare nel fascicolo per eventuali controlli), `✗ Bloccante` (errore o lacuna da correggere prima dell'invio), `N/A` (check non applicabile alla dichiarazione in oggetto)."
+        },
+        {
+            "index": 5,
+            "name": "Motivazione / Azione richiesta",
+            "format": "text",
+            "prompt": "Per `⚠ Da motivare`: motivazione scritta del professionista da archiviare nel fascicolo. Per `✗ Bloccante`: azione specifica e attuabile da intraprendere prima dell'invio (es. 'Richiedere al cliente la CU mancante del collaboratore X', 'Rettificare la liquidazione IVA Q4 per allineare al saldo annuale', 'Far ri-firmare la delega in data antecedente l'invio'). Per `✓ OK` scrivi '—'."
+        }
+    ]
+}

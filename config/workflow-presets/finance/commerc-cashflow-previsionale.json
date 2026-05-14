@@ -1,0 +1,52 @@
+{
+    "id": "builtin-commerc-cashflow-previsionale",
+    "title": "Cash flow previsionale (piano industriale)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nCostruisci il **cash flow previsionale** del piano industriale, tipicamente su 3-5 anni di proiezione. Una riga per ciascuna voce del FCF (Free Cash Flow), una colonna per anno di piano.\n\nL'output è la **tabella cash flow previsionale** del Modulo Area 3 (piano sezione 4.6): è il cuore del piano di risanamento (Art. 56 CCII) o del concordato preventivo (Artt. 84-120 CCII). L'attestatore ex Art. 33 CCII verifica la **fattibilità** del piano analizzando questa tabella + i suoi presupposti.\n\n## Schema FCF\n\nVoci da estrarre per ciascun anno di piano, nell'ordine:\n\n1. **Ricavi** (dal piano commerciale)\n2. **Costi operativi** (materie prime, servizi, costi variabili)\n3. **EBITDA** (= 1 − 2 − costo del lavoro)\n4. **Variazione CCN** (delta del Capitale Circolante Netto, riflette tempi medi di incasso/pagamento)\n5. **Capex** (Capital Expenditures, investimenti in immobilizzazioni)\n6. **Free Cash Flow operativo** (= 3 − 4 − 5)\n7. **Rimborso debiti** (capitale + interessi del servizio del debito previsto dal piano)\n8. **Flusso netto disponibile** (= 6 − 7) ← Liquidità libera dopo aver rimborsato il debito di piano\n9. **DSCR** (= Flusso operativo / Servizio del debito) — indicatore chiave di fattibilità\n\n## Stile\n- Una riga per voce del FCF. Tutte le voci dello schema sopra anche se valore zero o non applicabile.\n- Le colonne anno sono in ordine cronologico ascendente: Anno 1 = primo anno di piano = anno di omologazione (o successivo).\n- I valori sono in Euro: formato '€ X.XXX' (italiano, senza decimali se importo > €1.000).\n- Le voci `EBITDA`, `Free Cash Flow operativo`, `Flusso netto disponibile` sono **calcolate** (non estrarle direttamente, calcola dalla riga superiore).\n- Il `DSCR` è un indice puro (non in Euro): formato 'X,XX' con 2 decimali.\n- La colonna `Note` riporta le **assunzioni chiave** dell'anno (crescita ricavi, sensitivity, eventi specifici come dismissioni o accensione finanziamenti).\n- Se il piano è > 5 anni, aggiungi colonne aggiuntive Anno 6, Anno 7, ecc.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Voce",
+            "format": "text",
+            "prompt": "Nome della voce di FCF nello schema sopra (Ricavi, Costi operativi, EBITDA, Variazione CCN, Capex, Free Cash Flow operativo, Rimborso debiti, Flusso netto disponibile, DSCR). Le voci aggregate / calcolate (EBITDA, FCF operativo, Flusso netto, DSCR) sono in **grassetto** nel rendering."
+        },
+        {
+            "index": 1,
+            "name": "Anno 1",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno 1 di piano (primo anno di previsione). Formato '€ X.XXX' italiano per importi monetari. Per `DSCR` valore decimale '1,25' (non monetario)."
+        },
+        {
+            "index": 2,
+            "name": "Anno 2",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno 2 di piano. Stesso formato."
+        },
+        {
+            "index": 3,
+            "name": "Anno 3",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno 3 di piano. Stesso formato."
+        },
+        {
+            "index": 4,
+            "name": "Anno 4",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno 4 di piano. Se il piano è su 3 anni, scrivi '—'."
+        },
+        {
+            "index": 5,
+            "name": "Anno 5",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno 5 di piano. Se il piano è < 5 anni, scrivi '—'."
+        },
+        {
+            "index": 6,
+            "name": "Note / assunzioni",
+            "format": "text",
+            "prompt": "Annotazioni e assunzioni rilevanti. Esempi: 'Crescita ricavi +15%/+10%/+8%/+5%/+3% riflette penetrazione del nuovo prodotto X', 'Capex Anno 1 € 500K = nuovo macchinario ammortizzato in 10 anni', 'Variazione CCN da −€200K (sblocco crediti scaduti) a +€100K (estensione termini fornitori)', 'Rimborso debiti riflette piano di rientro CCII con stralcio chirografario 60%', 'DSCR < 1 negli Anni 1-2 coperti dalla finanza ponte ex Art. 99 CCII'. Per la riga `DSCR` la nota può includere il calcolo del flusso operativo coperto dal servizio del debito (es. 'FCF operativo €600K / Servizio debito €450K = 1,33x')."
+        }
+    ]
+}

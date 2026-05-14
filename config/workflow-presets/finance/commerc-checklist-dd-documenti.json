@@ -1,0 +1,46 @@
+{
+    "id": "builtin-commerc-checklist-dd-documenti",
+    "title": "Checklist documenti — Due diligence",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nProduci la **checklist documentale standard** per una due diligence fiscale, societaria, previdenziale e giuslavoristica sulla società target. Una riga per documento atteso, una colonna per stato di ricezione, anni richiesti, note.\n\nL'output è la **tabella checklist DD** del Modulo Area 4 (piano sezione 5.3): è il **tracking tool** per la fase di acquisizione documentale della DD. Permette di monitorare l'avanzamento del data room e segnalare al venditore i documenti ancora mancanti.\n\n## Aree di analisi standard\n\nLa checklist copre 5 aree:\n\n1. **Fiscale**: dichiarazioni Redditi/IVA/IRAP/770, F24 versamenti, registri IVA, libro inventari, mastri, situazioni contabili infra-annuali.\n2. **Societario**: visura camerale, statuto, libro soci, verbali CdA e assemblee, certificazioni atti notarili.\n3. **Previdenziale / Giuslavoristico**: LUL (Libro Unico Lavoro), DURC, contratti di lavoro (campione), buste paga (campione), prospetti TFR, ricorsi pendenti.\n4. **Contrattuale**: contratti significativi (affitti, licenze, finanziamenti, fornitori chiave, clienti chiave, joint venture).\n5. **Contenzioso**: liti pendenti tributarie, civili, lavoristiche, amministrative.\n\n## Stile\n- Una riga per documento atteso.\n- Lo `Stato` è simbolico: `✓ Ricevuto`, `⏳ Atteso`, `✗ Mancante`, `⚠ Parziale` (ricevuto ma incompleto), `N/A` (non applicabile alla target).\n- Gli `Anni richiesti` indicano il range temporale: tipicamente ultimi 5 esercizi per fiscale, ultimi 3 anni per societario, attuale per visura/statuto.\n- Per documenti `✗ Mancante`, le `Note` devono indicare l'impatto sulla DD (es. 'Limita la verifica sulla regolarità contributiva 2022-2023').",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Area",
+            "format": "tag",
+            "prompt": "Una sola tra: `Fiscale`, `Societario`, `Previdenziale`, `Giuslavoristico`, `Contrattuale`, `Contenzioso`."
+        },
+        {
+            "index": 1,
+            "name": "Documento",
+            "format": "text",
+            "prompt": "Nome del documento atteso. Esempi: 'Dichiarazione Redditi SC', 'Dichiarazione IVA annuale', 'Modello 770', 'F24 versamenti (campione)', 'Visura camerale aggiornata', 'Statuto vigente', 'Verbali CdA', 'Libro Unico Lavoro (LUL)', 'DURC', 'Prospetti paga (campione)', 'Contratti di lavoro (campione 10%)', 'Contratti di affitto', 'Contratti di finanziamento', 'Elenco liti pendenti', 'Sentenze di primo grado e appello pendenti'."
+        },
+        {
+            "index": 2,
+            "name": "Anni richiesti",
+            "format": "text",
+            "prompt": "Range temporale richiesto. Esempi: '2020-2024' (ultimi 5 esercizi fiscali), '2022-2024' (ultimi 3 anni per societario), 'Attuale' (per visura, statuto, DURC vigenti), 'Tutti i contratti vigenti' (per contratti significativi). Per il contenzioso: 'Tutte le liti pendenti alla data di signing'."
+        },
+        {
+            "index": 3,
+            "name": "Stato",
+            "format": "tag",
+            "prompt": "Una sola tra: `✓ Ricevuto` (completo e utilizzabile), `⏳ Atteso` (sollecitato al venditore, attesa di consegna), `✗ Mancante` (non ricevuto e non sollecitato, da richiedere), `⚠ Parziale` (ricevuto ma incompleto, da integrare), `N/A` (non applicabile alla target — es. 770 per società senza dipendenti)."
+        },
+        {
+            "index": 4,
+            "name": "Data ricezione",
+            "format": "date",
+            "prompt": "Data di ricezione del documento, formato ISO YYYY-MM-DD. Per `✓ Ricevuto` la data del caricamento in data room. Per `⏳ Atteso` o `✗ Mancante` lascia '—'."
+        },
+        {
+            "index": 5,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Annotazioni rilevanti. Per `✓ Ricevuto`: eventuale riferimento DOC-NN del file nel data room (es. 'Caricato come DOC-23 nel data room'). Per `⚠ Parziale`: cosa manca (es. 'Ricevute solo le pagine 1-10 della dichiarazione 2022 — chiedere completamento'). Per `✗ Mancante`: impatto sulla DD (es. 'Limita la verifica della regolarità contributiva 2022-2023, segnalare nel report come gap'). Per `N/A`: motivazione (es. 'Società senza dipendenti, no obbligo 770')."
+        }
+    ]
+}

@@ -1,0 +1,52 @@
+{
+    "id": "builtin-commerc-indicatori-crisi",
+    "title": "Indicatori di crisi d'impresa (CCII)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nDiagnostica gli **indicatori di allerta** della crisi d'impresa secondo gli standard del CCII (Codice della Crisi d'Impresa e dell'Insolvenza, D.Lgs. 14/2019) e della prassi professionale. Una riga per ciascun indicatore, una colonna per anno, soglia di allerta + stato.\n\nL'output è la **tabella indicatori di crisi** del Modulo Area 3 (piano sezione 4.3): è il pannello diagnostico iniziale che il professionista presenta nella composizione negoziata della crisi (CNC, Artt. 12-23 CCII) o nel piano attestato di risanamento (Art. 56 CCII).\n\n## Indicatori standard\n\nProduci almeno i seguenti indicatori, nell'ordine:\n\n1. **DSCR (Debt Service Coverage Ratio)** = Flussi di cassa operativi (FCO) / Servizio del debito (capitale + interessi)\n   - Soglia di allerta: **< 1,0** (incapacità di sostenere il debito)\n2. **PFN / EBITDA** = Posizione Finanziaria Netta / EBITDA\n   - Soglia di allerta: **> 4,0x** (sostenibilità del debito compromessa)\n3. **Patrimonio Netto** (da SP)\n   - Soglia di allerta: **< 0** (perdita del capitale sociale, riduzione obbligatoria PN sotto minimo legale richiede provvedimenti immediati ex artt. 2446-2447 c.c.)\n4. **Indice di liquidità (Current ratio)** = Att. corrente / Pass. corrente\n   - Soglia di allerta: **< 1,0** (incapacità di onorare gli impegni a breve)\n5. **Capitale Circolante Netto (CCN)** = Att. corrente − Pass. corrente\n   - Soglia di allerta: **< 0** (squilibrio finanziario manifesto)\n6. **Posizione Finanziaria Netta (PFN)** = Debiti finanziari − Liquidità\n   - No soglia rigida (dato di contesto)\n7. **Costo del lavoro / Valore della produzione** — squilibrio strutturale costi/ricavi\n   - Soglia di allerta: **> 40%** per industria; **> 60%** per servizi (variabile per settore)\n8. **Variazione ricavi anno su anno**\n   - Soglia di allerta: **calo > 20% YoY** (caduta del giro d'affari)\n9. **EBIT < 0** per due anni consecutivi — perdita operativa cronica\n10. **Tax compliance score** (verifica scaduti fiscali e contributivi) — un fattore di allerta CCII è la **presenza di debiti scaduti** verso erario / INPS / INAIL.\n\n## Stile\n- Una riga per indicatore.\n- I valori percentuali con 1 decimale + `%`; gli indici puri con 2 decimali; gli importi monetari in '€ X.XXX' italiano.\n- Lo `Stato` è una tag-simbolica: `✓ Sano` (valore migliore della soglia), `⚠ Attenzione` (valore prossimo alla soglia), `🔴 Critico` (valore oltre la soglia di allerta, segnale di crisi).\n- Per l'analisi triennale (Anno-2, Anno-1, Anno 0) ordina cronologicamente ascendente.\n- Per debiti scaduti (indicatore 10), aggiungi nella riga un dettaglio per ente (erario, INPS, INAIL) anche se non strutturato come indicatore numerico — usalo come riga descrittiva con stato.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Indicatore",
+            "format": "text",
+            "prompt": "Nome dell'indicatore come elencato sopra (DSCR, PFN/EBITDA, Patrimonio netto, Indice di liquidità, CCN, PFN, Costo lavoro/VdP, Variazione ricavi YoY, EBIT, Tax compliance)."
+        },
+        {
+            "index": 1,
+            "name": "Formula",
+            "format": "text",
+            "prompt": "Formula sintetica dell'indicatore. Esempi: 'FCO / Servizio del debito', 'PFN / EBITDA', 'PN da SP', 'Att. corr. / Pass. corr.', 'Att. corr. − Pass. corr.', 'Debiti fin. − Liquidità', 'Costo lavoro / VdP', '(Ricavi N − Ricavi N-1) / Ricavi N-1'."
+        },
+        {
+            "index": 2,
+            "name": "Anno-2",
+            "format": "text",
+            "prompt": "Valore dell'indicatore nell'anno -2 (terz'ultimo bilancio). Stesso formato della colonna Anno 0. Se non disponibile '—'."
+        },
+        {
+            "index": 3,
+            "name": "Anno-1",
+            "format": "text",
+            "prompt": "Valore dell'indicatore nell'anno -1 (penultimo bilancio). Stesso formato."
+        },
+        {
+            "index": 4,
+            "name": "Anno 0",
+            "format": "text",
+            "prompt": "Valore dell'indicatore nell'anno 0 (ultimo bilancio disponibile, o situazione corrente per dati infra-annuali). Per percentuali '12,5%'; per indici puri '0,85'; per importi monetari '€ 2.500.000' (italiano)."
+        },
+        {
+            "index": 5,
+            "name": "Soglia allerta",
+            "format": "text",
+            "prompt": "Soglia di allerta dell'indicatore come riferimento. Esempi: 'DSCR > 1,0', 'PFN/EBITDA < 4,0x', 'PN > 0', 'Current ratio > 1,0', 'CCN > 0', 'Calo ricavi YoY < 20%', 'EBIT > 0 in entrambi gli ultimi 2 esercizi'. Per `Tax compliance` la soglia è qualitativa (presenza/assenza di debiti scaduti)."
+        },
+        {
+            "index": 6,
+            "name": "Stato",
+            "format": "tag",
+            "prompt": "Una sola tra: `✓ Sano` (valore nettamente migliore della soglia, indicatore di buona salute), `⚠ Attenzione` (valore prossimo alla soglia, segnale di pre-allerta), `🔴 Critico` (valore oltre la soglia di allerta, segnale di crisi che richiede intervento)."
+        }
+    ]
+}

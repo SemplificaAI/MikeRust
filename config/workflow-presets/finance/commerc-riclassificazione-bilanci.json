@@ -1,0 +1,58 @@
+{
+    "id": "builtin-commerc-riclassificazione-bilanci",
+    "title": "Riclassificazione bilanci pluriennale (CE)",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nRiclassifica il **Conto Economico** dei bilanci allegati (tipicamente 3-5 esercizi consecutivi) in forma **a valore aggiunto** o **a ricavi-costi**, normalizzando i valori (eliminazione componenti straordinari, proventi/oneri non ricorrenti, rettifiche di competenza). Una riga per voce CE, una colonna per anno.\n\nL'output è la **tabella riclassificazione pluriennale** del Modulo Area 1 (piano sezione 2.3), prerequisito di: indicatori economico-finanziari (workflow `commerc-indicatori-econ-finanz`), metodi valutativi (workflow `commerc-metodi-valutativi`), diagnosi crisi (workflow `commerc-indicatori-crisi`).\n\n## Schema riclassificazione (valore aggiunto)\n\nVoci da estrarre per ciascun anno disponibile, nell'ordine:\n1. **Ricavi netti** (al netto di sconti, abbuoni, resi)\n2. **Variazioni rimanenze** (PF, semi-lavorati, lavori in corso)\n3. **Altri ricavi e proventi** caratteristici\n4. **Valore della produzione** (= 1 + 2 + 3)\n5. **Costo del venduto / materie prime + servizi**\n6. **Valore aggiunto** (= 4 − 5)\n7. **Costo del lavoro** (salari + oneri sociali + TFR)\n8. **EBITDA** (= 6 − 7) ← Margine operativo lordo\n9. **Ammortamenti e accantonamenti**\n10. **EBIT** (= 8 − 9) ← Reddito operativo\n11. **Oneri finanziari netti** (oneri − proventi finanziari)\n12. **EBT** (= 10 − 11) ← Reddito ante imposte\n13. **Imposte** (IRES + IRAP)\n14. **Utile netto** (= 12 − 13)\n\n## Normalizzazione\n\nIndica nelle Note i valori normalizzati:\n- **Componenti straordinari** rimossi (es. plusvalenze immobiliari one-off, contributi pubblici non ricorrenti, sopravvenienze attive/passive da eventi eccezionali).\n- **Proventi/oneri non ricorrenti** (es. risarcimenti assicurativi, costi di ristrutturazione aziendale, costi di consulenza M&A).\n- **Rettifiche di competenza** (es. costi di periodo erroneamente capitalizzati o viceversa).\n- **Operazioni infragruppo a prezzi non di mercato** (per società appartenenti a gruppi).\n\n## Stile\n- Una riga per voce CE nello schema sopra. Tutte le righe in tabella, anche quelle con valore zero o non applicabile.\n- Le colonne anno seguono ordine cronologico ascendente (più vecchio → più recente).\n- L'ultima colonna `Var. % più_recente / più_vecchio` calcola la variazione percentuale tra il primo e l'ultimo anno disponibile.\n- I valori sono **in Euro**, formato italiano (punto migliaia, virgola decimali, no decimali per voci > €1.000).\n- Le voci `Valore della produzione`, `Valore aggiunto`, `EBITDA`, `EBIT`, `EBT`, `Utile netto` sono **calcolate** — non estrarle direttamente, calcola dal CE riclassificato e verifica con quanto riportato in nota integrativa quando disponibile.\n- Se un esercizio è chiuso a data diversa dal 31/12 (es. esercizio 1/7-30/6), indicalo nelle Note. Se gli esercizi confrontati hanno durate diverse, segnalalo nelle Note.\n- Cita sempre il `DOC-NN` del bilancio sorgente nella colonna Note al primo anno.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Voce CE",
+            "format": "text",
+            "prompt": "Nome della voce di Conto Economico nell'ordine indicato sopra. Una sola riga per voce. Le voci intermedie/calcolate (Valore della produzione, Valore aggiunto, EBITDA, EBIT, EBT, Utile netto) devono essere in **grassetto** nel rendering. Per le voci di dettaglio interne (es. dettagli del costo del venduto), riportare la macro-voce e annotare la composizione nelle Note."
+        },
+        {
+            "index": 1,
+            "name": "Anno N-4",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno meno recente (4 anni prima del corrente). Formato '€ X.XXX' (italiano, no decimali). Se il bilancio dell'anno non è disponibile scrivi '—'."
+        },
+        {
+            "index": 2,
+            "name": "Anno N-3",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno N-3. Formato '€ X.XXX'. Se non disponibile '—'."
+        },
+        {
+            "index": 3,
+            "name": "Anno N-2",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno N-2. Formato '€ X.XXX'. Se non disponibile '—'."
+        },
+        {
+            "index": 4,
+            "name": "Anno N-1",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno N-1 (penultimo bilancio disponibile). Formato '€ X.XXX'."
+        },
+        {
+            "index": 5,
+            "name": "Anno N",
+            "format": "monetary_amount",
+            "prompt": "Valore della voce nell'anno più recente (ultimo bilancio disponibile). Formato '€ X.XXX'."
+        },
+        {
+            "index": 6,
+            "name": "Var. % N / N-4",
+            "format": "text",
+            "prompt": "Variazione percentuale tra il primo anno disponibile (N-4 o anno minimo) e l'ultimo (N). Formato '+X,X%' o '-X,X%' con un decimale, segno esplicito. Per voci negative (es. costi che si sono ridotti = miglioramento) il segno della variazione resta aritmetico (oneri ridotti hanno variazione negativa)."
+        },
+        {
+            "index": 7,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Annotazioni rilevanti: normalizzazioni applicate (componenti straordinari rimossi, importi e motivazione), valori da nota integrativa, particolarità di calcolo, riferimento al bilancio sorgente `DOC-NN` (almeno alla prima riga). Per voci senza note specifiche scrivi '—'."
+        }
+    ]
+}

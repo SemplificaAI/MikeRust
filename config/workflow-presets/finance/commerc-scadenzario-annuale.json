@@ -1,0 +1,52 @@
+{
+    "id": "builtin-commerc-scadenzario-annuale",
+    "title": "Scadenzario fiscale annuale",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nGenera lo **scadenzario annuale** degli adempimenti fiscali/previdenziali italiani per un anno solare specifico, personalizzato per il portafoglio clienti. Una riga per ogni scadenza nell'anno: dichiarazioni periodiche (IVA, Redditi, IRAP, 770, CU), versamenti (saldi, acconti, ritenute, contributi), comunicazioni obbligatorie.\n\nL'output è la **tabella scadenzario** del Modulo Area 6 (Adempimenti periodici, piano sezione 7.3). È pensato per essere il calendario operativo dello studio: ogni riga genera un alert al responsabile (e successivi a 30/15/7/1 giorni dalla scadenza).\n\n## Ambito\n\nLo scadenzario riguarda:\n- **Mensili**: liquidazione e versamento IVA mensile (16 di ogni mese), versamento ritenute IRPEF + contributi INPS (16 di ogni mese), comunicazioni Intrastat (entro 25 del mese successivo).\n- **Trimestrali**: liquidazione IVA trimestrale (16/05, 16/08, 16/11, 16/03), versamento contributi commercianti / artigiani / fondo casalinghe.\n- **Annuali fissi**: Dichiarazione IVA annuale (30 aprile), Mod. 730 precompilato (31 maggio), Saldi IRPEF/IRES/IRAP (30 giugno), Mod. Redditi/IRAP (30 settembre, verifica proroga), 2° acconto (30 novembre).\n- **Eventi specifici**: scadenze processuali (60 gg ricorso, 90 gg mediazione), prescrizioni accertamento, scadenze di contratti.\n\n## Stile\n- Ordina cronologicamente.\n- Per scadenze ricorrenti (mensili, trimestrali), produci una riga per ciascuna occorrenza nell'anno.\n- `Soggetti` indica chi è obbligato: 'Mensili IVA', 'Trimestrali IVA', 'Tutti i sostituti d'imposta', 'Persone fisiche con dipendenti', 'Società di capitali', ecc.\n- `Norma` cita il riferimento legislativo (es. DPR 322/1998 art. 8 c.1 per dichiarazione IVA annuale; D.Lgs. 241/1997 per F24).\n- Se l'anno richiesto NON è specificato dall'utente, assumi l'anno solare corrente (al momento dell'elaborazione).",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Data scadenza",
+            "format": "date",
+            "prompt": "Data della scadenza, formato ISO YYYY-MM-DD. Per scadenze ricadenti in giorno festivo, riporta la data ufficiale del calendario fiscale (le proroghe al primo giorno feriale sono trattate dall'amministrazione, non vanno preventivate). Per scadenze cumulabili (es. 'entro 30 settembre se non prorogato'), usa la data principale e annota la proroga nelle Note."
+        },
+        {
+            "index": 1,
+            "name": "Adempimento",
+            "format": "text",
+            "prompt": "Descrizione sintetica dell'adempimento. Esempi: 'Versamento IVA mensile (periodo gennaio)', 'Trasmissione CU Sostituti d'imposta', 'Dichiarazione IVA annuale 2024', 'Saldo IRPEF e 1° acconto 2025', 'Mod. Redditi SC 2024'. Sii specifico — distingui tra adempimenti dichiarativi e di versamento, ed include il periodo di riferimento quando significativo."
+        },
+        {
+            "index": 2,
+            "name": "Tributo / Ente",
+            "format": "tag",
+            "prompt": "Tributo o ente di destinazione. Una sola tra: `IVA`, `IRPEF`, `IRES`, `IRAP`, `Ritenute IRPEF`, `INPS`, `INAIL`, `Camera di Commercio`, `Intrastat`, `Spesometro / Esterometro`, `Imposta di registro`, `Imposta di bollo`, `Imposte di consumo`, `Altro`."
+        },
+        {
+            "index": 3,
+            "name": "Soggetti obbligati",
+            "format": "text",
+            "prompt": "Categoria di soggetti tenuti all'adempimento. Esempi: 'Mensili IVA' (per scadenze 16 ogni mese), 'Trimestrali IVA' (per liquidazioni trimestrali), 'Tutti i sostituti d'imposta' (per CU/770), 'Persone fisiche con redditi 2024', 'Società di capitali con esercizio solare', 'Forfettari'. Se l'adempimento è universale scrivi 'Tutti i contribuenti'."
+        },
+        {
+            "index": 4,
+            "name": "Norma di riferimento",
+            "format": "text",
+            "prompt": "Riferimento normativo principale. Esempi: 'DPR 322/1998 art. 8 c.1' (dichiarazione IVA), 'DPR 322/1998 art. 2 c.7' (Mod. Redditi), 'D.Lgs. 241/1997' (F24), 'Art. 17 DPR 633/72' (versamento IVA). Per adempimenti regolati da circolari/risoluzioni dell'Agenzia, indica anche il documento di prassi (es. 'Provvedimento AdE n. … del …'). Quando la norma è multipla, cita la principale."
+        },
+        {
+            "index": 5,
+            "name": "Responsabile interno",
+            "format": "text",
+            "prompt": "Nome del collaboratore dello studio responsabile dell'adempimento. Se l'utente non specifica una distribuzione del carico, scrivi 'Da assegnare'. Per adempimenti standard del titolare, scrivi 'Titolare'."
+        },
+        {
+            "index": 6,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Note operative rilevanti: presenza di proroghe storiche (es. 'Termine spesso prorogato al 31/10 da DPCM annuale'), modalità di invio (es. 'Tramite Entratel'), avvertenze (es. 'Verificare ravvedimento operoso per omessi precedenti'), tasso di interessi/sanzioni in caso di ritardo. Per scadenze senza note operative specifiche scrivi '—'."
+        }
+    ]
+}

@@ -1,0 +1,115 @@
+{
+    "schema_version": 1,
+    "id": "it/ricorso-tributario",
+    "source_reference": "docs/piano_toolkit_commercialista.md#6-area-5",
+    "display_name": {
+        "it": "Ricorso tributario (D.Lgs. 546/92)",
+        "en": "Italian tax appeal (D.Lgs. 546/92)",
+        "fr": "Recours fiscal italien (D.Lgs. 546/92)",
+        "de": "Italienisches Steuerwiderspruchsverfahren (D.Lgs. 546/92)",
+        "es": "Recurso tributario italiano (D.Lgs. 546/92)",
+        "pt": "Recurso tributário italiano (D.Lgs. 546/92)"
+    },
+    "category": "tax-litigation",
+    "domain": "finance",
+    "also_applicable_to": ["legal"],
+    "locale": "it-IT",
+    "automation_level": "L2",
+    "placeholder_syntax": "square_brackets",
+
+    "paper": { "size": "A4", "orientation": "portrait", "format": "standard" },
+    "margins_cm": { "top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5 },
+    "typography": {
+        "body_font": "Calibri",
+        "body_size_pt": 11.0,
+        "line_spacing": 1.15,
+        "paragraph_after_pt": 6.0,
+        "alignment": "justify",
+        "first_line_indent_cm": 0.0
+    },
+    "footnotes": { "font": "Calibri", "size_pt": 9.0, "line_spacing": 1.0 },
+
+    "style_map_baseline": {
+        "body_text":       "Corpo testo",
+        "section_heading": "Titolo sezione",
+        "citation":        "Citazione",
+        "footnote":        "Note piè pagina"
+    },
+    "style_map": {
+        "heading_1":        "RicorsoTitoloSezione",
+        "heading_2":        "RicorsoSottosezione",
+        "intestazione":     "RicorsoIntestazione",
+        "richiesta_chiusa": "RicorsoRichiesta",
+        "signature_block":  "RicorsoFirma"
+    },
+    "directives_supported": ["page_break"],
+
+    "header_block": "studio_legale_compact",
+    "footer_block": "page_number_with_total",
+    "section_numbering": "manual",
+
+    "section_skeleton": [
+        { "id": "intestazione",
+          "title": "Intestazione",
+          "render": "ALLA CORTE DI GIUSTIZIA TRIBUTARIA DI PRIMO GRADO DI [CITTA_CGT]",
+          "guidance": "Intestazione centrata in grassetto MAIUSCOLO. Sotto, indicazione delle parti:\n\n**RICORRENTE**: [RICORRENTE_RAGIONE_SOCIALE], C.F./P.IVA [RICORRENTE_CF_PIVA], con sede legale in [RICORRENTE_SEDE], rappresentato e difeso dal Dott. [DIFENSORE_NOME], iscritto all'Ordine dei Dottori Commercialisti di [città] n. [N], con studio in [DIFENSORE_INDIRIZZO], PEC [DIFENSORE_PEC], elettivamente domiciliato presso lo studio del difensore.\n\n**CONTRO**: AGENZIA DELLE ENTRATE — Direzione Provinciale di [CITTA_UFFICIO], in persona del Direttore pro tempore.\n\n**AVVERSO**: [TIPO_ATTO] n. [NUMERO_ATTO] del [DATA_ATTO], notificato in data [DATA_NOTIFICA] (Annualità d'imposta: [ANNI_IMPOSTA])." },
+
+        { "id": "fatto",
+          "title": "Esposizione del fatto",
+          "guidance": "Narrazione cronologica e sintetica: (a) anno di imposta accertato e tipo di accertamento; (b) eventuale PVC della GdF + contraddittorio preventivo ex Art. 12 c.7 L. 212/2000; (c) notifica dell'avviso di accertamento; (d) sintesi dei rilievi mossi dall'ufficio (rimando alla tabella `commerc-contestazioni-ufficio` se prodotta separatamente). Massimo 1 pagina." },
+
+        { "id": "motivi",
+          "title": "Motivi di ricorso",
+          "guidance": "Sezione argomentativa con sotto-sezioni numerate, una per motivo / vizio dell'atto impugnato. Riprendi dalla tabella `commerc-rilievi-controdeduzioni`:\n\n**Motivo 1 — [Titolo del vizio]**\n- Descrizione del vizio + norme violate + giurisprudenza a supporto + conclusione richiesta (annullamento totale / parziale).\n\n**Motivo 2 — [...]**\n[...]\n\nMotivi tipici: difetto di motivazione (Art. 7 L. 212/2000), violazione del principio di proporzionalità, errata applicazione di norma sostanziale (Art. 109 TUIR, Art. 19 DPR 633/72), vizi presuntivi (Art. 32 DPR 600/73 + Cass. SS.UU. 24823/2015), vizi procedurali (mancato contraddittorio, decadenza dei termini), errata determinazione delle sanzioni (cumulo materiale vs giuridico Art. 12 D.Lgs. 472/97)." },
+
+        { "id": "richieste",
+          "title": "Richieste al Collegio",
+          "guidance": "Formula standard delle richieste:\n\n'Tanto premesso, il ricorrente, come sopra rappresentato e difeso, **CHIEDE** alla Corte di Giustizia Tributaria di primo grado di [città], previo accoglimento del presente ricorso:\n\n1. **In via principale**: l'annullamento integrale dell'atto impugnato per gli effetti dei motivi sopra esposti, con vittoria delle spese di lite.\n\n2. **In via subordinata**: l'annullamento parziale dell'atto impugnato, con rideterminazione del reddito imponibile in € [IMPORTO_RIDETERMINATO] e conseguente rideterminazione delle imposte e sanzioni.\n\n3. **In via ulteriormente subordinata**: la riduzione delle sanzioni applicate al minimo edittale ai sensi dell'Art. 7 D.Lgs. 472/97.'\n\nLe richieste sono in **grassetto** e leggermente indentate." },
+
+        { "id": "valore",
+          "title": "Valore della controversia",
+          "guidance": "'Il valore della controversia ai sensi dell'Art. 12 D.Lgs. 546/92 è di **€ [VALORE_CONTROVERSIA]** (imposte e sanzioni, escluse spese e interessi).'\n\nSe valore ≤ €50.000, aggiungere: 'Trattandosi di valore non superiore a € 50.000, il presente ricorso è preceduto dall'istanza di reclamo-mediazione di cui all'Art. 17-bis D.Lgs. 546/92, presentata in data [...]'." },
+
+        { "id": "cautelare",
+          "title": "Eventuale istanza cautelare (Art. 47)",
+          "guidance": "Sezione opzionale, solo se l'esecuzione dell'atto crea danno grave e irreparabile al ricorrente. Struttura:\n\n'Si chiede inoltre la **sospensione cautelare** dell'esecuzione dell'atto impugnato ai sensi dell'Art. 47 D.Lgs. 546/92 per i seguenti motivi:\n\n**Fumus boni iuris**: [descrizione della verosimile fondatezza dei motivi di ricorso, anche solo in via sommaria]\n\n**Periculum in mora**: [descrizione del danno grave e irreparabile che si verificherebbe in caso di esecuzione (es. blocco operatività aziendale, esproprio immobile, fallimento, ecc.)]'\n\nSe non rilevante per il caso, OMETTERE l'intera sezione." },
+
+        { "id": "firma",
+          "title": "Sottoscrizione e procura",
+          "guidance": "Formula di chiusura:\n\n'[Luogo], [data].\n\nIl Difensore\nDott. [DIFENSORE_NOME]\n\n**Procura alle liti**: Si dichiara che la procura alle liti del ricorrente al sottoscritto difensore è stata conferita con [scrittura privata autenticata / verbale / mandato a margine] in data [...], allegata al presente ricorso (All. n. [...]).'" },
+
+        { "id": "allegati",
+          "title": "Allegati",
+          "guidance": "Elenco numerato degli allegati:\n\n1. Copia dell'atto impugnato (avviso di accertamento / cartella esattoriale / etc.)\n2. Copia delle ricevute di notifica dell'atto\n3. Documenti probatori a supporto dei motivi di ricorso (cita i DOC-NN dalla tabella `commerc-rilievi-controdeduzioni`)\n4. Procura alle liti\n5. Ricevuta versamento contributo unificato tributario (Art. 13 c.6-quater DPR 115/2002)\n6. Eventuale istanza di reclamo-mediazione e ricevuta di consegna (se applicabile)\n7. Eventuale documentazione integrativa" }
+    ],
+
+    "field_prompts": {
+        "CITTA_CGT":               "Città della Corte di Giustizia Tributaria di primo grado competente per territorio (di norma il capoluogo della provincia dove ha sede l'ufficio impositore). Esempi: 'MILANO', 'ROMA', 'NAPOLI'.",
+        "RICORRENTE_RAGIONE_SOCIALE":"Ragione sociale o nome del ricorrente. Per persone fisiche: 'Sig./Sig.ra Nome Cognome'. Per società: ragione sociale completa con forma giuridica.",
+        "RICORRENTE_CF_PIVA":      "Codice fiscale (16 caratteri) e/o partita IVA (11 cifre) del ricorrente.",
+        "RICORRENTE_SEDE":         "Sede legale (per società) o residenza (per persone fisiche) del ricorrente.",
+        "DIFENSORE_NOME":          "Nome completo del difensore tributario. Formato 'Dr./Dr.ssa Nome Cognome'.",
+        "DIFENSORE_QUALIFICA":     "Qualifica e iscrizione albo. Per i Dottori Commercialisti: 'Dottore commercialista iscritto all'Ordine di [città] n. [N]'.",
+        "DIFENSORE_INDIRIZZO":     "Indirizzo dello studio del difensore.",
+        "DIFENSORE_PEC":           "Indirizzo PEC del difensore per le notifiche telematiche.",
+        "CITTA_UFFICIO":           "Città dell'ufficio dell'Agenzia delle Entrate (o altro ufficio impositore) che ha emesso l'atto impugnato. Es. 'MILANO'.",
+        "TIPO_ATTO":               "Tipo di atto impugnato. Esempi: 'Avviso di accertamento IRES/IRAP/IVA', 'Cartella esattoriale', 'Atto di irrogazione sanzioni', 'Diniego di rimborso', 'Avviso di liquidazione'.",
+        "NUMERO_ATTO":             "Numero protocollo dell'atto impugnato.",
+        "DATA_ATTO":               "Data di emissione dell'atto, formato 'gg/mm/aaaa'.",
+        "DATA_NOTIFICA":           "Data di notifica dell'atto al contribuente, formato 'gg/mm/aaaa'. Da questa data decorre il termine di 60 gg per il ricorso (90 gg per il reclamo-mediazione).",
+        "ANNI_IMPOSTA":            "Anno o anni d'imposta cui si riferisce l'atto. Esempi: '2022', '2020-2022'.",
+        "IMPORTO_RIDETERMINATO":   "Importo che il ricorrente chiede in via subordinata venga riconosciuto come reddito imponibile rideterminato. Formato '€ X.XXX,XX'.",
+        "VALORE_CONTROVERSIA":     "Valore della controversia ai sensi dell'Art. 12 D.Lgs. 546/92 (somma di imposte e sanzioni, escluse spese e interessi). Formato '€ X.XXX,XX'."
+    },
+
+    "required_metadata": [
+        "CITTA_CGT",
+        "RICORRENTE_RAGIONE_SOCIALE",
+        "RICORRENTE_CF_PIVA",
+        "DIFENSORE_NOME",
+        "TIPO_ATTO",
+        "DATA_NOTIFICA",
+        "ANNI_IMPOSTA",
+        "VALORE_CONTROVERSIA"
+    ]
+}

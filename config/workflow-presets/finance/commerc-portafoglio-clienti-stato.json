@@ -1,0 +1,70 @@
+{
+    "id": "builtin-commerc-portafoglio-clienti-stato",
+    "title": "Portafoglio clienti — stato adempimenti",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nDashboard sintetica dello **stato degli adempimenti** per ciascun cliente del portafoglio dello studio. Una riga per cliente, colonne con lo stato dei principali adempimenti dell'anno fiscale corrente.\n\nL'output è la **tabella portafoglio** del Modulo Area 6 (piano sezione 7.4): consente al titolare dello studio di vedere a colpo d'occhio quali clienti sono in regola, quali sono in lavorazione, quali bloccati da documenti mancanti.\n\n## Categorie di stato\n\nPer ogni adempimento, lo stato è una singola tag tra:\n- `✓ Inviata` / `✓ Versato` — adempimento completato e protocollato.\n- `⏳ In lavorazione` — bozza in preparazione dallo studio.\n- `⚠ Atteso` — non ancora elaborato ma con tempi rispettati.\n- `✗ Docs mancanti` — bloccato in attesa di documenti dal cliente.\n- `🔴 Scaduto` — non rispettato il termine, da ravvedere.\n- `—` — non applicabile al cliente (es. società di capitali non hanno il 730).\n\nLa colonna `Stato generale` sintetizza:\n- `🟢 OK` — tutto in regola, nessun rosso o blocco.\n- `🟡 Parziale` — almeno uno `⏳`, `⚠`, o `✗` ma niente scaduto.\n- `🔴 Blocco` — almeno uno `🔴` (scaduto) o `✗` (documenti mancanti su adempimento imminente).\n\n## Stile\n- Una riga per cliente — anche se cliente persona fisica con un singolo adempimento.\n- Ordina per `Stato generale` desc (i 🔴 prima), poi alfabetico per `Cliente`.\n- Per studi con tanti clienti, l'utente può raggruppare per `Responsabile` o `Tipo soggetto` per zoomare su un sotto-segmento.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Cliente",
+            "format": "text",
+            "prompt": "Denominazione del cliente. Per società: ragione sociale completa (es. 'Alfa Srl', 'Beta Snc di Rossi & Bianchi'). Per persone fisiche: cognome e nome (es. 'Verdi Mario'). Per ente non commerciali: denominazione + forma giuridica."
+        },
+        {
+            "index": 1,
+            "name": "Tipo soggetto",
+            "format": "tag",
+            "prompt": "Una sola tra: `Soc. capitali` (Srl, Spa, Sapa), `Soc. persone` (Snc, Sas), `Pers. fisica` (con o senza P.IVA), `Ente non comm.`, `Professionista` (con P.IVA in regime ordinario o forfettario), `Ditta individuale`, `Coop.`."
+        },
+        {
+            "index": 2,
+            "name": "Regime",
+            "format": "tag",
+            "prompt": "Una sola tra: `Ordinario`, `Semplificato`, `Forfettario`, `Startup innovativa`, `ETS` (Ente del Terzo Settore), `Cooperativa`, `Agricolo`. Per società di capitali tipicamente `Ordinario`. Per persone fisiche con P.IVA verificare il regime applicato."
+        },
+        {
+            "index": 3,
+            "name": "Responsabile",
+            "format": "text",
+            "prompt": "Nome del collaboratore dello studio responsabile del cliente. Es. 'Dott. Rossi', 'Sig.ra Bianchi', 'Titolare'. Se il cliente è seguito da più persone con specializzazioni diverse (es. uno per dichiarazioni, uno per IVA), riportare il principale."
+        },
+        {
+            "index": 4,
+            "name": "Dichiarazione Redditi",
+            "format": "tag",
+            "prompt": "Stato dichiarazione dei redditi dell'anno corrente. Una sola tra: `✓ Inviata`, `⏳ In lavorazione`, `⚠ Atteso`, `✗ Docs mancanti`, `🔴 Scaduto`, `—` (es. clienti senza redditi imponibili)."
+        },
+        {
+            "index": 5,
+            "name": "IVA annuale",
+            "format": "tag",
+            "prompt": "Stato dichiarazione IVA annuale (scadenza 30 aprile). Una sola tra: `✓ Inviata`, `⏳ In lavorazione`, `⚠ Atteso`, `✗ Docs mancanti`, `🔴 Scaduto`, `—` (per soggetti non IVA come persone fisiche senza P.IVA, o forfettari in regime senza obbligo IVA)."
+        },
+        {
+            "index": 6,
+            "name": "Mod. 770",
+            "format": "tag",
+            "prompt": "Stato Modello 770 (per sostituti d'imposta). Una sola tra: `✓ Inviata`, `⏳ In lavorazione`, `⚠ Atteso`, `✗ Docs mancanti`, `🔴 Scaduto`, `—` (per clienti che non sono sostituti d'imposta — assenza di dipendenti / collaboratori)."
+        },
+        {
+            "index": 7,
+            "name": "Acconti",
+            "format": "tag",
+            "prompt": "Stato versamento acconti d'imposta del periodo (saldo + 1° acconto a giugno; 2° acconto a novembre). Una sola tra: `✓ Versato`, `⏳ In preparazione`, `⚠ Atteso`, `🔴 Scaduto`, `—` (clienti senza imposte dovute, es. forfettari in primo anno)."
+        },
+        {
+            "index": 8,
+            "name": "DURC",
+            "format": "tag",
+            "prompt": "Stato DURC (Documento Unico Regolarità Contributiva) — verifica posizione INPS/INAIL/Cassa edile, aggiornato negli ultimi 120 gg. Una sola tra: `✓` (DURC regolare valido), `⚠ Scade <30gg`, `🔴 Irregolare/Negativo`, `—` (per clienti senza dipendenti né obblighi previdenziali)."
+        },
+        {
+            "index": 9,
+            "name": "Stato generale",
+            "format": "tag",
+            "prompt": "Sintesi semaforica del cliente. Una sola tra: `🟢 OK` (tutto in regola, nessun stato rosso o blocco), `🟡 Parziale` (almeno uno stato di lavorazione `⏳` o attesa `⚠` o documenti mancanti `✗` ma niente scaduto), `🔴 Blocco` (almeno uno scaduto `🔴` o documenti mancanti su adempimento imminente)."
+        }
+    ]
+}

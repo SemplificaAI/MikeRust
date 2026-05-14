@@ -1,0 +1,58 @@
+{
+    "id": "builtin-commerc-inventario-documenti",
+    "title": "Inventario documenti commercialista",
+    "type": "tabular",
+    "domain": "finance",
+    "practice": "Finance — Commercialista",
+    "prompt_md": "## Obiettivo\nClassifica e indicizza la documentazione contabile / fiscale / societaria allegata (bilanci, dichiarazioni fiscali, atti notarili, estratti conto, contratti, cartelle esattoriali, avvisi di accertamento, PVC, verbali CdA, perizie precedenti, ecc.). Una riga per ogni documento distinto.\n\nL'output è il **modulo trasversale di classificazione** del Toolkit Commercialista (cfr. piano sezione 1.4): è la tabella inventario comune a tutte le 6 aree professionali (perizie & stime, CTU tributaria, crisi d'impresa, due diligence, contenzioso tributario, adempimenti periodici). Tutte le tabelle successive citeranno i `Ref.` di questa tabella.\n\n## Stile\n- Una riga per documento — se un PDF caricato contiene più documenti distinti (es. bilancio + nota integrativa + relazione gestione), produci una riga per ciascuno.\n- Il codice `Ref.` segue il pattern `DOC-NN` progressivo (DOC-01, DOC-02, …) sull'intero set documentale.\n- Per gli importi principali, riporta solo quelli **rilevabili direttamente** dal documento (es. PN da SP, totale ripreso da avviso, importo cartella) — non aggregare né stimare se non esplicito.\n- L'`Area` indica una o più aree di lavoro pertinenti tra Area 1-6 (vedi piano sezione 1.3). Un documento può servire più aree (es. un bilancio è utile per Area 1 + Area 3 + Area 4).\n- La `Priorità` riflette l'urgenza operativa: `Urgente` per atti con termini di decadenza imminenti (es. avviso di accertamento non oltre 60 gg per ricorso), `Ordinario` per documenti di analisi, `Archivio` per documenti storici di sola consultazione.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Data",
+            "format": "date",
+            "prompt": "Data del documento, formato ISO YYYY-MM-DD. Per bilanci usa la data di chiusura esercizio (31/12 in default). Per dichiarazioni la data di trasmissione. Per atti notarili la data di rogito. Per estratti conto la data di emissione/chiusura periodo. Per avvisi di accertamento la data di notifica."
+        },
+        {
+            "index": 1,
+            "name": "Tipo documento",
+            "format": "tag",
+            "prompt": "Una sola tra: `Bilancio CEE`, `Bilancio OIC`, `Bilancio IFRS`, `Nota integrativa`, `Relazione gestione`, `Visura camerale`, `Statuto`, `Verbale CdA`, `Verbale assemblea soci`, `Dichiarazione Redditi`, `Dichiarazione IVA`, `Dichiarazione IRAP`, `Modello 770`, `Certificazione Unica`, `F24 versamento`, `Atto notarile`, `Contratto`, `Estratto conto bancario`, `Cartella esattoriale`, `Avviso di accertamento`, `PVC GdF`, `Diniego rimborso`, `Sentenza CGT`, `Perizia precedente`, `Relazione tecnica`, `Piano industriale`, `Altro`."
+        },
+        {
+            "index": 2,
+            "name": "Emittente",
+            "format": "text",
+            "prompt": "Soggetto emittente del documento. Esempi: 'Alfa Srl' per bilanci e dichiarazioni proprie; 'Notaio Rossi' per atti notarili; 'Banca Intesa Sanpaolo' per estratti conto; 'Agenzia delle Entrate — Direzione Provinciale di Milano' per avvisi accertamento; 'Guardia di Finanza — Tenenza X' per PVC. Per documenti emessi da società è opportuno indicare anche la natura giuridica (Srl / Spa / Snc / Ditta individuale / Ente)."
+        },
+        {
+            "index": 3,
+            "name": "Periodo riferimento",
+            "format": "text",
+            "prompt": "Periodo di imposta / esercizio / circolare di riferimento del documento. Esempi: '2024' per bilancio chiusura 31/12/2024; 'Q1-2024' per liquidazioni IVA trimestrale; '2020-2022' per PVC che copre più annualità; 'gg/mm/aaaa' per atti puntuali (atti notarili, contratti). Per documenti senza periodo (es. statuto vigente) scrivi 'Vigente'."
+        },
+        {
+            "index": 4,
+            "name": "Importo principale",
+            "format": "monetary_amount",
+            "prompt": "Importo principale rilevabile direttamente dal documento. Esempi: PN da SP per bilanci; ricavi 2024 per CE; totale ripreso per avvisi accertamento; importo cartella; valore atto di cessione. Formato '€ X.XXX,XX' (italiano: punto migliaia, virgola decimali). Se il documento non riporta un importo principale rilevabile (es. statuto, visura), scrivi '—'."
+        },
+        {
+            "index": 5,
+            "name": "Area",
+            "format": "tag",
+            "prompt": "Una o più aree di lavoro pertinenti, separate da virgola. Opzioni: `Area 1 Perizie e stime`, `Area 2 CTU tributaria`, `Area 3 Crisi d'impresa`, `Area 4 Due diligence`, `Area 5 Contenzioso tributario`, `Area 6 Adempimenti periodici`. Un bilancio tipicamente serve Area 1+3+4. Un avviso di accertamento serve Area 2+5. Una visura serve Area 4."
+        },
+        {
+            "index": 6,
+            "name": "Priorità",
+            "format": "tag",
+            "prompt": "Una sola tra: `Urgente` (documento con termini di decadenza imminenti, es. avviso di accertamento entro 60 gg, scadenza dichiarativa entro 30 gg), `Ordinario` (documento di analisi senza pressione temporale specifica), `Archivio` (documento storico di sola consultazione, es. bilanci di esercizi chiusi senza contenzioso)."
+        },
+        {
+            "index": 7,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codice progressivo univoco nel set documentale, formato `DOC-NN` (es. `DOC-01`, `DOC-02`, …). È il riferimento che useranno tutte le tabelle successive di tutte le aree per puntare a questo documento. Mantieni la numerazione strettamente sequenziale partendo da DOC-01."
+        }
+    ]
+}
