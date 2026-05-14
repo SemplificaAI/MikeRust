@@ -173,8 +173,19 @@ pub struct DocxTemplate {
     pub display_name: std::collections::HashMap<String, String>,
 
     pub category: String,
-    /// Canonical domain enum value — see `crate::domain::DOMAINS`.
+    /// Canonical primary domain — see `crate::domain::DOMAINS`.
+    /// Templates are tagged with the domain where they were natively
+    /// designed (legal letter → `legal`; ISO procedure → `compliance`).
     pub domain: String,
+    /// Additional domains where the template is also useful. Allows
+    /// a template like Parcella (primary `finance`) to surface for
+    /// users with `default_domain = legal`, since every liberal
+    /// professional issues parcelle. The filter on `GET /docx-templates?
+    /// domain=X` returns a template when `X == domain` OR `X in
+    /// also_applicable_to`. Empty / omitted means strictly domain-
+    /// specific (e.g. ISO Procedure, Contratto di locazione).
+    #[serde(default)]
+    pub also_applicable_to: Vec<String>,
     pub locale: String,
 
     #[serde(default = "default_automation_level")]
@@ -273,6 +284,17 @@ fn default_style_map_baseline() -> std::collections::BTreeMap<String, String> {
 }
 
 impl DocxTemplate {
+    /// True if this template should surface for users whose active
+    /// domain filter is `target`. Matches both the primary `domain`
+    /// and any entry in `also_applicable_to`. With `target = None`
+    /// every template matches — the no-filter case.
+    pub fn matches_domain(&self, target: Option<&str>) -> bool {
+        match target {
+            None => true,
+            Some(d) => self.domain == d || self.also_applicable_to.iter().any(|x| x == d),
+        }
+    }
+
     /// Resolve a display name for the given locale, with English
     /// fallback and last-resort first-entry pickup.
     pub fn display_name_for(&self, locale: &str) -> String {
@@ -518,6 +540,20 @@ fn validate(t: &DocxTemplate) -> Result<(), String> {
             t.id, t.domain
         ));
     }
+    for d in &t.also_applicable_to {
+        if !crate::domain::is_valid(d) {
+            return Err(format!(
+                "template {}: also_applicable_to entry {} not in canonical domain set",
+                t.id, d
+            ));
+        }
+        if d == &t.domain {
+            return Err(format!(
+                "template {}: also_applicable_to redundantly lists primary domain {}",
+                t.id, d
+            ));
+        }
+    }
     if !matches!(t.automation_level.as_str(), "L1" | "L2" | "L3" | "L4") {
         return Err(format!(
             "template {}: automation_level {} not in [L1,L2,L3,L4]",
@@ -638,6 +674,139 @@ mod tests {
         assert_eq!(v["is_system"], serde_json::json!(true));
         assert_eq!(v["is_owner"], serde_json::json!(false));
         assert_eq!(v["id"], serde_json::json!("it/test"));
+    }
+
+    // ── matches_domain ──────────────────────────────────────────────
+
+    fn template_with(domain: &str, also: Vec<&str>) -> DocxTemplate {
+        let mut t: DocxTemplate =
+            serde_json::from_str(&minimal_template_json("it/test", domain)).unwrap();
+        t.also_applicable_to = also.iter().map(|s| s.to_string()).collect();
+        t
+    }
+
+    #[test]
+    fn matches_domain_none_means_everything() {
+        let t = template_with("legal", vec![]);
+        assert!(t.matches_domain(None));
+        let t = template_with("finance", vec!["legal", "medical"]);
+        assert!(t.matches_domain(None));
+    }
+
+    #[test]
+    fn matches_domain_returns_true_for_primary() {
+        let t = template_with("legal", vec![]);
+        assert!(t.matches_domain(Some("legal")));
+        assert!(!t.matches_domain(Some("finance")));
+    }
+
+    #[test]
+    fn matches_domain_returns_true_for_also_applicable_entries() {
+        let t = template_with("finance", vec!["legal", "medical", "ip"]);
+        assert!(t.matches_domain(Some("finance")));
+        assert!(t.matches_domain(Some("legal")));
+        assert!(t.matches_domain(Some("medical")));
+        assert!(t.matches_domain(Some("ip")));
+        // Not in the cross-list.
+        assert!(!t.matches_domain(Some("real_estate")));
+        assert!(!t.matches_domain(Some("compliance")));
+    }
+
+    #[test]
+    fn validate_rejects_invalid_entry_in_also_applicable_to() {
+        let mut t = template_with("legal", vec![]);
+        t.also_applicable_to.push("not_a_canonical_domain".into());
+        let err = validate(&t).unwrap_err();
+        assert!(err.contains("also_applicable_to"));
+        assert!(err.contains("not_a_canonical_domain"));
+    }
+
+    #[test]
+    fn validate_rejects_primary_domain_listed_redundantly() {
+        // If primary == legal and also lists legal, that's noise —
+        // surface it as an error so the author cleans up.
+        let mut t = template_with("legal", vec![]);
+        t.also_applicable_to.push("legal".into());
+        let err = validate(&t).unwrap_err();
+        assert!(err.contains("redundantly"));
+        assert!(err.contains("legal"));
+    }
+
+    #[test]
+    fn validate_accepts_valid_cross_domain_template() {
+        let t = template_with("finance", vec!["legal", "medical", "ip", "compliance"]);
+        assert!(validate(&t).is_ok());
+    }
+
+    #[test]
+    fn shipped_diffida_is_cross_domain_legal_finance_realestate_insurance() {
+        // Anchors the actual sidecar so a future edit that drops one
+        // of the cross-domain entries fails CI rather than silently
+        // narrowing the surface.
+        let dir = crate::presets::config_subdir("docx-templates");
+        let templates = load_docx_templates(&dir).expect("load");
+        let diffida = templates
+            .iter()
+            .find(|t| t.id == "it/diffida-messa-in-mora")
+            .expect("diffida present");
+        assert_eq!(diffida.domain, "legal");
+        for expected in ["finance", "real_estate", "insurance"] {
+            assert!(
+                diffida.also_applicable_to.contains(&expected.to_string()),
+                "diffida should be applicable to {expected}, got {:?}",
+                diffida.also_applicable_to
+            );
+        }
+        // Cross-domain visibility — Diffida shows up for finance users.
+        assert!(diffida.matches_domain(Some("finance")));
+        assert!(diffida.matches_domain(Some("real_estate")));
+    }
+
+    #[test]
+    fn shipped_parcella_visible_in_every_professional_domain() {
+        let dir = crate::presets::config_subdir("docx-templates");
+        let templates = load_docx_templates(&dir).expect("load");
+        let parcella = templates
+            .iter()
+            .find(|t| t.id == "it/parcella-professionale")
+            .expect("parcella present");
+        // Every professional vertical should see la Parcella.
+        for d in ["legal", "medical", "finance", "ip", "compliance", "real_estate", "insurance"] {
+            assert!(
+                parcella.matches_domain(Some(d)),
+                "parcella should match domain {d}; got domain={} also={:?}",
+                parcella.domain,
+                parcella.also_applicable_to,
+            );
+        }
+    }
+
+    #[test]
+    fn shipped_locazione_stays_real_estate_only() {
+        let dir = crate::presets::config_subdir("docx-templates");
+        let templates = load_docx_templates(&dir).expect("load");
+        let loc = templates
+            .iter()
+            .find(|t| t.id == "it/contratto-locazione")
+            .expect("contratto-locazione present");
+        assert_eq!(loc.domain, "real_estate");
+        assert!(loc.also_applicable_to.is_empty(), "locazione is form-specific");
+        assert!(loc.matches_domain(Some("real_estate")));
+        assert!(!loc.matches_domain(Some("legal")));
+        assert!(!loc.matches_domain(Some("finance")));
+    }
+
+    #[test]
+    fn shipped_iso_procedure_stays_compliance_only() {
+        let dir = crate::presets::config_subdir("docx-templates");
+        let templates = load_docx_templates(&dir).expect("load");
+        let iso = templates
+            .iter()
+            .find(|t| t.id == "compliance/procedura-iso-sgi")
+            .expect("iso procedure present");
+        assert_eq!(iso.domain, "compliance");
+        assert!(iso.also_applicable_to.is_empty(), "ISO procedure is form-specific");
+        assert!(!iso.matches_domain(Some("legal")));
     }
 
     #[test]

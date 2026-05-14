@@ -51,10 +51,14 @@ async fn list_docx_templates(
     _auth: AuthUser,
     Query(q): Query<ListQuery>,
 ) -> ApiResult {
+    // Cross-domain matching: a template matches the filter when its
+    // primary `domain` equals the query OR when the query is listed
+    // in `also_applicable_to`. Lets a Parcella (primary finance)
+    // surface for users with default_domain=legal.
     let items: Vec<Value> = state
         .docx_templates
         .iter()
-        .filter(|t| q.domain.as_deref().is_none_or(|d| t.domain == d))
+        .filter(|t| t.matches_domain(q.domain.as_deref()))
         .filter(|t| {
             q.locale
                 .as_deref()

@@ -338,6 +338,7 @@ mod tests {
             display_name: display,
             category: "test".to_string(),
             domain: "legal".to_string(),
+            also_applicable_to: Vec::new(),
             locale: "it-IT".to_string(),
             automation_level: "L1".to_string(),
             placeholder_syntax: "square_brackets".to_string(),

@@ -12,6 +12,7 @@
     },
     "category": "legal-correspondence",
     "domain": "legal",
+    "also_applicable_to": ["finance", "real_estate", "insurance"],
     "locale": "it-IT",
     "automation_level": "L1",
     "placeholder_syntax": "square_brackets",

@@ -12,6 +12,7 @@
     },
     "category": "professional-billing",
     "domain": "finance",
+    "also_applicable_to": ["legal", "medical", "ip", "compliance", "real_estate", "insurance"],
     "locale": "it-IT",
     "automation_level": "L3",
     "placeholder_syntax": "square_brackets",

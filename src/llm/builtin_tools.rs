@@ -519,11 +519,7 @@ async fn exec_list_docx_templates(state: &AppState, arguments: &Value) -> String
     let items: Vec<Value> = state
         .docx_templates
         .iter()
-        .filter(|t| {
-            domain_filter
-                .as_deref()
-                .is_none_or(|d| t.domain == d)
-        })
+        .filter(|t| t.matches_domain(domain_filter.as_deref()))
         .filter(|t| {
             locale_filter
                 .as_deref()
@@ -535,6 +531,7 @@ async fn exec_list_docx_templates(state: &AppState, arguments: &Value) -> String
                 "display_name": t.display_name_for("it"),
                 "category": t.category,
                 "domain": t.domain,
+                "also_applicable_to": t.also_applicable_to,
                 "locale": t.locale,
                 "automation_level": t.automation_level,
                 "required_metadata": t.required_metadata,
