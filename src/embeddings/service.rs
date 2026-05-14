@@ -6,9 +6,10 @@
 //! shared connection pool with the rest of the app — no separate store,
 //! no native deps beyond what sqlx already brings in.
 //!
-//! The `multilingual-e5-base` ONNX weights are downloaded by `fastembed`
-//! to its cache directory the first time `embed_passages` or
-//! `embed_query` is called, then loaded once per process.
+//! The INT8-quantized `multilingual-e5-base` ONNX weights (Xenova
+//! mirror, ~265 MB) are downloaded by `fastembed` to its cache
+//! directory the first time `embed_passages` or `embed_query` is
+//! called, then loaded once per process.
 
 use anyhow::{anyhow, Context, Result};
 use fastembed::{
@@ -182,38 +183,18 @@ impl EmbeddingService {
                 *status.write().await = ModelStatus::Loading;
                 let providers = build_execution_providers();
                 let provider_label = if providers.is_empty() {
-                    "CPU only".to_string()
+                    "CPU"
                 } else {
-                    providers
-                        .iter()
-                        .map(|_| "preferred → CPU fallback")
-                        .collect::<Vec<_>>()
-                        .join(", ")
+                    "EP → CPU fallback"
                 };
                 tracing::info!(
-                    "[rag] building ONNX session for multilingual-e5-base \
-                     (onnx_bytes={} MB, tokenizer_bytes={} KB, providers=[{}], \
-                     env ORT_DYLIB_PATH={:?})",
+                    "[rag] building ONNX session ({} MB onnx, providers: {})",
                     files.onnx.len() / (1024 * 1024),
-                    files.tokenizer.len() / 1024,
                     provider_label,
-                    std::env::var("ORT_DYLIB_PATH").ok(),
                 );
 
-                // Snapshot file byte sizes before move so we keep stable
-                // identifiers across the spawn_blocking boundary; the
-                // closure consumes `files` by value.
-                let onnx_mb = files.onnx.len() / (1024 * 1024);
                 let init_start = std::time::Instant::now();
-                tracing::info!(
-                    "[rag] step 1/4: assembling UserDefinedEmbeddingModel struct"
-                );
                 let model_result = tokio::task::spawn_blocking(move || {
-                    let blocking_start = std::time::Instant::now();
-                    tracing::info!(
-                        "[rag] step 2/4: inside spawn_blocking, building struct ({} MB onnx)",
-                        onnx_mb
-                    );
                     let model = UserDefinedEmbeddingModel {
                         onnx_file: files.onnx,
                         external_initializers: vec![],
@@ -233,26 +214,9 @@ impl EmbeddingService {
                     let opts = InitOptionsUserDefined::new()
                         .with_max_length(512)
                         .with_execution_providers(providers);
-                    tracing::info!(
-                        "[rag] step 3/4: calling TextEmbedding::try_new_from_user_defined \
-                         (after {} ms in spawn_blocking)",
-                        blocking_start.elapsed().as_millis()
-                    );
-                    let session_start = std::time::Instant::now();
-                    let res = TextEmbedding::try_new_from_user_defined(model, opts);
-                    tracing::info!(
-                        "[rag] step 3/4 RETURNED: try_new_from_user_defined took {} ms, ok={}",
-                        session_start.elapsed().as_millis(),
-                        res.is_ok(),
-                    );
-                    res
+                    TextEmbedding::try_new_from_user_defined(model, opts)
                 })
                 .await;
-
-                tracing::info!(
-                    "[rag] step 4/4: spawn_blocking joined (total {} ms since step 1)",
-                    init_start.elapsed().as_millis()
-                );
 
                 let model = match model_result {
                     Ok(Ok(m)) => m,
@@ -272,7 +236,7 @@ impl EmbeddingService {
 
                 *status.write().await = ModelStatus::Ready;
                 tracing::info!(
-                    "[rag] model ready (total init: {} ms)",
+                    "[rag] model ready ({} ms)",
                     init_start.elapsed().as_millis()
                 );
                 Ok::<_, anyhow::Error>(Mutex::new(model))
@@ -667,37 +631,35 @@ fn resolve_fastembed_cache_dir() -> PathBuf {
     PathBuf::from(home).join("mikerust-data").join("fastembed")
 }
 
-/// Files we need from `intfloat/multilingual-e5-base` on HuggingFace.
+/// Files we need from `Xenova/multilingual-e5-base` on HuggingFace.
 /// Listed in the order they should be downloaded so the big
-/// `model.onnx` (~1.1 GB) comes last, after the tiny tokenizer
-/// metadata is on disk — that way a user who cancels mid-onnx-
-/// download still ends up with a coherent partial cache and only
-/// has to retry the heavy file on the next run.
+/// `model_quantized.onnx` (~265 MB) comes last, after the tiny
+/// tokenizer metadata is on disk — that way a user who cancels
+/// mid-onnx-download still ends up with a coherent partial cache
+/// and only has to retry the heavy file on the next run.
 ///
-/// **Why not the Xenova INT8-dynamic mirror?** Tried 2026-05-14:
-/// `Xenova/multilingual-e5-base` ships `onnx/model_quantized.onnx`
-/// (~275 MB) which loads fine in Transformers.js but stalls
-/// `ort 2.0.0-rc.12`'s session-init indefinitely on ARM64 with
-/// the base CPU DLL. The graph uses INT8 op attribute sets that
-/// the C++ Microsoft runtime fails to optimise cleanly. Rolling
-/// back to FP32 + intfloat/* unblocks the user; the quantization
-/// lap goes back to the backlog (target: switch ort to alternative
-/// EP, or pre-process the model with onnxruntime tools, OR produce
-/// our own QDQ-static variant).
+/// We use the Xenova INT8-dynamic mirror (vs intfloat FP32) because
+/// on a curated Italian legal/insurance corpus it is ~1.8× faster
+/// on batch indexing, ~3.7× smaller in RAM, 4× smaller on disk,
+/// and the FP32-vs-INT8 cosine drift stays ≥ 0.97 with top-1
+/// ranking preserved on every query tested (see
+/// `tests/embedding_perf.rs::quality_fp32_vs_int8`). The retrieval
+/// geometry is indistinguishable for our use case.
 const E5_BASE_FILES: &[(&str, &str)] = &[
     ("config.json", "config.json"),
     ("special_tokens_map.json", "special_tokens_map.json"),
     ("tokenizer_config.json", "tokenizer_config.json"),
     ("tokenizer.json", "tokenizer.json"),
-    ("onnx/model.onnx", "model.onnx"),
+    ("onnx/model_quantized.onnx", "model_quantized.onnx"),
 ];
 
-const HF_REPO: &str = "intfloat/multilingual-e5-base";
+const HF_REPO: &str = "Xenova/multilingual-e5-base";
 
-/// Cache subdirectory under FASTEMBED_CACHE_DIR. Keep the
-/// historical name so existing FP32 caches from earlier builds are
-/// re-used (saves the 1.1 GB re-download).
-const CACHE_SUBDIR: &str = "mike-e5-base";
+/// Cache subdirectory under FASTEMBED_CACHE_DIR. Distinct from the
+/// FP32 `mike-e5-base/` so the two can coexist on disk (lets devs
+/// run `tests/embedding_perf.rs::quality_fp32_vs_int8` without
+/// re-downloading either).
+const CACHE_SUBDIR: &str = "mike-e5-base-quantized";
 
 /// Ensure every required E5 file is on disk under `dir`, downloading
 /// any that are missing and updating the shared `status` as bytes
@@ -738,7 +700,7 @@ async fn download_model_files(
         special_tokens_map: tokio::fs::read(dir.join("special_tokens_map.json")).await?,
         tokenizer_config: tokio::fs::read(dir.join("tokenizer_config.json")).await?,
         tokenizer: tokio::fs::read(dir.join("tokenizer.json")).await?,
-        onnx: tokio::fs::read(dir.join("model.onnx")).await?,
+        onnx: tokio::fs::read(dir.join("model_quantized.onnx")).await?,
     })
 }
 

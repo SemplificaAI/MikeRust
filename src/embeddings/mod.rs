@@ -9,7 +9,8 @@
 //! 3. **Chunk** — split each document into overlapping passages sized
 //!    to fit the embedding model's context (e5-base = 512 tokens).
 //! 4. **Embed** — run each chunk through ONNX Runtime via `fastembed`
-//!    using the `multilingual-e5-base` model (768-dim FP32 vectors).
+//!    using INT8-quantized `multilingual-e5-base` (Xenova mirror,
+//!    768-dim vectors).
 //! 5. **Index** — upsert into a LanceDB table keyed by
 //!    `(document_id, chunk_index)`.
 //! 6. **Retrieve** — at chat time, embed the user query (with the

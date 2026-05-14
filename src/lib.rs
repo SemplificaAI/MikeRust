@@ -113,13 +113,6 @@ pub async fn run_server_with_channels(
 ) -> anyhow::Result<()> {
     load_dotenv();
     ensure_fastembed_cache_dir();
-    // Point ort's `load-dynamic` loader at our vendored
-    // `libs/onnxruntime/<platform>/` DLL before any embedding code
-    // touches the runtime. Must happen pre-AppState::new (which
-    // constructs EmbeddingService) so the env var is visible by the
-    // time fastembed initialises its first session.
-    #[cfg(feature = "rag")]
-    crate::embeddings::service::ensure_onnxruntime_dylib_path();
 
     let mut state = AppState::new().await?;
     state.biometric_tx = biometric_tx;

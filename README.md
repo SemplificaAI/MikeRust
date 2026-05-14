@@ -32,8 +32,8 @@ viewer) and replace the backend with a Rust+axum implementation that:
 
   * uses SQLite (via [`sqlite-vec`](https://github.com/asg017/sqlite-vec))
     instead of Supabase + pgvector;
-  * embeds locally with ONNX (multilingual-e5-base via fastembed +
-    optional DirectML / QNN execution providers);
+  * embeds locally with ONNX (INT8-quantized multilingual-e5-base
+    via fastembed + optional DirectML / QNN execution providers);
   * extracts PDF / DOCX / RTF / XLSX in pure Rust — no LibreOffice
     process spawn;
   * ships as a Tauri desktop app with no server-side dependency.
@@ -167,7 +167,7 @@ axum backend (127.0.0.1:<random>)   ← OS-assigned high port; the Tauri
 ## Key features
 
 ### RAG: local folder sync
-Configure folders under **Impostazioni → Documenti locali**. The scanner walks the tree (honouring `.gitignore`-style patterns), extracts text per format, chunks at ~800 tokens with 200-token overlap, and embeds with `multilingual-e5-base` (768 dims). Embeddings live in `sqlite-vec` virtual tables in the same `mike.db`. Search queries use cosine over the partitioned vector index; partitions are keyed by `(user_id, project_id_or_global)` so cross-tenant retrieval is impossible.
+Configure folders under **Impostazioni → Documenti locali**. The scanner walks the tree (honouring `.gitignore`-style patterns), extracts text per format, chunks at ~800 tokens with 200-token overlap, and embeds with INT8-quantized `multilingual-e5-base` (Xenova mirror, 768 dims, ~265 MB on disk). Embeddings live in `sqlite-vec` virtual tables in the same `mike.db`. Search queries use cosine over the partitioned vector index; partitions are keyed by `(user_id, project_id_or_global)` so cross-tenant retrieval is impossible.
 
 Supported formats:
 - **PDF** — pdfium-render native text. Per-page extraction; pages stamped with `[Page N]` markers so chunks can carry locality metadata. Scanned PDFs (no embedded text) are skipped unless a vision LLM is configured.
@@ -185,7 +185,13 @@ cargo build --features rag-directml   # Windows GPU (DX12 device, no extra SDK)
 cargo build --features rag-qnn        # Qualcomm Snapdragon NPU (X Elite / 8 Gen 3)
 ```
 
-The service tries QNN → DirectML → CPU, silently skipping providers whose DLLs aren't loadable.
+The service tries the configured EP → CPU, silently skipping providers whose DLLs aren't loadable.
+
+**Platform note — Windows 11 ARM64 / Qualcomm Snapdragon X Elite.**
+On this configuration the original FP32 `intfloat/multilingual-e5-base` with `ort/load-dynamic` against a vendored `onnxruntime.dll` froze `TextEmbedding::try_new_from_user_defined` indefinitely (no error, no progress — the spawn_blocking just never returned), making any first chat that touches RAG hang at startup. Two changes restored a working pipeline:
+
+1. **`ort` linked statically via `ort-sys` defaults** (instead of `load-dynamic` pointed at `libs/onnxruntime/win-arm64/onnxruntime.dll`). The session-init path needs the exact runtime version `ort 2.0.0-rc.12` was built against; Microsoft's stock ARM64 1.20.0 DLL is binary-compatible enough to load but not to optimise the e5 graph cleanly.
+2. **Default model switched to `Xenova/multilingual-e5-base` INT8-dynamic** (~265 MB) instead of intfloat FP32 (~1.1 GB). Cross-model FP32-vs-INT8 cosine drift stays ≥ 0.97 on a curated Italian legal/insurance corpus and top-1 retrieval is preserved (see `tests/embedding_perf.rs::quality_fp32_vs_int8`). The INT8 path is also ~1.8× faster on batch indexing and ~3.7× lighter in RAM, so it is now the default on every platform — the ARM64 freeze was the trigger, but the upside generalises.
 
 ### Chat with attachments — hash-keyed cache
 Documents attached via the chat composer (the **+** button) land in `data/storage/cache/` keyed by SHA-256 of the binary, and are pre-extracted to plain text at upload time:
