@@ -546,6 +546,13 @@
         "ownerOnlyDelete": "eliminare {count} dei progetti selezionati — solo il proprietario può eliminare un progetto",
         "folderName": "Nome cartella"
     },
+    "EmbeddingStatus": {
+        "loadingModelTitle": "Istanza modello embeddings…",
+        "loadingModelDetail": "Caricamento del modello multilingual-e5-base (~1.1 GB). Solo al primo utilizzo dopo l'avvio: le richieste successive saranno istantanee.",
+        "downloadingTitle": "Download modello embeddings…",
+        "embeddingTitle": "Calcolo embeddings…",
+        "failedTitle": "Caricamento modello fallito"
+    },
     "DocxTemplates": {
         "title": "Template DOCX",
         "subtitle": "Modelli di documenti professionali italiani. Selezionane uno dal compositore della chat per produrre un .docx già impaginato.",

@@ -1122,3 +1122,53 @@ export async function describeDocxTemplate(
         body: JSON.stringify({ template_id, locale }),
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// RAG runtime status — model load + active embed batch.
+// Surfaces to the user via <EmbeddingStatusBanner> so the wait on
+// the first-after-restart embed (5-10s ONNX session build on CPU) is
+// labelled instead of looking like the app hung.
+// ─────────────────────────────────────────────────────────────────────
+
+export type ModelStatusState =
+    | "idle"
+    | "downloading"
+    | "loading"
+    | "ready"
+    | "failed"
+    | "unavailable";
+
+export interface ModelStatus {
+    state: ModelStatusState;
+    /** Bytes received so far when state="downloading". */
+    downloaded?: number;
+    /** Total bytes expected when known (HF often omits Content-Length). */
+    total?: number | null;
+    /** Remote file path currently downloading. */
+    file?: string;
+    /** Failure detail when state="failed". */
+    error?: string;
+}
+
+export async function getModelStatus(): Promise<ModelStatus> {
+    return apiRequest<ModelStatus>("/sync/model-status");
+}
+
+export interface EmbedProgress {
+    document_id: string;
+    /** Chunks embedded so far. */
+    current: number;
+    /** Total chunks for this document. */
+    total: number;
+    /** Server-computed percent (0..100) so the client doesn't re-divide. */
+    percent: number;
+}
+
+/**
+ * Returns the active embed batch's progress, or `null` between jobs.
+ * The backend returns a bare JSON `null` literal when idle, so callers
+ * MUST handle absence rather than treating it as undefined.
+ */
+export async function getEmbedProgress(): Promise<EmbedProgress | null> {
+    return apiRequest<EmbedProgress | null>("/eurlex/embed-progress");
+}

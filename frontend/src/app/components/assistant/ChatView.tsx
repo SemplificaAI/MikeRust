@@ -5,6 +5,8 @@ import { ArrowDown } from "lucide-react";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
 import { ChatInput } from "./ChatInput";
+import { EmbeddingStatusBanner } from "./EmbeddingStatusBanner";
+import { useEmbeddingStatus } from "@/app/hooks/useEmbeddingStatus";
 import {
     AssistantSidePanel,
     type AssistantSidePanelTab,
@@ -634,6 +636,11 @@ export function ChatView({
                 >
                     <div className="w-full max-w-4xl mx-auto px-4 md:px-6">
                         <div className="w-full rounded-t-[20px] bg-white">
+                            {/* Live status of the e5 embedding subsystem. Visible
+                                only when the model is loading/downloading or a
+                                batch embed is running — the common steady state
+                                (idle/ready with no active embed) renders nothing. */}
+                            <EmbeddingStatusInline isLoading={isResponseLoading} />
                             <ChatInput
                                 onSubmit={handleChat}
                                 onCancel={cancel}
@@ -681,6 +688,22 @@ export function ChatView({
                     />
                 </div>
             )}
+        </div>
+    );
+}
+
+/**
+ * Thin wrapper that owns the poll lifecycle so the parent ChatView
+ * doesn't grow yet another useEffect. Poll is active only while the
+ * chat is waiting for a response — the common steady state generates
+ * no network traffic.
+ */
+function EmbeddingStatusInline({ isLoading }: { isLoading: boolean }) {
+    const status = useEmbeddingStatus(isLoading);
+    if (status.stage === "idle") return null;
+    return (
+        <div className="px-3 pt-3">
+            <EmbeddingStatusBanner status={status} />
         </div>
     );
 }
