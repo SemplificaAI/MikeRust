@@ -12,6 +12,104 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-14 — ort load-dynamic resolved: onnxruntime 1.24.2 ABI match (critical RAG fix)
+
+After three failed attempts that diagnosed the wrong cause, the
+load-dynamic embedding path is finally **stable on Windows 11 ARM64
+(Snapdragon X Elite) and x64**. The root cause was *not* the DLL
+binary (we had Microsoft's official stock release), but an **ABI
+version mismatch**: `ort 2.0.0-rc.12` statically compiles against
+**onnxruntime 1.24.2**, while the vendored DLL we were shipping was
+1.20.0. Four releases of drift in the function-pointer table caused
+`TextEmbedding::try_new_from_user_defined` to deadlock silently at
+the first missing symbol lookup — no error, no log, the
+`spawn_blocking` just never returned.
+
+### Fixed — RAG hang on first chat (Snapdragon X Elite)
+
+- **Vendored DLLs bumped to onnxruntime 1.24.2** for `win-arm64`
+  (SHA256 `D4C4D939…`) and `win-x64` (SHA256 `114947D6…`). Source:
+  Microsoft's official `v1.24.2` release on GitHub. With matching
+  versions, session init returns in **2269 ms ARM64 native** /
+  **3248 ms x64 under Prism emulation** — equivalent to the
+  previously-working static-link timing.
+- **`ort/load-dynamic` re-enabled** (cf. commit `c781d57`,
+  reversing the revert from `56ab9a1`). The runtime DLL is now a
+  distributable artifact users can swap independently of the Rust
+  toolchain. The earlier reverts had concluded "load-dynamic
+  fundamentally hangs on ARM64" — that diagnosis was wrong; the
+  fault was downstream of the load itself.
+- **`ensure_onnxruntime_dylib_path()` call restored** in
+  `src/lib.rs::run_server_with_channels()`, pre-AppState so the
+  env-var is visible before EmbeddingService constructs its session.
+- **Step 1/4 → 4/4 logging restored** in
+  `src/embeddings/service.rs::ensure_model_ready()`. The cleanup
+  commit `b8c25b8` had removed these as "diagnostic noise"; without
+  them, the second hang attempt produced zero observable signal
+  inside `spawn_blocking` (cargo test buffers stdout) and required
+  `Get-Process` to confirm the binary was even alive. They stay in
+  as the canonical diagnostic for any future version-drift regression.
+
+### Added — diagnostic recipe
+
+Knowing the **exact** onnxruntime version `ort-sys` linked against
+is the only way to choose the right vendored DLL. The string
+`branch=rel-1.24.2, git-commit=...` is baked into the compiled
+`mike-tauri.exe` by pyke's CI build — extract it with:
+
+```powershell
+Select-String -Path target\debug\mike-tauri.exe `
+  -Pattern 'branch=rel-\d+\.\d+\.\d+' -Encoding Default
+```
+
+This must be checked **every time `ort` / `fastembed` / `ort-sys` is
+bumped**. ABI drift across more than one minor (1.20 → 1.24 is the
+worst observed so far) is a silent deadlock, not a build error or a
+runtime panic — there is no fail-fast.
+
+### Verified
+
+| metric | ARM64 native | x64 emulated (Prism) |
+|---|---|---|
+| `try_new_from_user_defined` | 2269 ms | 3248 ms |
+| Cold embed (1 query) | 26 ms | 131 ms |
+| Warm embed | 5 ms | 26 ms |
+| Batch-16 passages | 81 ms (5 ms/passage) | 238 ms (14 ms/passage) |
+| FP32 quality drift mean | 0.984 | — |
+| Top-1 ranking agreement | 4/4 | — |
+
+Test suite green on the new build: `embedding_perf` 3/3
+(`perf_fp32_intfloat`, `perf_int8_xenova`, `quality_fp32_vs_int8`)
++ `workflows_smoke` 6/6 + `service::tests::find_onnxruntime_dylib`
+6/6, plus the x64 cross-compiled `embedding_perf` executed under
+Windows 11's Prism translation layer.
+
+### Docs
+
+- [`README.md`](README.md) — "Critical fix — ort/onnxruntime ABI
+  version match" subsection in "RAG: hardware acceleration", listing
+  the three changes that restored the pipeline and the upgrade
+  protocol.
+- [`libs/onnxruntime/README.md`](libs/onnxruntime/README.md) —
+  "Version: must be exactly 1.24.2 for ort 2.0.0-rc.12" subsection
+  + `branch=rel-` `Select-String` recipe + every download URL bumped
+  from 1.20.x to 1.24.2.
+
+### Changed — Cargo.toml
+
+- `fastembed`: `default-features = false`, features `[hf-hub-native-tls,
+  image-models, ort-load-dynamic]`.
+- `ort = "=2.0.0-rc.12"`: `default-features = false`, features
+  `[std, load-dynamic]`.
+
+Both back to the shape commit `b565e08` originally introduced — the
+revert that intervened (`56ab9a1`) was based on the misdiagnosis. The
+Cargo.toml comment block documents both prior attempts so the next
+person tempted to "ship the DLL separately" reads about the
+*real* failure mode (ABI drift) instead of repeating the chase.
+
+---
+
 ## 2026-05-14 — DOCX template wiring (Phase 1.A.2 — LLM tools + HTTP endpoint)
 
 Glue between the renderer (Phase 1.A.1) and the rest of the system:

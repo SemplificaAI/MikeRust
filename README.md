@@ -187,11 +187,16 @@ cargo build --features rag-qnn        # Qualcomm Snapdragon NPU (X Elite / 8 Gen
 
 The service tries the configured EP → CPU, silently skipping providers whose DLLs aren't loadable.
 
-**Platform note — Windows 11 ARM64 / Qualcomm Snapdragon X Elite.**
-On this configuration the original FP32 `intfloat/multilingual-e5-base` with `ort/load-dynamic` against a vendored `onnxruntime.dll` froze `TextEmbedding::try_new_from_user_defined` indefinitely (no error, no progress — the spawn_blocking just never returned), making any first chat that touches RAG hang at startup. Two changes restored a working pipeline:
+**Critical fix — ort/onnxruntime ABI version match (Windows 11 ARM64 / Qualcomm Snapdragon X Elite).**
+The vendored `onnxruntime.dll` in `libs/onnxruntime/<platform>/` **must match the exact version** `ort 2.0.0-rc.12` was statically compiled against. ABI drift even across a single minor — e.g. 1.20.0 → 1.24.x — silently deadlocks `TextEmbedding::try_new_from_user_defined` because the function-pointer table ort builds at startup references symbols (IO bindings, plugin-EP APIs) that don't exist in older DLLs. No error, no log, the spawn_blocking just never returns.
 
-1. **`ort` linked statically via `ort-sys` defaults** (instead of `load-dynamic` pointed at `libs/onnxruntime/win-arm64/onnxruntime.dll`). The session-init path needs the exact runtime version `ort 2.0.0-rc.12` was built against; Microsoft's stock ARM64 1.20.0 DLL is binary-compatible enough to load but not to optimise the e5 graph cleanly.
-2. **Default model switched to `Xenova/multilingual-e5-base` INT8-dynamic** (~265 MB) instead of intfloat FP32 (~1.1 GB). Cross-model FP32-vs-INT8 cosine drift stays ≥ 0.97 on a curated Italian legal/insurance corpus and top-1 retrieval is preserved (see `tests/embedding_perf.rs::quality_fp32_vs_int8`). The INT8 path is also ~1.8× faster on batch indexing and ~3.7× lighter in RAM, so it is now the default on every platform — the ARM64 freeze was the trigger, but the upside generalises.
+We chased this bug across three failed attempts (vendored 1.20.0 from Microsoft's stock release) before isolating it to ABI mismatch. The fix:
+
+1. **Vendor onnxruntime 1.24.2** (the version ort 2.0.0-rc.12 actually links against — verifiable with `Select-String -Path target\debug\mike-tauri.exe -Pattern 'branch=rel-\d+\.\d+\.\d+'`). Drop the matching `onnxruntime.dll` for each platform under `libs/onnxruntime/win-{arm64,x64}/`; see [`libs/onnxruntime/README.md`](libs/onnxruntime/README.md) for the fetch recipe. With the right DLL, `try_new_from_user_defined` returns in 2.3 s on ARM64 native and 3.2 s on x64 under Windows' Prism emulation — equivalent to the static-link timing.
+2. **`ort` runs in `load-dynamic` mode** (cf. `Cargo.toml`: `ort/load-dynamic` + `fastembed/ort-load-dynamic`), so the runtime DLL is a distributable artifact users can swap independently of the Rust toolchain. `ensure_onnxruntime_dylib_path()` resolves the path at startup and exports `ORT_DYLIB_PATH` before any embedding code touches the runtime.
+3. **Default model: `Xenova/multilingual-e5-base` INT8-dynamic** (~265 MB) instead of intfloat FP32 (~1.1 GB). Cross-model FP32-vs-INT8 cosine drift stays ≥ 0.97 on a curated Italian legal/insurance corpus and top-1 retrieval is preserved (see `tests/embedding_perf.rs::quality_fp32_vs_int8`). The INT8 path is also ~1.8× faster on batch indexing and ~3.7× lighter in RAM, so it is now the default on every platform.
+
+**When upgrading `ort`:** rebuild, run the `Select-String` probe above on the new `mike-tauri.exe`, then bump every vendored `onnxruntime.dll` to match the new version. Cross-minor drift is a silent deadlock, not a build error or a runtime panic — there is no fail-fast.
 
 ### Chat with attachments — hash-keyed cache
 Documents attached via the chat composer (the **+** button) land in `data/storage/cache/` keyed by SHA-256 of the binary, and are pre-extracted to plain text at upload time:
