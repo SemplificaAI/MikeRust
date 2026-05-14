@@ -548,7 +548,7 @@
     },
     "EmbeddingStatus": {
         "loadingModelTitle": "Loading embedding model…",
-        "loadingModelDetail": "Initialising the multilingual-e5-base ONNX session (~1.1 GB). First request after launch only — subsequent ones are instant.",
+        "loadingModelDetail": "Initialising the multilingual-e5-base INT8-quantized ONNX session (~275 MB). First request after launch only — subsequent ones are instant.",
         "downloadingTitle": "Downloading embedding model…",
         "embeddingTitle": "Computing embeddings…",
         "failedTitle": "Embedding model failed to load"

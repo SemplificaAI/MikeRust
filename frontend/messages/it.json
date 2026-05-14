@@ -548,7 +548,7 @@
     },
     "EmbeddingStatus": {
         "loadingModelTitle": "Istanza modello embeddings…",
-        "loadingModelDetail": "Caricamento del modello multilingual-e5-base (~1.1 GB). Solo al primo utilizzo dopo l'avvio: le richieste successive saranno istantanee.",
+        "loadingModelDetail": "Caricamento del modello multilingual-e5-base quantizzato INT8 (~275 MB). Solo al primo utilizzo dopo l'avvio: le richieste successive saranno istantanee.",
         "downloadingTitle": "Download modello embeddings…",
         "embeddingTitle": "Calcolo embeddings…",
         "failedTitle": "Caricamento modello fallito"
