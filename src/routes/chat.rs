@@ -2206,6 +2206,32 @@ async fn stream_chat_root(
                                 result.len()
                             );
                         }
+                        // If this tool produced a downloadable document
+                        // (envelope `{ "doc_id": "...", "filename": "..." }`,
+                        // no error), surface it to the chat UI as a
+                        // `doc_created` event so the assistant message
+                        // grows a download card. Today this fires for
+                        // `generate_docx`; the same envelope is what any
+                        // future generator (xlsx, pdf-export, …) will
+                        // return, so the detection is on the shape rather
+                        // than the tool name.
+                        if let Ok(envelope) = serde_json::from_str::<Value>(&result)
+                            && envelope.get("error").is_none()
+                            && let (Some(doc_id), Some(filename)) = (
+                                envelope.get("doc_id").and_then(|v| v.as_str()),
+                                envelope.get("filename").and_then(|v| v.as_str()),
+                            )
+                        {
+                            let payload = json!({
+                                "type": "doc_created",
+                                "filename": filename,
+                                "download_url": format!("/document/{doc_id}/download"),
+                                "document_id": doc_id,
+                            });
+                            let _ = tx
+                                .send(Ok(Event::default().data(payload.to_string())))
+                                .await;
+                        }
                         current_messages.push(Message::tool_result(&call.id, &call.name, &result));
                     }
                 }

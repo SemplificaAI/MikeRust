@@ -42,6 +42,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/{id}/display", get(display_document))
         .route("/{id}/docx", get(display_document))
         .route("/{id}/text", get(display_document))
+        .route("/{id}/download", get(download_document))
         .route("/{id}/url", get(get_document_url))
         .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
 }
@@ -422,6 +423,99 @@ async fn display_document(
         HeaderValue::from_static("private, max-age=60"),
     );
     resp
+}
+
+// ---------------------------------------------------------------------------
+// GET /document/:id/download — same bytes as /display but with
+// `Content-Disposition: attachment` so a plain browser navigation
+// triggers the OS save dialog. Used by the chat's download card to
+// hand a generated .docx / .xlsx / … out of MikeRust as a normal file
+// the user can keep, mail, archive, etc. The /display sibling stays
+// `inline` because the in-app PDF.js / docx-preview viewers need the
+// webview to render the bytes in place rather than save them.
+// ---------------------------------------------------------------------------
+async fn download_document(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+) -> Response {
+    let row: Option<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT filename, file_type, storage_path FROM documents WHERE id = ? AND user_id = ?",
+    )
+    .bind(&id)
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten();
+
+    let Some((filename, file_type, Some(storage_path))) = row else {
+        return (StatusCode::NOT_FOUND, "Document not found").into_response();
+    };
+
+    let storage = match crate::storage::make_storage() {
+        Ok(s) => s,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+    let bytes = match storage.get(&storage_path).await {
+        Ok(b) => b,
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    };
+
+    let content_type = mime_for_extension(&file_type);
+    let mut resp = Response::new(Body::from(bytes));
+    resp.headers_mut()
+        .insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
+    // RFC 6266: filename* with UTF-8 encoding for non-ASCII filenames,
+    // plus a quoted ASCII fallback so older clients still pick something
+    // sensible. The fallback strips any character outside the printable
+    // ASCII range so a curly-quote in the filename can't break the
+    // Content-Disposition header parser.
+    let ascii_fallback: String = filename
+        .chars()
+        .map(|c| {
+            if c.is_ascii() && c != '"' && !c.is_control() {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let encoded =
+        percent_encoding::utf8_percent_encode(&filename, percent_encoding::NON_ALPHANUMERIC)
+            .to_string();
+    let disp = format!(
+        "attachment; filename=\"{ascii_fallback}\"; filename*=UTF-8''{encoded}"
+    );
+    if let Ok(value) = HeaderValue::from_str(&disp) {
+        resp.headers_mut().insert(header::CONTENT_DISPOSITION, value);
+    }
+    resp.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, no-store"),
+    );
+    resp
+}
+
+/// Map our `documents.file_type` column to a MIME string. Kept in sync
+/// with the `display_document` handler so download and inline-display
+/// return identical Content-Type for the same row.
+fn mime_for_extension(ext: &str) -> &'static str {
+    match ext {
+        "pdf" => "application/pdf",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "rtf" => "application/rtf",
+        "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xls" => "application/vnd.ms-excel",
+        "ods" => "application/vnd.oasis.opendocument.spreadsheet",
+        "csv" => "text/csv; charset=utf-8",
+        "txt" => "text/plain; charset=utf-8",
+        "md" => "text/markdown; charset=utf-8",
+        "png" => "image/png",
+        "jpeg" | "jpg" => "image/jpeg",
+        "tiff" | "tif" => "image/tiff",
+        _ => "application/octet-stream",
+    }
 }
 
 // ---------------------------------------------------------------------------

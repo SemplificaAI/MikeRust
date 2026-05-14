@@ -4199,6 +4199,7 @@ dependencies = [
  "ort",
  "parquet",
  "pdfium-render",
+ "percent-encoding",
  "pulldown-cmark",
  "quick-xml 0.37.5",
  "rand 0.9.4",

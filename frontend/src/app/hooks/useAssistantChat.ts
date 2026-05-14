@@ -318,13 +318,13 @@ export function useAssistantChat({
     const updateMatchingEvent = (
         predicate: (e: AssistantEvent) => boolean,
         updater: (e: AssistantEvent) => AssistantEvent,
-    ) => {
+    ): boolean => {
         const events = eventsRef.current;
         const idx = [...events]
             .map((_, i) => i)
             .reverse()
             .find((i) => predicate(events[i]));
-        if (idx === undefined) return;
+        if (idx === undefined) return false;
         const newEvents = [...events];
         newEvents[idx] = updater(events[idx]);
         eventsRef.current = newEvents;
@@ -337,6 +337,7 @@ export function useAssistantChat({
             }
             return updated;
         });
+        return true;
     };
 
     const handleChat = async (
@@ -781,7 +782,7 @@ export function useAssistantChat({
                         }
 
                         if (data.type === "doc_created") {
-                            updateMatchingEvent(
+                            const matched = updateMatchingEvent(
                                 (e) =>
                                     e.type === "doc_created" &&
                                     e.filename === data.filename &&
@@ -815,6 +816,35 @@ export function useAssistantChat({
                                     return next;
                                 },
                             );
+                            // No prior _start event — backend emitted only
+                            // the finalize signal (e.g. generate_docx tool
+                            // surfaces from chat.rs after dispatch). Push
+                            // a brand-new finalized card so the user gets
+                            // the download button regardless.
+                            if (!matched) {
+                                const next: Extract<
+                                    AssistantEvent,
+                                    { type: "doc_created" }
+                                > = {
+                                    type: "doc_created",
+                                    filename: data.filename as string,
+                                    download_url: data.download_url as string,
+                                    isStreaming: false,
+                                };
+                                if (typeof data.document_id === "string") {
+                                    next.document_id =
+                                        data.document_id as string;
+                                }
+                                if (typeof data.version_id === "string") {
+                                    next.version_id =
+                                        data.version_id as string;
+                                }
+                                if (typeof data.version_number === "number") {
+                                    next.version_number =
+                                        data.version_number as number;
+                                }
+                                pushEvent(next);
+                            }
                             pushThinkingPlaceholder();
                             continue;
                         }
