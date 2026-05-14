@@ -16,6 +16,14 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["devtools"] }
+# `rag` rides in via the `mike` crate's default features
+# (`default = ["local-storage", "rag"]`).
+#
+# Note on `rag-qnn` (Hexagon NPU on Snapdragon X Elite): tried,
+# session-init hangs because multilingual-e5-base is a float32
+# (non-QDQ-quantized) model and QNN/HTP requires INT8 QDQ. Re-enable
+# only after sourcing or producing a quantized variant of the
+# embedding model. Until then: CPU is the working baseline.
 mike = { path = "..", features = ["pdf"] }
 windows-future = "0.2"
 tokio = { version = "1", features = ["full"] }
