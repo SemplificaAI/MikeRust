@@ -1963,6 +1963,13 @@ async fn stream_chat_root(
 
         const MAX_TOOL_ITERATIONS: u32 = 5;
         let mut full_response = String::new();
+        // Per-message persistent events. Today this collects the
+        // `doc_created` envelopes so reopening the chat re-shows the
+        // download card; the stored shape mirrors what the live SSE
+        // stream sends so the frontend renders identically in both
+        // paths. Other event types (tool_call_start, citations, …) are
+        // streaming-only and deliberately not persisted.
+        let mut persistent_events: Vec<Value> = Vec::new();
         let mut current_messages = messages;
         let mut iteration: u32 = 0;
         let mut errored = false;
@@ -2231,6 +2238,19 @@ async fn stream_chat_root(
                             let _ = tx
                                 .send(Ok(Event::default().data(payload.to_string())))
                                 .await;
+                            // Persist so the card re-renders on chat
+                            // reopen (see migration 0020 + get_chat
+                            // hydration). Stored as the same shape the
+                            // SSE event uses, plus `isStreaming: false`
+                            // because by the time we serialise it the
+                            // generation has finished.
+                            persistent_events.push(json!({
+                                "type": "doc_created",
+                                "filename": filename,
+                                "download_url": format!("/document/{doc_id}/download"),
+                                "document_id": doc_id,
+                                "isStreaming": false,
+                            }));
                         }
                         current_messages.push(Message::tool_result(&call.id, &call.name, &result));
                     }
@@ -2253,25 +2273,40 @@ async fn stream_chat_root(
         // history loses citations on reload (`get_messages` returns
         // content but not annotations) and `[g1]`/`[p1]` pills render
         // as plain text on old turns.
-        let asst_msg_id: Option<String> = if !full_response.is_empty() {
-            let id = uuid::Uuid::new_v4().to_string();
-            let _ = sqlx::query(
-                "INSERT INTO messages (id, chat_id, role, content) VALUES (?, ?, 'assistant', ?)",
-            )
-            .bind(&id)
-            .bind(&chat_id_clone)
-            .bind(&full_response)
-            .execute(&state_clone.db)
-            .await;
+        // Persist the assistant turn whenever there's prose OR a
+        // doc_created (or any other persistent event). The empty-prose
+        // case happens when a tool call (e.g. `generate_docx`) is the
+        // only thing the LLM produced this turn — without persistence
+        // the download card would silently vanish on reopen.
+        let asst_msg_id: Option<String> =
+            if !full_response.is_empty() || !persistent_events.is_empty() {
+                let id = uuid::Uuid::new_v4().to_string();
+                let events_json = if persistent_events.is_empty() {
+                    None
+                } else {
+                    Some(Value::Array(persistent_events.clone()).to_string())
+                };
+                let _ = sqlx::query(
+                    "INSERT INTO messages (id, chat_id, role, content, events) \
+                     VALUES (?, ?, 'assistant', ?, ?)",
+                )
+                .bind(&id)
+                .bind(&chat_id_clone)
+                .bind(&full_response)
+                .bind(&events_json)
+                .execute(&state_clone.db)
+                .await;
 
-            let _ = sqlx::query("UPDATE chats SET updated_at = datetime('now') WHERE id = ?")
+                let _ = sqlx::query(
+                    "UPDATE chats SET updated_at = datetime('now') WHERE id = ?",
+                )
                 .bind(&chat_id_clone)
                 .execute(&state_clone.db)
                 .await;
-            Some(id)
-        } else {
-            None
-        };
+                Some(id)
+            } else {
+                None
+            };
 
         // Parse the trailing <CITATIONS>…</CITATIONS> JSON block the model
         // is instructed to emit (see MIKE_SYSTEM_PROMPT). Resolve each
@@ -2711,9 +2746,9 @@ async fn get_chat(
     let (chat_id, user_id, project_id, title, updated_at) =
         row.ok_or_else(|| err(StatusCode::NOT_FOUND, "Chat not found"))?;
 
-    let msg_rows: Vec<(String, String, Option<String>, String, Option<String>)> =
+    let msg_rows: Vec<(String, String, Option<String>, String, Option<String>, Option<String>)> =
         sqlx::query_as(
-            "SELECT id, role, content, created_at, annotations \
+            "SELECT id, role, content, created_at, annotations, events \
              FROM messages WHERE chat_id = ? ORDER BY created_at ASC",
         )
         .bind(&chat_id)
@@ -2723,20 +2758,38 @@ async fn get_chat(
 
     let with_annot = msg_rows
         .iter()
-        .filter(|(_, role, _, _, ann)| role == "assistant" && ann.is_some())
+        .filter(|(_, role, _, _, ann, _)| role == "assistant" && ann.is_some())
+        .count();
+    let with_events = msg_rows
+        .iter()
+        .filter(|(_, role, _, _, _, ev)| role == "assistant" && ev.is_some())
         .count();
     tracing::info!(
-        "[chat] GET /chat/{}: {} messages total, {} assistant rows with persisted annotations",
+        "[chat] GET /chat/{}: {} messages total, {} assistant rows with annotations, {} with persistent events",
         chat_id,
         msg_rows.len(),
         with_annot,
+        with_events,
     );
 
     let messages: Vec<Value> = msg_rows
         .into_iter()
-        .map(|(mid, role, content, created_at, annotations)| {
+        .map(|(mid, role, content, created_at, annotations, events)| {
             let content_value = if role == "assistant" {
-                json!([{ "type": "content", "text": content.unwrap_or_default() }])
+                let mut arr = vec![json!({
+                    "type": "content",
+                    "text": content.unwrap_or_default(),
+                })];
+                // Append persisted non-text events (today: `doc_created`)
+                // so the frontend's getChat path picks them up exactly
+                // like the live SSE stream — see mikeApi.ts where the
+                // events array is derived from `m.content`.
+                if let Some(stored) = events.as_deref()
+                    && let Ok(Value::Array(items)) = serde_json::from_str::<Value>(stored)
+                {
+                    arr.extend(items);
+                }
+                Value::Array(arr)
             } else {
                 json!(content.unwrap_or_default())
             };
