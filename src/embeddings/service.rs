@@ -71,6 +71,16 @@ pub struct EmbeddingService {
     pub active_embed: Arc<RwLock<Option<EmbedProgress>>>,
 }
 
+impl EmbeddingService {
+    /// Read-only snapshot of the model-load status, exposed so callers
+    /// outside this module (notably the `/healthz` handler) can render
+    /// the current state without owning the internal `RwLock`. Clones
+    /// the variant so the lock guard stays inside the function.
+    pub async fn status_snapshot(&self) -> ModelStatus {
+        self.status.read().await.clone()
+    }
+}
+
 /// Live snapshot of the in-flight chunk → embed work. Updated after
 /// every batch so the UI progress bar can advance smoothly.
 #[derive(Debug, Clone, serde::Serialize)]

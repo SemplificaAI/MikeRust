@@ -4,6 +4,7 @@ pub mod corpora;
 pub mod docx_templates;
 pub mod documents;
 pub mod eurlex;
+pub mod health;
 pub mod italian_legal;
 pub mod models;
 pub mod presets;

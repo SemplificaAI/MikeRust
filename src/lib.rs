@@ -107,11 +107,46 @@ fn ensure_fastembed_cache_dir() {
     tracing::info!("[rag] fastembed cache pinned to {}", path.display());
 }
 
+/// Install a panic hook that logs the panic through `tracing::error!`
+/// before the default behaviour (write to stderr) fires. This is the
+/// minimum viable observability: every panic ends up in the same
+/// structured log channel as the rest of the backend, with the
+/// thread name, payload, and source location attached. Crucially the
+/// hook does NOT swallow the panic — the thread still unwinds, the
+/// tokio task still aborts. Tasks that need survival semantics must
+/// use `tokio::task::spawn` with `catch_unwind` or the
+/// `tokio::task::JoinError::is_panic()` branch at the join site.
+fn install_panic_hook() {
+    let default = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread = std::thread::current();
+        let name = thread.name().unwrap_or("<unnamed>");
+        let payload = info
+            .payload()
+            .downcast_ref::<&'static str>()
+            .map(|s| *s)
+            .or_else(|| info.payload().downcast_ref::<String>().map(|s| s.as_str()))
+            .unwrap_or("<non-string payload>");
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+            .unwrap_or_else(|| "<unknown location>".to_string());
+        tracing::error!(
+            target: "mike::panic",
+            thread = %name,
+            location = %location,
+            "panic in mike: {payload}"
+        );
+        default(info);
+    }));
+}
+
 pub async fn run_server_with_channels(
     port: u16,
     biometric_tx: Option<tokio::sync::mpsc::Sender<BiometricRequest>>,
     port_tx: Option<tokio::sync::oneshot::Sender<u16>>,
 ) -> anyhow::Result<()> {
+    install_panic_hook();
     load_dotenv();
     ensure_fastembed_cache_dir();
     // Point ort's `load-dynamic` loader at our vendored
@@ -217,6 +252,7 @@ pub async fn run_server_with_channels(
         .nest("/eurlex",   routes::eurlex::router())
         .nest("/italian-legal", routes::italian_legal::router())
         .nest("/corpora",  routes::corpora::router())
+        .nest("/healthz",  routes::health::router())
         .layer(cors)
         .layer(global_body_limit)
         .with_state(state);

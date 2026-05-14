@@ -34,6 +34,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/biometric-disable",   post(biometric_disable))
         .route("/change-pin",          post(change_pin))
         .route("/logout",              post(logout))
+        .route("/me",                  get(me))
 }
 
 // ---------------------------------------------------------------------------
@@ -332,6 +333,50 @@ async fn logout(
         .await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "ok": true })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /auth/me
+//
+// Cheap session validity probe + user-profile rehydration. The frontend
+// calls this on app boot to decide whether the cached bearer token in
+// `localStorage` is still live (returns 200 with profile) or expired
+// (401 → drop the token, redirect to /unlock). Without this endpoint
+// the client could only discover invalid tokens by triggering a real
+// API call and parsing the 401 response, which is awkward on every
+// component that needs the user id.
+//
+// Returns the same `{ id, username, display_name }` shape that
+// `/auth/unlock` returns on success, so the client can swap one for
+// the other without UI changes.
+// ---------------------------------------------------------------------------
+async fn me(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+) -> ApiResult {
+    let row: Option<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT id, username, display_name FROM user_profiles WHERE id = ?",
+    )
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let (id, username, display_name) = row.ok_or_else(|| {
+        // The session token is valid but the user row was deleted out
+        // from under it (e.g. profile reset). Treat as 401 — the
+        // frontend will drop the token and route to /setup.
+        err(
+            StatusCode::UNAUTHORIZED,
+            "Session points at a missing user profile",
+        )
+    })?;
+
+    Ok(Json(json!({
+        "id": id,
+        "username": username,
+        "display_name": display_name,
+    })))
 }
 
 // ---------------------------------------------------------------------------
