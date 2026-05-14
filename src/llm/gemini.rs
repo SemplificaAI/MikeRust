@@ -281,9 +281,272 @@ fn parse_gemini_sse_opt(line: &str, tc_counter: &mut u64) -> Option<StreamEvent>
         .collect::<Vec<_>>()
         .join("");
     if !text.is_empty() {
+        // Gemini 2.5 quirk: when AUTO mode decides to call a function, it
+        // occasionally writes the call as Python-API prose (the same
+        // syntax Google's documentation uses to illustrate tool-use) —
+        // e.g. `tool_code print(default_api.generate_docx(body='…'))`
+        // — instead of emitting a `functionCall` part. The official
+        // SDKs strip it client-side; the raw REST path doesn't. We do
+        // it here so the assistant turn actually dispatches the tool
+        // instead of dumping the prose into the chat as a literal
+        // markdown blob.
+        if let Some((name, args)) = try_parse_tool_code_prose(&text) {
+            *tc_counter += 1;
+            let id = format!("gemini-fc-{tc_counter}");
+            return Some(StreamEvent::ToolCalls(vec![ToolCall {
+                id,
+                name,
+                input: args,
+            }]));
+        }
         return Some(StreamEvent::ContentDelta(text));
     }
     None
+}
+
+/// Detect Gemini's "tool_code prose" pattern (`tool_code print(default_api.NAME(kwarg='…'))`)
+/// and convert it into a real ToolCall. Recognises every common envelope
+/// the model produces:
+///
+///   - bare:          `default_api.NAME(arg='…')`
+///   - print-wrapped: `print(default_api.NAME(arg='…'))`
+///   - tool_code:     `tool_code print(default_api.NAME(arg='…'))`
+///   - code-fenced:   ` ```python\ntool_code print(...)``` `
+///
+/// Returns `None` when the text doesn't match — the caller then falls
+/// back to the normal `ContentDelta` path so regular prose is unaffected.
+fn try_parse_tool_code_prose(text: &str) -> Option<(String, Value)> {
+    let mut s = text.trim();
+
+    // Strip a leading code fence: ```python, ```tool_code, ```
+    if let Some(rest) = s.strip_prefix("```python") {
+        s = rest.trim_start();
+    } else if let Some(rest) = s.strip_prefix("```tool_code") {
+        s = rest.trim_start();
+    } else if let Some(rest) = s.strip_prefix("```") {
+        s = rest.trim_start();
+    }
+    // Strip the trailing fence if any.
+    if let Some(rest) = s.strip_suffix("```") {
+        s = rest.trim_end();
+    }
+    // Strip the `tool_code` keyword line (with optional surrounding whitespace).
+    if let Some(rest) = s.strip_prefix("tool_code") {
+        s = rest.trim_start();
+    }
+    // Strip the `print(` wrapper. The matching trailing `)` is handled by
+    // the balanced-paren extractor below.
+    let had_print = if let Some(rest) = s.strip_prefix("print(") {
+        s = rest.trim_start();
+        true
+    } else {
+        false
+    };
+    // The function call lives under the `default_api.` namespace; some
+    // turns drop the prefix when the print wrapper is absent — accept
+    // both, but require it when there was no print wrapper to avoid
+    // matching arbitrary prose like `Foo(bar='baz')`.
+    let s = if let Some(rest) = s.strip_prefix("default_api.") {
+        rest
+    } else if had_print {
+        s
+    } else {
+        return None;
+    };
+
+    // Parse "NAME(arg=val, …)".
+    let paren = s.find('(')?;
+    let name = s[..paren].trim();
+    if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+        return None;
+    }
+    let after = &s[paren + 1..];
+    let args_inner = extract_balanced_paren_contents(after)?;
+    let args = parse_python_kwargs(args_inner)?;
+    Some((name.to_string(), args))
+}
+
+/// Given a slice that starts *after* an opening `(`, return the slice up
+/// to its matching `)`. Tracks Python single/double-quoted string literals
+/// and nested brackets so commas/parens inside strings don't fool it.
+fn extract_balanced_paren_contents(s: &str) -> Option<&str> {
+    let mut depth: i32 = 1;
+    let mut in_str: Option<char> = None;
+    let mut escaped = false;
+    for (i, c) in s.char_indices() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+        match in_str {
+            Some(q) => match c {
+                '\\' => escaped = true,
+                c2 if c2 == q => in_str = None,
+                _ => {}
+            },
+            None => match c {
+                '\'' => in_str = Some('\''),
+                '"' => in_str = Some('"'),
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(&s[..i]);
+                    }
+                }
+                _ => {}
+            },
+        }
+    }
+    None
+}
+
+/// Parse a Python kwargs blob (`a='x', b=2, c={'k': 1}`) into a JSON
+/// object. Permissive: missing values, unknown literal types, etc. fall
+/// back to the raw substring. The aim is "do something sensible so the
+/// dispatcher gets the bytes it needs", not "exactly mirror Python AST".
+fn parse_python_kwargs(s: &str) -> Option<Value> {
+    let mut obj = serde_json::Map::new();
+    for part in split_top_level_commas(s) {
+        let eq = part.find('=')?;
+        let key = part[..eq].trim().to_string();
+        if key.is_empty() {
+            return None;
+        }
+        let val_str = part[eq + 1..].trim();
+        let val = python_literal_to_json(val_str);
+        obj.insert(key, val);
+    }
+    Some(Value::Object(obj))
+}
+
+/// Split a Python args string by commas at the top nesting level,
+/// respecting string quotes and nested brackets.
+fn split_top_level_commas(s: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current = String::new();
+    let mut in_str: Option<char> = None;
+    let mut escaped = false;
+    let mut depth: i32 = 0;
+    for c in s.chars() {
+        if escaped {
+            current.push(c);
+            escaped = false;
+            continue;
+        }
+        match in_str {
+            Some(q) => {
+                if c == '\\' {
+                    current.push(c);
+                    escaped = true;
+                } else {
+                    if c == q {
+                        in_str = None;
+                    }
+                    current.push(c);
+                }
+            }
+            None => match c {
+                '\'' => {
+                    in_str = Some('\'');
+                    current.push(c);
+                }
+                '"' => {
+                    in_str = Some('"');
+                    current.push(c);
+                }
+                '(' | '[' | '{' => {
+                    depth += 1;
+                    current.push(c);
+                }
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    current.push(c);
+                }
+                ',' if depth == 0 => {
+                    let trimmed = current.trim().to_string();
+                    if !trimmed.is_empty() {
+                        out.push(trimmed);
+                    }
+                    current.clear();
+                }
+                _ => current.push(c),
+            },
+        }
+    }
+    let trimmed = current.trim().to_string();
+    if !trimmed.is_empty() {
+        out.push(trimmed);
+    }
+    out
+}
+
+/// Convert a Python literal to its JSON equivalent. Strings (single or
+/// double quoted), numbers, booleans (`True` / `False`), and `None` map
+/// naturally. Dict / list literals are normalised to JSON by swapping
+/// single quotes for double quotes — good enough for the values Gemini
+/// emits in tool_code prose. On any failure, returns a JSON string of
+/// the raw substring so the dispatcher at least sees something.
+fn python_literal_to_json(s: &str) -> Value {
+    let trimmed = s.trim();
+    if trimmed == "None" {
+        return Value::Null;
+    }
+    if trimmed == "True" {
+        return Value::Bool(true);
+    }
+    if trimmed == "False" {
+        return Value::Bool(false);
+    }
+    if let Ok(n) = trimmed.parse::<i64>() {
+        return json!(n);
+    }
+    if let Ok(n) = trimmed.parse::<f64>() {
+        return json!(n);
+    }
+    // String literal: ' or ".
+    if trimmed.len() >= 2 {
+        let first = trimmed.chars().next().unwrap();
+        let last = trimmed.chars().last().unwrap();
+        if (first == '\'' && last == '\'') || (first == '"' && last == '"') {
+            let inner = &trimmed[1..trimmed.len() - 1];
+            return Value::String(decode_python_string_escapes(inner));
+        }
+    }
+    // Dict / list literal — try JSON after a naïve single→double quote swap.
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        let normalised = trimmed.replace('\'', "\"");
+        if let Ok(v) = serde_json::from_str::<Value>(&normalised) {
+            return v;
+        }
+    }
+    // Last resort — keep the raw fragment so the model's intent isn't lost.
+    Value::String(trimmed.to_string())
+}
+
+fn decode_python_string_escapes(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            match chars.next() {
+                Some('n') => out.push('\n'),
+                Some('t') => out.push('\t'),
+                Some('r') => out.push('\r'),
+                Some('\\') => out.push('\\'),
+                Some('\'') => out.push('\''),
+                Some('"') => out.push('"'),
+                Some(other) => {
+                    out.push('\\');
+                    out.push(other);
+                }
+                None => out.push('\\'),
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 pub async fn complete(params: StreamParams) -> Result<String> {
@@ -446,5 +709,86 @@ mod tests {
         assert!(parse_gemini_sse_opt("data: {}", &mut counter).is_none());
         assert!(parse_gemini_sse_opt("data: not json", &mut counter).is_none());
         assert!(parse_gemini_sse_opt("event: keepalive", &mut counter).is_none());
+    }
+
+    #[test]
+    fn try_parse_tool_code_handles_full_wrapper() {
+        // The exact shape observed in the wild: `tool_code print(default_api.NAME(arg='…'))`.
+        let prose = "tool_code print(default_api.generate_docx(body='# Inventario\\n\\nrow 1'))";
+        let (name, args) = try_parse_tool_code_prose(prose).expect("should parse");
+        assert_eq!(name, "generate_docx");
+        assert_eq!(args["body"], "# Inventario\n\nrow 1");
+    }
+
+    #[test]
+    fn try_parse_tool_code_handles_print_only() {
+        let prose = "print(default_api.read_document(doc_id='doc-0'))";
+        let (name, args) = try_parse_tool_code_prose(prose).expect("should parse");
+        assert_eq!(name, "read_document");
+        assert_eq!(args["doc_id"], "doc-0");
+    }
+
+    #[test]
+    fn try_parse_tool_code_handles_bare_default_api() {
+        let prose = "default_api.list_docx_templates(domain='insurance')";
+        let (name, args) = try_parse_tool_code_prose(prose).expect("should parse");
+        assert_eq!(name, "list_docx_templates");
+        assert_eq!(args["domain"], "insurance");
+    }
+
+    #[test]
+    fn try_parse_tool_code_handles_python_fence() {
+        let prose = "```python\ntool_code print(default_api.generate_docx(body='hi'))\n```";
+        let (name, args) = try_parse_tool_code_prose(prose).expect("should parse");
+        assert_eq!(name, "generate_docx");
+        assert_eq!(args["body"], "hi");
+    }
+
+    #[test]
+    fn try_parse_tool_code_handles_multiple_kwargs() {
+        // template_id + body + metadata dict.
+        let prose = "tool_code print(default_api.generate_docx(template_id='it/diffida-messa-in-mora', body='# Letter', metadata={'DEBITORE': 'Tizio S.r.l.', 'IMPORTO': '1234'}))";
+        let (name, args) = try_parse_tool_code_prose(prose).expect("should parse");
+        assert_eq!(name, "generate_docx");
+        assert_eq!(args["template_id"], "it/diffida-messa-in-mora");
+        assert_eq!(args["body"], "# Letter");
+        assert_eq!(args["metadata"]["DEBITORE"], "Tizio S.r.l.");
+        assert_eq!(args["metadata"]["IMPORTO"], "1234");
+    }
+
+    #[test]
+    fn try_parse_tool_code_rejects_plain_prose() {
+        // No default_api., no print( wrapper — must not match.
+        assert!(try_parse_tool_code_prose("Ecco il report richiesto:").is_none());
+        // Looks like a function call but doesn't use the default_api namespace.
+        assert!(try_parse_tool_code_prose("Foo(bar='baz')").is_none());
+    }
+
+    #[test]
+    fn parse_sse_converts_tool_code_text_to_toolcalls() {
+        // End-to-end: an SSE event carrying a text part with the tool_code
+        // prose should surface as a ToolCalls event, not ContentDelta.
+        let line = r#"data: {"candidates":[{"content":{"parts":[{"text":"tool_code print(default_api.generate_docx(body='# X'))"}]}}]}"#;
+        let mut counter = 0u64;
+        match parse_gemini_sse_opt(line, &mut counter) {
+            Some(StreamEvent::ToolCalls(calls)) => {
+                assert_eq!(calls.len(), 1);
+                assert_eq!(calls[0].name, "generate_docx");
+                assert_eq!(calls[0].input["body"], "# X");
+            }
+            other => panic!("expected ToolCalls, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn parse_sse_keeps_normal_text_as_contentdelta() {
+        let line = r#"data: {"candidates":[{"content":{"parts":[{"text":"Ecco il documento generato."}]}}]}"#;
+        let mut counter = 0u64;
+        match parse_gemini_sse_opt(line, &mut counter) {
+            Some(StreamEvent::ContentDelta(text)) => {
+                assert_eq!(text, "Ecco il documento generato.");
+            }
+            other => panic!("expected ContentDelta, got {other:?}"),
+        }
     }
 }
