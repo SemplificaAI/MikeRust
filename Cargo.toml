@@ -48,12 +48,18 @@ sha2 = "0.10"
 #
 # Default fastembed features include `ort-download-binaries-native-tls`
 # which pulls the correct onnxruntime build for the active target at
-# compile time (via ort-sys) and links it statically into the binary.
-# Tried `ort/load-dynamic` + libs/onnxruntime/*/onnxruntime.dll
-# (commit b565e08 2026-05-14) — ort 2.0.0-rc.12 hangs on session
-# init when paired with Microsoft's stock ARM64 1.20.0 DLL on
-# Snapdragon X Elite. The version baked at compile time by ort-sys
-# is the one that actually works. Reverted to defaults.
+# compile time (via ort-sys) and links it into the binary as a
+# bundled artifact.
+#
+# Tried `ort/load-dynamic` against `libs/onnxruntime/win-arm64/onnxruntime.dll`
+# TWICE (commits b565e08 2026-05-14 and the load-dynamic experiment
+# after `cd7ba39`). Both reproduce a >5-minute stall inside
+# `TextEmbedding::try_new_from_user_defined` on Snapdragon X Elite
+# ARM64. The DLL we vendor is byte-identical (SHA256 verified) to
+# the binary `ort-sys` uses in the static build — so the regression
+# isn't the binary, it's something in ort 2.0.0-rc.12's load-dynamic
+# symbol-resolution glue on ARM64. The default static path is the
+# only configuration that actually completes session init in <5s.
 fastembed = { version = "5", optional = true }
 # Direct dep on the same ort version fastembed pulls transitively, so
 # we can configure execution providers (DirectML on Windows GPUs, QNN
