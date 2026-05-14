@@ -5,7 +5,7 @@
 //! ASCII styleIds emitted by `styles_xml::build_styles_xml`, never by
 //! the localised `w:name` — Word resolves by id.
 //!
-//! What this MVP covers (matches the four shipped Phase-1.A templates):
+//! What this MVP covers (matches the shipped Phase-1.A templates):
 //!   - Headings 1/2/3 → `SectionHeading` style (the sole baseline
 //!     heading slot; deeper levels reuse it)
 //!   - Paragraphs → `BodyText`
@@ -13,11 +13,15 @@
 //!   - Strong / Emphasis → `<w:b/>` / `<w:i/>` on the run
 //!   - Code spans → monospace run (Courier New)
 //!   - Hard / soft breaks
+//!   - **GFM tables** → `<w:tbl>` with explicit single-line borders.
+//!     Required by `it/inventario-beni-assicurati` (the LLM emits a
+//!     9-column passages table) and any future tabular template.
 //!
-//! Deferred (Phase 2 — tables, footnotes, page breaks, citation
-//! blockquote `>`): the templates don't depend on them yet.
+//! Deferred (Phase 2 — footnotes, page breaks, citation blockquote
+//! `>`, multi-column-width hints from `:--:` alignment markers): the
+//! templates don't depend on them yet.
 
-use pulldown_cmark::{Event, HeadingLevel, Parser, Tag, TagEnd};
+use pulldown_cmark::{Alignment, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 use super::styles_xml::xml_escape;
 
@@ -54,7 +58,12 @@ pub fn build_document_xml(
 /// elements separated by newlines for readability.
 pub fn render_body(markdown: &str) -> String {
     let mut state = RenderState::default();
-    let parser = Parser::new(markdown);
+    // GFM tables are the only non-CommonMark feature we need today.
+    // Strikethrough / task lists / footnotes can be opted in later
+    // without changing the table machinery below.
+    let mut options = Options::empty();
+    options.insert(Options::ENABLE_TABLES);
+    let parser = Parser::new_ext(markdown, options);
     for ev in parser {
         state.handle(ev);
     }
@@ -74,6 +83,28 @@ struct RenderState {
     italic: bool,
     in_code_block: bool,
     list_marker_stack: Vec<ListMarker>,
+    /// Active table context. None outside any table.
+    table: Option<TableState>,
+}
+
+/// State accumulated while traversing a GFM table. We can't stream
+/// the `<w:tbl>` to `out` cell-by-cell because OOXML needs `<w:tblGrid>`
+/// up front (Word's renderer is sloppy about missing tblGrid but other
+/// consumers like LibreOffice reject it) — so we buffer cells and rows
+/// and emit the whole table on `TagEnd::Table`.
+struct TableState {
+    /// Per-column alignment as the GFM separator row specified
+    /// (`:---`, `---:`, `:---:`). Length == column count.
+    alignments: Vec<Alignment>,
+    /// All rows seen so far, each already serialised as a `<w:tr>…</w:tr>`.
+    rows: Vec<String>,
+    /// Cells of the row currently being built — each is a complete
+    /// `<w:tc>…</w:tc>` blob.
+    current_row_cells: Vec<String>,
+    /// Runs belonging to the cell currently being built.
+    current_cell_runs: Vec<String>,
+    /// True while inside the header row (`<w:r>` runs get bold).
+    in_head: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -154,20 +185,85 @@ impl RenderState {
                 self.in_code_block = false;
             }
             Event::Text(t) => {
-                self.current_runs.push(run_text(
-                    &t,
-                    self.bold,
-                    self.italic,
-                    self.in_code_block,
-                ));
+                let bold_eff = self.bold || self.table.as_ref().is_some_and(|t| t.in_head);
+                let run = run_text(&t, bold_eff, self.italic, self.in_code_block);
+                if let Some(table) = self.table.as_mut() {
+                    table.current_cell_runs.push(run);
+                } else {
+                    self.current_runs.push(run);
+                }
             }
             Event::Code(t) => {
-                self.current_runs.push(run_text(&t, self.bold, self.italic, true));
+                let bold_eff = self.bold || self.table.as_ref().is_some_and(|t| t.in_head);
+                let run = run_text(&t, bold_eff, self.italic, true);
+                if let Some(table) = self.table.as_mut() {
+                    table.current_cell_runs.push(run);
+                } else {
+                    self.current_runs.push(run);
+                }
             }
             Event::SoftBreak | Event::HardBreak => {
-                self.current_runs.push(r#"<w:r><w:br/></w:r>"#.to_string());
+                let run = r#"<w:r><w:br/></w:r>"#.to_string();
+                if let Some(table) = self.table.as_mut() {
+                    table.current_cell_runs.push(run);
+                } else {
+                    self.current_runs.push(run);
+                }
             }
-            // Tables, footnotes, blockquote, HTML — deferred to Phase 2.
+            Event::Start(Tag::Table(alignments)) => {
+                self.flush_paragraph();
+                self.table = Some(TableState {
+                    alignments,
+                    rows: Vec::new(),
+                    current_row_cells: Vec::new(),
+                    current_cell_runs: Vec::new(),
+                    in_head: false,
+                });
+            }
+            Event::Start(Tag::TableHead) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.in_head = true;
+                    table.current_row_cells.clear();
+                }
+            }
+            Event::End(TagEnd::TableHead) => {
+                if let Some(table) = self.table.as_mut() {
+                    let row_xml = build_row_xml(&table.current_row_cells, true);
+                    table.rows.push(row_xml);
+                    table.current_row_cells.clear();
+                    table.in_head = false;
+                }
+            }
+            Event::Start(Tag::TableRow) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.current_row_cells.clear();
+                }
+            }
+            Event::End(TagEnd::TableRow) => {
+                if let Some(table) = self.table.as_mut() {
+                    let row_xml = build_row_xml(&table.current_row_cells, false);
+                    table.rows.push(row_xml);
+                    table.current_row_cells.clear();
+                }
+            }
+            Event::Start(Tag::TableCell) => {
+                if let Some(table) = self.table.as_mut() {
+                    table.current_cell_runs.clear();
+                }
+            }
+            Event::End(TagEnd::TableCell) => {
+                if let Some(table) = self.table.as_mut() {
+                    let cell_xml = build_cell_xml(&table.current_cell_runs);
+                    table.current_row_cells.push(cell_xml);
+                    table.current_cell_runs.clear();
+                }
+            }
+            Event::End(TagEnd::Table) => {
+                if let Some(table) = self.table.take() {
+                    self.out.push_str(&build_table_xml(&table));
+                }
+            }
+            // Footnotes, blockquote, HTML — deferred.
             _ => {}
         }
     }
@@ -209,6 +305,48 @@ fn run_text(text: &str, bold: bool, italic: bool, monospace: bool) -> String {
     format!(
         r#"<w:r>{rpr}<w:t xml:space="preserve">{}</w:t></w:r>"#,
         xml_escape(text)
+    )
+}
+
+/// Build a `<w:tc>` cell wrapping the accumulated runs in a single
+/// paragraph. Cells must always contain at least one `<w:p>` — Word
+/// rejects empty `<w:tc>` — so we synthesise an empty run when the
+/// LLM produced no cell content.
+fn build_cell_xml(runs: &[String]) -> String {
+    let body: String = if runs.is_empty() {
+        String::new()
+    } else {
+        runs.join("")
+    };
+    format!(
+        r#"<w:tc><w:tcPr><w:tcW w:w="0" w:type="auto"/></w:tcPr><w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr>{body}</w:p></w:tc>"#
+    )
+}
+
+/// Build a `<w:tr>` row from its cell xml blobs. The header row gets
+/// `<w:tblHeader/>` so Word repeats it on every page break when the
+/// table spans multiple pages — useful for inventories long enough
+/// to overflow a landscape A4.
+fn build_row_xml(cells: &[String], is_header: bool) -> String {
+    let pr = if is_header {
+        r#"<w:trPr><w:tblHeader/></w:trPr>"#
+    } else {
+        ""
+    };
+    let cells_xml: String = cells.join("");
+    format!("<w:tr>{pr}{cells_xml}</w:tr>")
+}
+
+/// Build the complete `<w:tbl>` from buffered rows. Uses explicit
+/// single-line borders so the document is portable to consumers that
+/// don't ship Word's built-in `TableGrid` style (LibreOffice, online
+/// previewers, docx-preview in our own DocxView).
+fn build_table_xml(state: &TableState) -> String {
+    let cols = state.alignments.len().max(1);
+    let grid: String = (0..cols).map(|_| r#"<w:gridCol w:w="0"/>"#).collect();
+    let rows: String = state.rows.join("");
+    format!(
+        r#"<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblLayout w:type="autofit"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr><w:tblGrid>{grid}</w:tblGrid>{rows}</w:tbl>"#
     )
 }
 
@@ -298,6 +436,83 @@ mod tests {
         let xml = render_body("A & B");
         assert!(xml.contains("A &amp; B"));
         assert!(!xml.contains("A & B"));
+    }
+
+    #[test]
+    fn gfm_table_emits_wtbl_with_borders_and_grid() {
+        let md = "\
+| # | Categoria | Valore |
+|---|-----------|--------|
+| 1 | Veicolo   | 14000  |
+| 2 | Immobile  | 200000 |
+";
+        let xml = render_body(md);
+        assert!(xml.contains("<w:tbl>"), "table element missing: {xml}");
+        assert!(xml.contains("<w:tblGrid>"), "tblGrid missing");
+        // 3 columns → 3 gridCol entries.
+        assert_eq!(xml.matches("<w:gridCol").count(), 3);
+        // Borders required for portability across LibreOffice / docx-preview.
+        assert!(xml.contains("<w:tblBorders>"));
+        // Three rows total (one header + two body).
+        assert_eq!(xml.matches("<w:tr>").count(), 3);
+        // Header row must repeat on page break.
+        assert!(xml.contains("<w:tblHeader/>"));
+        // Header cells render bold.
+        let header_idx = xml.find("Categoria").expect("header text");
+        let before = &xml[..header_idx];
+        assert!(before[before.len().saturating_sub(120)..].contains("<w:b/>"));
+        // Data cells must NOT have the body-text style stripped — every
+        // <w:tc> contains a <w:p> with BodyText.
+        let cell_paragraphs = xml.matches(r#"<w:pStyle w:val="BodyText"/>"#).count();
+        assert!(
+            cell_paragraphs >= 9,
+            "expected at least 9 BodyText paragraphs (3x3 cells), got {cell_paragraphs}: {xml}"
+        );
+    }
+
+    #[test]
+    fn gfm_table_with_empty_cell_still_emits_paragraph() {
+        // Word rejects empty <w:tc>, so a blank cell must still carry
+        // a <w:p>. Mirrors the "no value" rows the LLM emits for assets
+        // with unknown identificativo.
+        let md = "\
+| col1 | col2 |
+|------|------|
+| a    |      |
+";
+        let xml = render_body(md);
+        // 2 cells × 2 rows = 4 <w:tc> tags. Every one needs a <w:p>.
+        assert_eq!(xml.matches("<w:tc>").count(), 4);
+        assert_eq!(
+            xml.matches("<w:tc><w:tcPr").count(),
+            xml.matches("<w:p>").count() - xml.matches("<w:p><w:pPr><w:pStyle w:val=\"SectionHeading\"").count(),
+            "every <w:tc> must wrap a <w:p>"
+        );
+    }
+
+    #[test]
+    fn paragraph_after_table_renders_correctly() {
+        // Regression guard: state machine must drop back to non-table
+        // mode cleanly after `End(Table)`.
+        let md = "\
+| col |
+|-----|
+| x   |
+
+Closing prose here.
+";
+        let xml = render_body(md);
+        assert!(xml.contains("<w:tbl>"));
+        assert!(xml.contains("</w:tbl>"));
+        assert!(xml.contains("Closing prose here."));
+        // The closing prose must be a normal BodyText paragraph,
+        // NOT trapped inside the table.
+        let prose_idx = xml.find("Closing prose").unwrap();
+        let tbl_close = xml.find("</w:tbl>").unwrap();
+        assert!(
+            prose_idx > tbl_close,
+            "closing prose must come after </w:tbl>: tbl_close={tbl_close} prose={prose_idx}"
+        );
     }
 
     #[test]
