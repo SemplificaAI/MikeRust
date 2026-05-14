@@ -1,0 +1,46 @@
+{
+    "id": "builtin-medlegal-invalidita-civile",
+    "title": "Invalidità civile (DM 1992)",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nQuantifica la **percentuale di invalidità civile** secondo le tabelle del **DM 5 febbraio 1992** (Approvazione della nuova tabella indicativa delle percentuali d'invalidità per le minorazioni e malattie invalidanti).\n\nL'output è la **tabella 5c** del piano operativo, distinta sia da RC (Modulo 5a) sia da INAIL (Modulo 5b) perché:\n- Le **tabelle DM 1992** sono di matrice previdenziale e non risarcitoria.\n- Le **soglie** di invalidità civile attivano benefici previdenziali specifici (collocamento mirato, assegno mensile, pensione, indennità di accompagnamento).\n- La valutazione considera il **complesso delle infermità**, comprese quelle non legate a un singolo evento (a differenza della RC, che è event-specific).\n\n## Soglie previdenziali\n\n| Soglia % | Beneficio |\n|----------|-----------|\n| ≥ 33% | Iscrizione al collocamento mirato (L. 68/1999) |\n| ≥ 46% | Assegno mensile di assistenza (se inoccupato) |\n| ≥ 67% | Pensione di invalidità civile |\n| ≥ 74% | Indennità di accompagnamento (con requisiti specifici) |\n| 100% con non autosufficienza | Indennità di accompagnamento piena |\n\n## Stile\n- Una riga per ciascuna minorazione/voce DM 1992 applicata.\n- La `Voce DM 1992` cita: sezione + numero di voce (es. 'Sez. Colonna vertebrale, voce 7341 - Spondilite anchilosante con fusione …').\n- L'ultima riga aggiuntiva — `Totale invalidità civile` — riporta la somma combinata secondo i criteri DM 1992 (in genere Balthazard, ma alcuni capitoli prevedono regole proprie).\n- Aggiungi una riga finale `Soglia raggiunta` che indichi la fascia previdenziale conseguente (`Nessun beneficio`, `Collocamento mirato`, `Assegno mensile`, `Pensione`, `Pensione + indennità accompagnamento`).\n- Il `Ref.` cita i documenti della tabella inventario (Modulo 1) che fondano la minorazione — incluse certificazioni preesistenti, perché l'invalidità civile considera **tutte** le infermità, non solo quelle event-specific.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Apparato / Sistema",
+            "format": "tag",
+            "prompt": "Apparato o sistema interessato. Una sola tra: `Apparato locomotore`, `Apparato visivo`, `Apparato uditivo`, `Apparato cardiovascolare`, `Apparato respiratorio`, `Apparato digerente`, `Apparato urogenitale`, `Sistema endocrino-metabolico`, `Sistema emolinfopoietico`, `Sistema nervoso centrale`, `Sistema nervoso periferico`, `Apparato psichiatrico`, `Apparato neoplastico`, `Altro`."
+        },
+        {
+            "index": 1,
+            "name": "Postumo / Minorazione",
+            "format": "text",
+            "prompt": "Descrizione della minorazione in termini funzionali e clinici (es. 'Limitazione funzionale grave colonna lombare con dolore cronico e radiculopatia residua', 'Ipoacusia bilaterale 50% con uso protesico'). Includi durata e cronicità: per l'invalidità civile rileva la stabilizzazione della minorazione."
+        },
+        {
+            "index": 2,
+            "name": "Voce DM 1992",
+            "format": "text",
+            "prompt": "Citazione esatta: sezione + numero di voce della tabella DM 5 febbraio 1992. Esempio: 'Sez. App. locomotore, voce 7341 - Spondilite anchilosante con fusione plurime segmenti rachide'. Se la minorazione non è perfettamente coincidente con una voce, scegli la più prossima e motivalo nella riga `Note` o nella motivazione dentro `Postumo`."
+        },
+        {
+            "index": 3,
+            "name": "% invalidità",
+            "format": "text",
+            "prompt": "Percentuale attribuita alla voce, da tabella DM 1992. Numero seguito da '%' (es. '35%'). Per voci a range, scegli la % all'interno del range con motivazione (es. '35-50% → 42% per limitazione moderato-grave')."
+        },
+        {
+            "index": 4,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Annotazioni rilevanti: motivazione della scelta entro un range; criteri combinatori della riga totale; preesistenze e loro impatto; eventuali criticità di valutazione. Per la riga `Totale invalidità civile` riporta il metodo di combinazione applicato. Per la riga `Soglia raggiunta` riporta esplicitamente le percentuali confrontate alle soglie (es. '47% → ≥ 46% → diritto all'assegno mensile di assistenza se inoccupato')."
+        },
+        {
+            "index": 5,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codici dei documenti della tabella inventario (Modulo 1) che fondano la minorazione, formato `DOC-NN`. Per l'invalidità civile considera anche documenti relativi a patologie preesistenti/non event-specific (rilevano per il complesso delle infermità). Più documenti separati da virgola. Per le righe sintetiche `Totale` e `Soglia raggiunta` scrivi '—'."
+        }
+    ]
+}

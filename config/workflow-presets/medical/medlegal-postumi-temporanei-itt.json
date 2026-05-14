@@ -1,0 +1,52 @@
+{
+    "id": "builtin-medlegal-postumi-temporanei-itt",
+    "title": "Postumi temporanei (ITT)",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nQuantifica i **postumi temporanei** (Inabilità Temporanea Totale e Parziale) dall'evento lesivo alla stabilizzazione (MMI). Una riga per ciascuna fase di inabilità a percentuale omogenea: il sistema standard medico-legale italiano prevede fasce 100% / 75% / 50% / 25%.\n\nL'output è la **tabella ITT** del Modulo 4 del piano operativo. È fondamentale per la liquidazione del danno biologico temporaneo nel regime di Responsabilità Civile (art. 138-139 D.Lgs. 209/2005) e nei procedimenti INAIL / Invalidità civile.\n\n## Definizioni operative\n\n- **ITT assoluta (100%)**: totale impossibilità di svolgere qualsiasi attività ordinaria. Include il periodo di ricovero ospedaliero (per definizione 100%) e il periodo post-ricovero in cui il soggetto non è autonomo (es. allettamento, immobilizzazione).\n- **Inabilità parziale 75%**: grave limitazione funzionale. Il soggetto non può svolgere le attività ordinarie autonomamente (richiede assistenza per igiene, vestizione, deambulazione).\n- **Inabilità parziale 50%**: limitazione moderata. Può svolgere attività sedentarie con difficoltà; le attività lavorative ordinarie sono compromesse.\n- **Inabilità parziale 25%**: limitazione lieve. Attività svolte con disagio ma senza impedimento sostanziale. Fase tipica del periodo finale prima della stabilizzazione.\n- **Stabilizzazione (MMI — Maximum Medical Improvement)**: data in cui i postumi non sono più suscettibili di miglioramento apprezzabile con le cure. Da qui in poi si parla di postumi permanenti (Modulo 5), non più di ITT.\n\n## Fonti documentali per ciascuna fase\n\n- Ricovero → cartella clinica, lettera di dimissione (date ingresso/dimissione).\n- ITT 100% post-ricovero → certificati di malattia (MMG/INPS), certificati di completa inabilità, presidi prescritti (busto, gesso, deambulatori).\n- 75% / 50% / 25% → indicazione clinica documentata del grado di limitazione (referti fisiatrici, certificati MMG, relazioni di fisioterapia). In assenza di certificazione esplicita, stima medico-legale motivata (lo segnali nella colonna `Fonte documentale`).\n- Data stabilizzazione → ultimo referto evolutivo, dichiarazione esplicita dello specialista, oppure assenza di variazioni cliniche nei 3-6 mesi successivi.\n\n## Stile\n- Una riga per ogni fascia continua a percentuale costante. Se il soggetto è stato al 50% per 30 giorni, poi al 25% per altri 30 → due righe distinte.\n- Calcola automaticamente `N° giorni` come differenza inclusiva tra `Dal` e `Al`. Per il ricovero ospedaliero (ITT 100% per definizione) usa le date di ingresso/dimissione.\n- L'ultima riga aggiuntiva — `TOTALE` — somma i giorni di tutte le fasce + calcola l'equivalente in giorni di ITT assoluta secondo la formula: `equiv = (gg100 × 1.0 + gg75 × 0.75 + gg50 × 0.5 + gg25 × 0.25)`. Inserisci il risultato nella colonna `N° giorni` e scrivi `Totale equivalente ITT 100%` nella colonna `Fase`.\n- Il `Ref.` cita i documenti della tabella inventario (Modulo 1) che fondano ciascuna fase. Se più documenti, separa con virgola (`DOC-03, DOC-05`).\n- Se per qualche periodo manca documentazione clinica (gap), produci comunque una riga con percentuale stimata e segnalalo esplicitamente in `Fonte documentale` (es. 'Stima ML — gap documentale dal DOC-04 al DOC-05').",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Fase",
+            "format": "text",
+            "prompt": "Descrizione breve della fase: 'Ricovero ospedaliero', 'Post-ricovero — inabilità assoluta', 'Fase fisioterapica intensiva', 'Convalescenza domiciliare', 'Pre-stabilizzazione', oppure 'Totale equivalente ITT 100%' nella riga di chiusura. Una sola riga per fase a percentuale costante."
+        },
+        {
+            "index": 1,
+            "name": "Dal",
+            "format": "date",
+            "prompt": "Data di inizio della fase, formato ISO YYYY-MM-DD. Coincide con la data dell'evento lesivo per la prima riga (se l'ITT inizia subito) o con la data di un evento documentale che segna l'inizio della fascia di inabilità (es. data ricovero per fase di ricovero). Per la riga TOTALE lascia vuoto."
+        },
+        {
+            "index": 2,
+            "name": "Al",
+            "format": "date",
+            "prompt": "Data di fine della fase, formato ISO YYYY-MM-DD. Per la fase di ricovero, la data di dimissione. Per fasi successive, il giorno prima della variazione di percentuale (es. se al 50% fino al 14/03 e dal 15/03 al 25%, scrivi 14/03 nella riga 50% e 15/03 nella riga 25%). Per la riga TOTALE lascia vuoto."
+        },
+        {
+            "index": 3,
+            "name": "N° giorni",
+            "format": "text",
+            "prompt": "Numero di giorni della fase, calcolato come differenza inclusiva tra `Dal` e `Al` (entrambi inclusi). Es. dal 2026-01-10 al 2026-01-15 = 6 giorni. Nella riga `TOTALE equivalente ITT 100%`, scrivi il risultato della formula: (gg100×1.0 + gg75×0.75 + gg50×0.5 + gg25×0.25), con il valore numerico finale (es. '47.5')."
+        },
+        {
+            "index": 4,
+            "name": "% inabilità",
+            "format": "tag",
+            "prompt": "Una sola tra: `100%`, `75%`, `50%`, `25%`. Il ricovero è sempre 100% per definizione. Per la riga TOTALE lascia '—'."
+        },
+        {
+            "index": 5,
+            "name": "Fonte documentale",
+            "format": "text",
+            "prompt": "Tipo di documento che fonda la fase: 'Cartella clinica (date ricovero)', 'Certificato MMG di malattia (gg di prognosi)', 'Referto fisiatra (indicazione grado limitazione)', 'Relazione fisioterapia (numero sedute + grado autonomia)'. Quando la percentuale è una stima ML in assenza di certificazione esplicita, scrivi 'Stima ML motivata' + breve motivazione (es. 'Stima ML — interpolazione tra certificato 50% (DOC-08) e referto pre-stabilizzazione (DOC-12)')."
+        },
+        {
+            "index": 6,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codice/i del/dei documento/i della tabella inventario (Modulo 1) che fondano la fase, formato `DOC-NN`. Se più documenti separa con virgola: `DOC-03, DOC-05`. Per la riga TOTALE lascia '—'."
+        }
+    ]
+}

@@ -1,0 +1,64 @@
+{
+    "id": "builtin-medlegal-diagnosi-strumentali",
+    "title": "Diagnosi strumentali (nesso causale)",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nEstrai i **reperti strumentali** rilevanti dalla documentazione allegata, valutandone il nesso con l'evento lesivo. Una riga per ciascun esame strumentale presente nel set documentale (RX, TC, RMN, ecografia, EMG/VCN, scintigrafia, DEXA, spirometria, audiometria, ecc.).\n\nÈ la **tabella più critica** per la costruzione del nesso di causalità (Modulo 6, Sezione 6) del Modulo 3b del piano operativo. La rigorosa classificazione DIRETTA/INDIRETTA/ESCLUSIVA/DA VALUTARE su ogni reperto permette al perito di fondare la propria valutazione su dati documentali, non su impressioni narrative.\n\n## Regole di classificazione del nesso\n\n- **DIRETTA**: reperto positivo + distretto compatibile con l'evento + congruenza temporale (insorgenza entro finestra plausibile). Esempi: protrusione discale C5-C6 in soggetto con colpo di frusta da tamponamento, frattura tibia in caduta da scala documentata, edema midollare in distorsione recente.\n- **INDIRETTA**: reperto positivo MA con sovrapposizione a patologia preesistente documentata. Richiede stima della quota di aggravamento. Esempi: ernia discale L4-L5 in soggetto con discopatia degenerativa nota; rottura LCA in ginocchio già operato.\n- **ESCLUSIVA**: reperto negativo o nella norma. Valore probatorio negativo: esclude lesioni strutturali di quel tipo nel distretto esaminato. Esempi: 'RX colonna cervicale negativa per fratture' a 24h dall'evento.\n- **DA VALUTARE**: compatibilità temporale (gap troppo ampio rispetto all'evento) o anatomica dubbia, oppure documento incompleto. Richiede approfondimento o consulenza specialistica.\n\n## Stile\n- Una riga per esame: se una stessa giornata include più esami distinti (RX colonna + RX bacino), produci una riga per ciascuno.\n- Distingui rigorosamente `Reperto positivo` (cosa è stato osservato) da `Reperto negativo` (cosa è stato escluso); compila entrambe le colonne quando il referto contiene sia conferme sia esclusioni.\n- Il `Nesso con evento` deve essere argomentato (1 frase): tempo + distretto + meccanismo lesivo presunto.\n- Il codice `Ref.` punta sempre alla tabella inventario documenti (Modulo 1).\n- Se l'esame è stato eseguito in epoca antecedente l'evento lesivo (importante per dimostrare preesistenze), il nesso è automaticamente \"Antecedente l'evento — preesistenza\" e la Rilevanza ML è INDIRETTA o ESCLUSIVA del nesso (a seconda del reperto). Segnalalo esplicitamente in `Nesso con evento`.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Data esame",
+            "format": "date",
+            "prompt": "Data di esecuzione dell'esame strumentale, formato ISO YYYY-MM-DD. Usa la data dell'esame (non quella della refertazione, se diverse e documentate). Se la data non è leggibile scrivi 'Non specificato' e segnalalo nelle note."
+        },
+        {
+            "index": 1,
+            "name": "Tipo esame",
+            "format": "tag",
+            "prompt": "Una sola tra: `RX`, `TC`, `RMN`, `Ecografia`, `EMG/VCN`, `Scintigrafia`, `DEXA`, `Spirometria`, `Audiometria`, `Visual evoked potential`, `ECG`, `Altro`. Per imaging, il tipo va combinato col distretto nella colonna successiva (es. 'RMN' + distretto 'Colonna cervicale')."
+        },
+        {
+            "index": 2,
+            "name": "Struttura / Refertante",
+            "format": "text",
+            "prompt": "Struttura sanitaria che ha eseguito l'esame + medico refertante quando indicato. Formato: 'Centro Diagnostico Italiano — Dr. Cognome' oppure 'Osp. San Raffaele Radiologia — Dr.ssa Cognome'. Se uno dei due manca, indica solo l'altro. Se entrambi mancano scrivi 'Non specificato'."
+        },
+        {
+            "index": 3,
+            "name": "Distretto",
+            "format": "tag",
+            "prompt": "Distretto anatomico esaminato. Una o più (separate da virgola) tra: `Cranio-encefalo`, `Faccia`, `Colonna cervicale`, `Colonna dorsale`, `Colonna lombare`, `Spalla dx`, `Spalla sx`, `Gomito dx`, `Gomito sx`, `Polso/mano dx`, `Polso/mano sx`, `Bacino`, `Anca dx`, `Anca sx`, `Ginocchio dx`, `Ginocchio sx`, `Caviglia/piede dx`, `Caviglia/piede sx`, `Torace`, `Addome`, `Nervo periferico`, `Altro`. Usa il distretto effettivamente indagato dall'esame, non quello sintomatico."
+        },
+        {
+            "index": 4,
+            "name": "Reperto positivo",
+            "format": "text",
+            "prompt": "Reperti positivi riscontrati nel referto (cosa è stato osservato). Citazione testuale o sintesi tecnica: 'Protrusione discale C5-C6 con edema perilesionale', 'Frattura composta scomposta III medio femore dx', 'Rallentamento VCN nervo ulnare dx'. Se il referto è negativo / nei limiti di norma, scrivi '—' (e popola invece la colonna 'Reperto negativo'). Cita il numero di pagina del documento sorgente tra parentesi quando estratto da un PDF lungo."
+        },
+        {
+            "index": 5,
+            "name": "Reperto negativo",
+            "format": "text",
+            "prompt": "Reperti negativi esplicitamente esclusi dal referto (cosa è stato escluso). Citazione/sintesi: 'Negativa per fratture ossee acute', 'Assenza di segni di danno assonale', 'Non lesioni meniscali'. È particolarmente rilevante quando il referto è completamente negativo (valore probatorio di esclusione di lesione strutturale). Se il referto è solo positivo senza esclusioni esplicite, scrivi '—'."
+        },
+        {
+            "index": 6,
+            "name": "Nesso con evento",
+            "format": "text",
+            "prompt": "Argomentazione di nesso in 1 frase: combina criterio temporale + distretto + meccanismo. Esempi: 'Compatibile per distretto e tempo (8 giorni dall'evento) con trauma distorsivo cervicale documentato', 'Antecedente l'evento (esame eseguito 18 mesi prima) — preesistenza documentata', 'Distretto compatibile ma intervallo di 14 mesi rende il nesso dubbio', 'Esclusione di lesioni strutturali ossee a 24h dall'evento'. Se l'esame è antecedente all'evento, esplicita 'Antecedente l'evento — preesistenza'."
+        },
+        {
+            "index": 7,
+            "name": "Rilevanza ML",
+            "format": "tag",
+            "prompt": "Una sola tra: `DIRETTA` (reperto positivo + distretto compatibile + congruenza temporale), `INDIRETTA` (positivo con sovrapposizione a preesistenza documentata, richiede stima quota aggravamento), `ESCLUSIVA` (negativo, valore probatorio di esclusione di lesione strutturale), `DA VALUTARE` (compatibilità temporale o anatomica dubbia)."
+        },
+        {
+            "index": 8,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codice del documento di riferimento dalla tabella inventario (Modulo 1), formato `DOC-NN`. Quando un singolo PDF contiene più referti, mantieni lo stesso `DOC-NN` per tutte le righe estratte da quel PDF, e cita la pagina nella colonna 'Reperto positivo'/'Reperto negativo'."
+        }
+    ]
+}

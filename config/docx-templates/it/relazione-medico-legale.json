@@ -1,0 +1,131 @@
+{
+    "schema_version": 1,
+    "id": "it/relazione-medico-legale",
+    "source_reference": "docs/piano_toolkit_medico_legale.md#7-modulo-6",
+    "display_name": {
+        "it": "Relazione medico-legale",
+        "en": "Medical-legal expert report",
+        "fr": "Rapport médico-légal",
+        "de": "Medizinisch-rechtliches Gutachten",
+        "es": "Informe médico-legal",
+        "pt": "Relatório médico-legal"
+    },
+    "category": "medical-legal-report",
+    "domain": "medical",
+    "also_applicable_to": ["legal", "insurance"],
+    "locale": "it-IT",
+    "automation_level": "L3",
+    "placeholder_syntax": "square_brackets",
+
+    "paper": { "size": "A4", "orientation": "portrait", "format": "standard" },
+    "margins_cm": { "top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5 },
+    "typography": {
+        "body_font": "Calibri",
+        "body_size_pt": 11.0,
+        "line_spacing": 1.15,
+        "paragraph_after_pt": 6.0,
+        "alignment": "justify",
+        "first_line_indent_cm": 0.0
+    },
+    "footnotes": { "font": "Calibri", "size_pt": 9.0, "line_spacing": 1.0 },
+
+    "style_map_baseline": {
+        "body_text":       "Corpo testo",
+        "section_heading": "Titolo sezione",
+        "citation":        "Citazione",
+        "footnote":        "Note piè pagina"
+    },
+    "style_map": {
+        "heading_1":          "MedLegalTitoloSezione",
+        "heading_2":          "MedLegalSottosezione",
+        "quote_clinical":     "MedLegalCitazioneClinica",
+        "table_compact":      "MedLegalTabellaCompatta",
+        "table_compact_total":"MedLegalTabellaTotale",
+        "signature_block":    "MedLegalFirma"
+    },
+    "directives_supported": ["page_break"],
+
+    "header_block": "perito_compact",
+    "footer_block": "page_number_with_total",
+    "section_numbering": "manual",
+
+    "section_skeleton": [
+        { "id": "title",
+          "render": "RELAZIONE MEDICO-LEGALE",
+          "guidance": "Titolo centrato in grassetto MAIUSCOLO. Sottotitolo opzionale con qualifica del perito (CTU, CTP, consulenza stragiudiziale, INAIL, …) e numero pratica/RG." },
+
+        { "id": "premessa",
+          "title": "1. Premessa",
+          "guidance": "Sezione 1 della relazione. Esponi: (a) tipo di incarico ricevuto — CTU, CTP, consulenza stragiudiziale, parere INAIL — con riferimento al provvedimento di nomina o all'atto d'incarico; (b) parti coinvolte (assistito, controparte, ente); (c) data e luogo di nomina; (d) data e luogo della visita medico-legale se eseguita; (e) elenco sintetico (per tipo) dei documenti esaminati, rimandando alla tabella inventario in allegato." },
+
+        { "id": "quesiti_peritali",
+          "title": "2. Quesiti peritali",
+          "guidance": "Riporta letteralmente i quesiti posti dal giudice o dall'incaricante, numerandoli (1), (2), (3) ecc. Mantieni il testo originale anche se ridondante o ambiguo — eventuali precisazioni interpretative vanno nelle conclusioni. Per consulenze stragiudiziali, ricostruisci i quesiti dal mandato." },
+
+        { "id": "anamnesi",
+          "title": "3. Anamnesi",
+          "guidance": "Sezione presente solo se è stata eseguita visita diretta. Tre sotto-sezioni: (3.1) Anamnesi fisiologica; (3.2) Anamnesi patologica remota — incluse le preesistenze rilevanti per il nesso causale; (3.3) Anamnesi patologica prossima — racconto dell'evento lesivo + evoluzione clinica + terapie eseguite. Per CTP / consulenze su atti, indica esplicitamente 'Anamnesi non rilevata — relazione su atti'." },
+
+        { "id": "esame_obiettivo",
+          "title": "4. Esame obiettivo",
+          "guidance": "Sezione presente solo se è stata eseguita visita diretta. Esame generale + esame del distretto leso. Per il distretto leso, riporta: ispezione, palpazione, valutazione funzionale (ROM in gradi misurati con goniometro, forza con scala MRC o dinamometro, sensibilità per distretti). Indica la strumentazione utilizzata. Se la visita non è stata eseguita, scrivi 'Esame obiettivo non eseguito — relazione su atti'." },
+
+        { "id": "analisi_documentale",
+          "title": "5. Analisi documentale",
+          "guidance": "Sezione narrativa che sintetizza la timeline cronologica (Modulo 2 del piano operativo). Esponi in forma di racconto clinico la sequenza degli eventi: evento lesivo → fase acuta (PS, eventuale ricovero, dimissione) → fase post-acuta → fase riabilitativa → stabilizzazione. Cita i documenti via DOC-NN. La tabella timeline completa va in allegato (sezione 10)." },
+
+        { "id": "diagnosi_strumentali",
+          "title": "6. Diagnosi strumentali",
+          "guidance": "Commento medico-legale sui referti strumentali rilevanti. Riassumi la tabella diagnosi strumentali (Modulo 3b) evidenziando i reperti che fondano il nesso causale (rilevanza DIRETTA) e quelli che lo escludono (ESCLUSIVA). La tabella completa va in allegato (sezione 10)." },
+
+        { "id": "nesso_causale",
+          "title": "7. Nesso di causalità",
+          "guidance": "Sezione argomentativa con 6 sotto-sezioni nell'ordine standard: 7.1 Criterio cronologico; 7.2 Criterio topografico; 7.3 Criterio di continuità sintomatologica; 7.4 Criterio di esclusione di cause alternative; 7.5 Eventuale concausa preesistente; 7.6 Conclusione sul nesso. Il contenuto di questa sezione è prodotto dal workflow 'Nesso di causalità' (Modulo 6 sezione 6) — incollarlo qui o produrlo direttamente con quello schema." },
+
+        { "id": "postumi_temporanei",
+          "title": "8. Postumi temporanei (ITT)",
+          "guidance": "Riporta la tabella ITT (Modulo 4) con motivazione clinica per ogni fascia di inabilità (100% / 75% / 50% / 25%). Indica i giorni di ciascuna fase e il totale equivalente ITT 100%. Spiega come hai stimato le fasce non coperte da certificazione esplicita." },
+
+        { "id": "postumi_permanenti",
+          "title": "9. Postumi permanenti (IP)",
+          "guidance": "Tabella IP con riferimento esplicito al regime applicato (RC con tabelle SIMLA / micropermanenti, INAIL MIP, Invalidità civile DM 1992). Una sotto-sezione per regime se la perizia copre più ambiti (es. 9.A — IP in regime RC; 9.B — MIP INAIL). Per ogni postumo: distretto, descrizione funzionale, voce tabellare, % proposta, motivazione clinica, eventuale preesistenza. Esponi il calcolo combinatorio finale (Balthazard o SIMLA-specifico) con il risultato totale." },
+
+        { "id": "conclusioni",
+          "title": "10. Conclusioni",
+          "guidance": "Risposta puntuale e numerata a ciascun quesito peritale (riprodotti dalla sezione 2). Mantieni la corrispondenza 1:1 tra quesito e risposta. Linguaggio chiaro: il giudice non è un medico, evita gergo. Per le quantificazioni, ripeti i valori chiave (% IP, gg ITT) anche se già esposti nelle sezioni 8-9 — la sezione conclusiva è quella che il giudice legge per prima." },
+
+        { "id": "allegati",
+          "title": "11. Allegati",
+          "guidance": "Elenco numerato degli allegati prodotti dal toolkit medico-legale: (1) Tabella inventario documenti — Modulo 1; (2) Tabella timeline cronologica — Modulo 2; (3) Tabella diagnosi strumentali — Modulo 3b; (4) Tabella ITT — Modulo 4; (5) Tabella/e IP per regime applicato — Modulo 5a/b/c. Le tabelle vanno incluse in coda alla relazione, con `## ` come header e mantenute in formato Markdown table (la pipeline DOCX le renderizza come tabelle Word vere)." },
+
+        { "id": "signature_block",
+          "guidance": "Firma del perito in basso a destra: nome, qualifica (Dr./Dr.ssa, specializzazione, iscrizione albo CTU se applicabile), data di firma. Per relazioni stragiudiziali / CTP, indicare l'incaricante (es. 'Su mandato di [parte]')." }
+    ],
+
+    "field_prompts": {
+        "PERITO_NOME":         "Nome completo del perito medico-legale firmatario. Formato 'Dr./Dr.ssa Nome Cognome'.",
+        "PERITO_QUALIFICA":    "Qualifica e specializzazione del perito (es. 'Specialista in Medicina Legale e delle Assicurazioni, Iscritto Albo CTU Tribunale di [città] n. [N]').",
+        "INCARICO_TIPO":       "Tipo di incarico: 'CTU' (consulenza tecnica d'ufficio in procedimento giudiziario), 'CTP' (consulenza tecnica di parte), 'Consulenza stragiudiziale', 'Parere INAIL', 'Visita medico-legale di parte'.",
+        "INCARICO_RIFERIMENTO":"Riferimento al provvedimento di nomina o atto d'incarico: per CTU il numero RG e l'ordinanza; per CTP la nomina di parte; per stragiudiziali il mandato.",
+        "PARTI":               "Indicazione delle parti coinvolte: assistito (chi è il leso), controparte se applicabile, ente (assicurazione, INAIL, …).",
+        "DATA_EVENTO":         "Data dell'evento lesivo, formato 'gg/mm/aaaa'.",
+        "DATA_STABILIZZAZIONE":"Data di stabilizzazione clinica (MMI), formato 'gg/mm/aaaa'. Se non raggiunta o non determinabile, indicare 'Non raggiunta' con motivazione.",
+        "DATA_VISITA":         "Data della visita medico-legale, formato 'gg/mm/aaaa'. Per relazioni su atti senza visita, indicare 'Non eseguita — relazione su atti'.",
+        "LUOGO_VISITA":        "Luogo della visita medico-legale (studio del perito, struttura ospedaliera, abitazione dell'assistito).",
+        "QUESITI":             "Elenco dei quesiti peritali numerati, riprodotti letteralmente dall'atto di incarico.",
+        "REGIME_APPLICABILE":  "Regime normativo applicato alla quantificazione del danno permanente: una o più tra 'RC (D.Lgs. 209/2005 — SIMLA)', 'INAIL (D.Lgs. 38/2000 — DM 2000/2008)', 'Invalidità civile (DM 1992)'.",
+        "IP_TOTALE":           "Percentuale totale di invalidità permanente proposta dopo combinazione (Balthazard o SIMLA-specifica). Formato 'X%'.",
+        "ITT_GIORNI_EQUIV":    "Numero totale equivalente di giorni di ITT al 100% calcolato secondo la formula del Modulo 4. Numero intero o decimale con un decimale."
+    },
+
+    "required_metadata": [
+        "PERITO_NOME",
+        "PERITO_QUALIFICA",
+        "INCARICO_TIPO",
+        "DATA_EVENTO",
+        "QUESITI",
+        "REGIME_APPLICABILE",
+        "IP_TOTALE",
+        "ITT_GIORNI_EQUIV"
+    ]
+}

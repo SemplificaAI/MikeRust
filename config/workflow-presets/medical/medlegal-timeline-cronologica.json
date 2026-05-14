@@ -1,0 +1,58 @@
+{
+    "id": "builtin-medlegal-timeline-cronologica",
+    "title": "Timeline cronologica clinica",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nRicostruisci la **timeline clinica completa** dell'assistito dall'evento lesivo all'ultimo documento disponibile. Una riga per ciascun evento clinicamente rilevante in ordine cronologico ascendente: accesso PS, ricovero, dimissione, ogni esame strumentale, visite specialistiche, fasi di fisioterapia, eventuali eventi intercorrenti (concause, peggioramenti), stabilizzazione (MMI).\n\nLa prima riga è sempre l'**EVENTO LESIVO** (con campo `Fase clinica` = `Evento`). L'ultima riga, quando documentabile, è la **STABILIZZAZIONE** (MMI — Maximum Medical Improvement, con campo `Fase clinica` = `Stabilizzazione`). Tra le due, raggruppa gli eventi nelle fasi: `Acuta` (primi 7-15 gg post-evento, ricoveri, primi esami), `Post-acuta` (post-dimissione fino a controllo a 30-60 gg), `Riabilitativa` (fisioterapia, controlli evolutivi), `Cronica/Pre-stabilizzazione`.\n\nL'output è il riferimento per la **costruzione del nesso causale** (criterio di continuità sintomatologica del Modulo 6) e per il **calcolo dei giorni di ITT** (Modulo 4).\n\n## Stile\n- Tutte le righe ordinate per data ascendente.\n- Se due eventi cadono nella stessa giornata, ordinali per ora se documentata (PS prima del ricovero, ricovero prima della dimissione).\n- Il codice `Ref.` deve sempre rimandare alla tabella inventario documenti (Modulo 1): formato `DOC-NN`. Per l'evento lesivo e la stabilizzazione che sono eventi sintetici (non documenti), scrivi `—` nel campo Ref.\n- Nelle `Note medico-legali` segnala: gap documentali (\"Nessuna documentazione clinica dal …\"), incongruenze temporali (\"Referto antecedente l'evento — verificare\"), eventi intercorrenti non legati all'evento lesivo (per delimitare il nesso).\n- Per la fase `Stabilizzazione`/MMI, fonda la data su: ultimo referto evolutivo, dichiarazione esplicita dello specialista, oppure (in assenza) assenza di variazioni cliniche nei 3-6 mesi successivi — motiva la scelta nelle Note.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Data",
+            "format": "date",
+            "prompt": "Data dell'evento clinico, formato ISO YYYY-MM-DD. Per ricoveri di più giorni indica la data di ingresso (la data di dimissione avrà una riga separata). Per l'evento lesivo, usa la data documentata in verbale PS o denuncia di sinistro."
+        },
+        {
+            "index": 1,
+            "name": "Evento / Documento",
+            "format": "text",
+            "prompt": "Descrizione sintetica dell'evento o del documento che lo attesta (es. 'EVENTO LESIVO — sinistro stradale', 'Accesso PS', 'Ricovero ortopedia', 'Dimissione ortopedia', 'Visita ortopedica controllo', 'RMN colonna cervicale', 'Inizio ciclo fisioterapia 10 sedute', 'STABILIZZAZIONE — MMI'). Mantieni la dicitura riconoscibile e in MAIUSCOLO per i punti cardinali (EVENTO LESIVO, RICOVERO, DIMISSIONE, STABILIZZAZIONE)."
+        },
+        {
+            "index": 2,
+            "name": "Struttura",
+            "format": "text",
+            "prompt": "Struttura sanitaria/clinica coinvolta nell'evento (stesso valore della colonna 'Struttura' della tabella inventario per il documento corrispondente). Per l'evento lesivo, scrivi la dinamica in breve (es. 'Stradale — A4 km 142', 'Lavoro — caduta da scala'). Per la stabilizzazione, scrivi '—'."
+        },
+        {
+            "index": 3,
+            "name": "Diagnosi / Reperto",
+            "format": "text",
+            "prompt": "Diagnosi formulata o reperto principale di quel passaggio clinico. Per accesso PS: codice triage + diagnosi di uscita. Per ricoveri: diagnosi di accettazione → diagnosi di dimissione (se entrambe sulla stessa riga). Per referti strumentali: esito sintetico (positivo/negativo + dettaglio). Cita il documento sorgente per i dettagli tecnici (es. 'vedi DOC-07')."
+        },
+        {
+            "index": 4,
+            "name": "Terapia",
+            "format": "text",
+            "prompt": "Terapia prescritta o eseguita nell'evento: farmaci (con posologia se rilevante), presidi ortopedici (collare, busto, tutore), interventi chirurgici, sedute di fisioterapia (numero), riabilitazione. Per controlli senza terapia, scrivi '—'."
+        },
+        {
+            "index": 5,
+            "name": "Fase clinica",
+            "format": "tag",
+            "prompt": "Una sola tra: `Evento` (la riga dell'evento lesivo), `Acuta` (primi 7-15 gg, accesso PS, primi ricoveri, primi esami), `Ricovero` (durante un ricovero ordinario o DH), `Post-acuta` (post-dimissione fino a 30-60 gg, primi controlli), `Riabilitativa` (fisioterapia, controlli evolutivi), `Cronica/Pre-stabilizzazione` (ultimi 3-6 mesi prima della stabilizzazione), `Stabilizzazione` (MMI raggiunto)."
+        },
+        {
+            "index": 6,
+            "name": "Note medico-legali",
+            "format": "text",
+            "prompt": "Annotazioni ML rilevanti per la ricostruzione: gap documentali (\"Nessuna documentazione tra DOC-04 e DOC-05 — 45 giorni scoperti\"), incongruenze temporali (\"Referto antecedente l'evento — verificare se si tratta di patologia preesistente\"), eventi intercorrenti potenzialmente concausali (\"Caduta domestica intercorrente — DOC-12\"), valenza ai fini ITT (\"Da qui inizia inabilità parziale 50%\"), criticità di nesso (\"Compatibilità temporale dubbia — gap di 6 mesi prima del referto\"). Per righe non problematiche scrivi '—'."
+        },
+        {
+            "index": 7,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codice del documento di riferimento della tabella inventario (Modulo 1), formato `DOC-NN`. Per l'EVENTO LESIVO e la STABILIZZAZIONE (eventi sintetici non documentali) scrivi '—'. Quando una riga sintetizza informazioni provenienti da più documenti (es. una visita citata sia nella lettera dimissione sia in un certificato MMG), cita il documento primario o entrambi separati da virgola (`DOC-05, DOC-06`)."
+        }
+    ]
+}

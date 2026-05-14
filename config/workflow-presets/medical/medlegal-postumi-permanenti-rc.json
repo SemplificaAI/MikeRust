@@ -1,0 +1,64 @@
+{
+    "id": "builtin-medlegal-postumi-permanenti-rc",
+    "title": "Postumi permanenti — RC (SIMLA / micropermanenti)",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nQuantifica i **postumi permanenti** in regime di Responsabilità Civile (RC). Una riga per ogni postumo distinto identificato dal perito sulla base della documentazione clinica e strumentale stabilizzata.\n\nL'output è la **tabella IP** del Modulo 5a del piano operativo, e costituisce il fondamento numerico per la liquidazione del danno biologico nel regime civile.\n\n## Riferimenti normativi\n\n- **Micropermanenti (≤ 9%)**: Art. 139 D.Lgs. 209/2005 + tabella micropermanenti ministeriale (sinistri stradali e di responsabilità sanitaria). Requisito obbligatorio dell'**accertamento obiettivo strumentale o clinico-obiettivo documentato** (L. 27/2012). Soggetti senza riscontro obiettivo non sono liquidabili in regime RC micropermanenti.\n- **Macropermanenti (> 10%)**: Tabelle **SIMLA 2016** o **SIMLA 2025** (a seconda dell'edizione che il perito decide di applicare). Le SIMLA 2025 hanno aggiornato alcune voci rispetto al 2016; il perito può applicare l'edizione più favorevole se motivata.\n- **Postumi plurimi**: Formula di **Balthazard** `IP_tot = IP1 + IP2 × (1 - IP1) + IP3 × (1 - IP1 - IP2) + …` salvo specifiche regole combinatorie delle tabelle SIMLA per categorie omogenee.\n\n## Stile\n- Una riga per ogni postumo distinto. Postumi multidistrettuali (es. esiti su colonna cervicale + arto superiore) → righe separate, combinate via Balthazard nella riga finale.\n- Il `Postumo` descrive la menomazione in termini funzionali (es. 'Limitazione articolare antiflessione cervicale 30°') non in termini puramente diagnostici (es. 'Protrusione C5-C6' senza riferimento al deficit residuo).\n- La `Tabella applicata` cita esplicitamente l'edizione (SIMLA 2025, SIMLA 2016, Tab. ministeriale micropermanenti) e la voce/numero/sezione.\n- `% IP min` e `% IP max` sono i limiti **del range tabellare** della voce applicata. `% IP proposta` è la scelta del perito all'interno del range, sempre motivata in `Motivazione clinica`.\n- L'ultima riga aggiuntiva — `IP totale (Balthazard)` — riporta il risultato della formula combinatoria; la `Motivazione clinica` di quella riga esplicita il metodo combinatorio applicato (Balthazard standard vs criterio SIMLA per categoria).\n- Se è presente una preesistenza che aggrava il danno: indica nella colonna `Preesistenza` il riferimento clinico (es. 'Discopatia degenerativa lombare nota dal 2020 — DOC-15') e la quota stimata di aggravamento. Se assente preesistenza scrivi 'No'.\n- Il `Ref.` cita i documenti della tabella inventario (Modulo 1) e in particolare i reperti strumentali della tabella Modulo 3b (Diagnosi strumentali) che fondano il postumo.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Distretto / Apparato",
+            "format": "tag",
+            "prompt": "Distretto anatomico o apparato interessato dal postumo. Una sola tra: `Cranio-encefalo`, `Colonna cervicale`, `Colonna dorso-lombare`, `Spalla dx`, `Spalla sx`, `Gomito dx`, `Gomito sx`, `Polso/mano dx`, `Polso/mano sx`, `Bacino`, `Anca dx`, `Anca sx`, `Ginocchio dx`, `Ginocchio sx`, `Caviglia/piede dx`, `Caviglia/piede sx`, `Apparato visivo`, `Apparato uditivo`, `Apparato cardiovascolare`, `Apparato respiratorio`, `Apparato digerente`, `Apparato urogenitale`, `Sistema nervoso centrale`, `Sistema nervoso periferico`, `Psiche`, `Estetica`, `Altro`."
+        },
+        {
+            "index": 1,
+            "name": "Postumo (descrizione funzionale)",
+            "format": "text",
+            "prompt": "Descrizione del postumo in termini **funzionali**, non solo diagnostici. Buon esempio: 'Limitazione antiflessione cervicale 30°, dolore cronico residuo, rigidità mattutina'. Cattivo esempio: 'Protrusione C5-C6' (è il reperto strumentale, non il postumo funzionale). Includi: deficit articolare residuo (in gradi o %), deficit di forza, sensibilità, dolore cronico, limitazione ADL (attività della vita quotidiana)."
+        },
+        {
+            "index": 2,
+            "name": "Tabella applicata",
+            "format": "text",
+            "prompt": "Edizione tabellare applicata + voce/sezione specifica. Esempi: 'SIMLA 2025 — voce 12.4.3', 'SIMLA 2016 — voce 8.2.1', 'Tab. ministeriale micropermanenti — sezione colonna cervicale, voce 'distorsione minore con limitazione articolare lieve''. Se applichi SIMLA 2025 perché più favorevole rispetto a 2016, motivalo brevemente."
+        },
+        {
+            "index": 3,
+            "name": "% IP min",
+            "format": "text",
+            "prompt": "Percentuale **minima** prevista dal range tabellare della voce applicata. Numero seguito da '%' (es. '3%'). Per voci a singolo valore (non range), riporta lo stesso valore in min e max."
+        },
+        {
+            "index": 4,
+            "name": "% IP max",
+            "format": "text",
+            "prompt": "Percentuale **massima** prevista dal range tabellare della voce applicata. Numero seguito da '%' (es. '8%')."
+        },
+        {
+            "index": 5,
+            "name": "% IP proposta",
+            "format": "text",
+            "prompt": "Percentuale **proposta** dal perito all'interno del range min-max. Deve essere sempre `min ≤ proposta ≤ max`. Motivala nella colonna successiva. Per la riga finale `IP totale (Balthazard)`, riporta qui il risultato della formula combinatoria."
+        },
+        {
+            "index": 6,
+            "name": "Motivazione clinica",
+            "format": "text",
+            "prompt": "Motivazione clinica della % proposta, in 1-2 frasi: 'Limitazione articolare moderata (30° antiflessione, normale è 50°), dolore residuo cronico documentato in 3 referti specialistici, no preesistenze' → posiziona nella metà superiore del range. Per la riga `IP totale (Balthazard)` esplicita il metodo combinatorio (es. 'Formula Balthazard: 5% + 7% × (1 - 0.05) = 11.65% arrotondato a 12%')."
+        },
+        {
+            "index": 7,
+            "name": "Preesistenza",
+            "format": "text",
+            "prompt": "Preesistenza patologica documentata che aggrava il postumo. Formato: 'Discopatia degenerativa cervicale documentata dal 2020 (DOC-15) — quota di aggravamento stimata 60%'. Se assente, scrivi 'No'. Se presente ma NON aggravata dall'evento (la preesistenza è asintomatica ed esclusa dal computo), scrivi 'Presente ma non aggravata — esclusa dal computo'."
+        },
+        {
+            "index": 8,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codici dei documenti della tabella inventario (Modulo 1) che fondano il postumo. In particolare i reperti strumentali (tabella Modulo 3b — Diagnosi strumentali) che provano la lesione/deficit funzionale. Formato `DOC-NN`, più documenti separati da virgola: `DOC-07, DOC-09, DOC-12`."
+        }
+    ]
+}

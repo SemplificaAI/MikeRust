@@ -1,0 +1,46 @@
+{
+    "id": "builtin-medlegal-danno-biologico-inail",
+    "title": "Danno biologico INAIL (MIP)",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nQuantifica la **Menomazione dell'Integrità Psicofisica (MIP)** secondo il regime INAIL — Art. 13 D.Lgs. 38/2000 — applicabile a infortuni sul lavoro e malattie professionali.\n\nL'output è la **tabella 5b** del piano operativo, distinta dalla tabella RC (Modulo 5a) perché il regime INAIL ha **tabelle proprie** (DM 12 luglio 2000 per infortuni; DM 9 aprile 2008 per malattie professionali) e **soglie di liquidazione specifiche**.\n\n## Specificità INAIL rispetto al regime RC\n\n- La MIP è espressa in **punti percentuali** (0-100%), distinta dalla quota patrimoniale (capacità lavorativa specifica) che ha un proprio computo separato.\n- **Soglie di liquidazione**:\n  - `< 6%`: nessun indennizzo (per infortuni; soglia `< 5%` per malattie professionali).\n  - `6-15%` (infortuni) o `5-15%` (m.p.): indennizzo in **capitale** (una tantum).\n  - `> 15%`: **rendita** mensile vitalizia + quota patrimoniale aggiuntiva.\n- Le tabelle MIP INAIL **non coincidono** con le SIMLA: voci differenti, range diversi, criteri di sommatoria non identici (anche se simili).\n\n## Stile\n- Una riga per ciascun postumo distinto, voce per voce della tabella MIP INAIL applicata.\n- Cita esplicitamente nella `Voce tabellare INAIL` la **tabella** (`Tab. infortuni` per infortuni sul lavoro, `Tab. m.p.` per malattie professionali), la **sezione/sezione** e il **numero di voce** (es. 'Tab. infortuni 2000, sezione Colonna vertebrale, voce 47').\n- L'ultima riga aggiuntiva — `MIP totale` — riporta il valore combinato secondo i criteri INAIL (Balthazard per default, salvo regole specifiche).\n- Aggiungi una riga finale di sintesi `Soglia applicabile` che indichi quale fascia di liquidazione il valore raggiunge: `Nessun indennizzo`, `Indennizzo in capitale`, `Rendita`.\n- Il `Ref.` cita i documenti della tabella inventario (Modulo 1) — in particolare i reperti strumentali (Modulo 3b) che fondano il postumo.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Distretto / Apparato",
+            "format": "tag",
+            "prompt": "Distretto anatomico o apparato. Una sola tra: `Cranio-encefalo`, `Colonna cervicale`, `Colonna dorso-lombare`, `Spalla dx`, `Spalla sx`, `Gomito dx`, `Gomito sx`, `Polso/mano dx`, `Polso/mano sx`, `Anca dx`, `Anca sx`, `Ginocchio dx`, `Ginocchio sx`, `Caviglia/piede dx`, `Caviglia/piede sx`, `Apparato visivo`, `Apparato uditivo`, `Sistema nervoso centrale`, `Sistema nervoso periferico`, `Apparato respiratorio`, `Apparato cardiovascolare`, `Psiche`, `Altro`."
+        },
+        {
+            "index": 1,
+            "name": "Postumo (descrizione funzionale)",
+            "format": "text",
+            "prompt": "Descrizione del postumo in termini funzionali (deficit articolare in gradi, deficit di forza, dolore cronico, limitazione ADL). Non riportare il puro reperto strumentale ma il **deficit funzionale residuo** che la tabella MIP misura."
+        },
+        {
+            "index": 2,
+            "name": "Voce tabellare INAIL",
+            "format": "text",
+            "prompt": "Citazione esatta: tabella + sezione + numero di voce. Esempi: 'Tab. infortuni 2000, sez. Arto superiore, voce 144 - Limitazione articolare spalla dx con flessione < 90°', 'Tab. m.p. 2008, sez. App. respiratorio, voce 12 - Silicosi I stadio'. Se la voce non è perfettamente coincidente, scegli la più prossima e motivalo nelle Note."
+        },
+        {
+            "index": 3,
+            "name": "% MIP",
+            "format": "text",
+            "prompt": "Percentuale MIP attribuita al postumo secondo la voce tabellare applicata. Numero seguito da '%' (es. '7%'). Per la riga finale `MIP totale` riporta il valore combinato (Balthazard standard salvo regole specifiche INAIL)."
+        },
+        {
+            "index": 4,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Annotazioni rilevanti: motivazione della scelta entro un eventuale range tabellare; preesistenze documentate e quota di aggravamento; criteri combinatori applicati nella riga totale; eventuali criticità (voce non perfettamente coincidente, postumo borderline tra due voci). Per le righe `MIP totale` e `Soglia applicabile`, esplicita il metodo di calcolo e la fascia raggiunta (es. 'MIP 12% → indennizzo in capitale, no rendita')."
+        },
+        {
+            "index": 5,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codici dei documenti della tabella inventario (Modulo 1) che fondano il postumo, formato `DOC-NN`. Più documenti separati da virgola. Per le righe sintetiche `MIP totale` e `Soglia applicabile` scrivi '—'."
+        }
+    ]
+}

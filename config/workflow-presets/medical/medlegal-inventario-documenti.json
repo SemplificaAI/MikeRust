@@ -1,0 +1,58 @@
+{
+    "id": "builtin-medlegal-inventario-documenti",
+    "title": "Inventario documenti medico-legali",
+    "type": "tabular",
+    "domain": "medical",
+    "practice": "Medical — Medico-legale",
+    "prompt_md": "## Obiettivo\nClassifica e indicizza la documentazione clinica e medico-legale allegata (cartelle cliniche, verbali PS, referti strumentali, certificati, lettere di dimissione, denunce di sinistro, verbali INAIL, perizie precedenti, ecc.). Una riga per ogni documento distinto presente nel set allegato — non aggregare documenti diversi su una stessa riga.\n\nL'output costituisce la **tabella inventario** del Modulo 1 della perizia medico-legale ed è il riferimento da cui tutti gli altri moduli (timeline, diagnosi strumentali, ITT, IP) attingeranno via il codice `Ref.`. Per questo è critico che la classificazione sia rigorosa e completa.\n\n## Stile\n- Una riga per documento — se un PDF caricato contiene più documenti distinti (es. lettera dimissione + 3 referti allegati), produci una riga per ciascuno.\n- Cita il numero di pagina del PDF di origine tra parentesi nel campo `Sintesi reperto` quando l'estratto proviene da un punto specifico.\n- Se un'informazione manca dal documento, scrivi \"Non specificato\" — non inventare strutture o nomi di medici.\n- Il codice `Ref.` segue il pattern `DOC-NN` (es. DOC-01, DOC-02, …) progressivo sull'intero set documentale.\n- Mantieni la classificazione di rilevanza ML coerente: DIRETTA solo quando il reperto è compatibile per distretto+tempo con l'evento lesivo; ESCLUSIVA solo per reperti negativi che escludono una lesione strutturale; DA VALUTARE quando la compatibilità è incerta.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Data documento",
+            "format": "date",
+            "prompt": "Data di emissione o di evento del documento, formato ISO YYYY-MM-DD. Se il documento contiene più date rilevanti (es. data esame, data refertazione), usa la data dell'evento clinico (esame eseguito, accesso PS, visita) — non la data di stampa del PDF. Se la data non è leggibile o assente scrivi 'Non specificato'."
+        },
+        {
+            "index": 1,
+            "name": "Tipo documento",
+            "format": "tag",
+            "prompt": "Una sola tra: `Verbale PS`, `Cartella clinica`, `Lettera dimissione`, `Referto RX`, `Referto TC`, `Referto RMN`, `Referto ecografia`, `Referto EMG/VCN`, `Referto altro strumentale`, `Visita specialistica`, `Certificato medico INPS`, `Certificato MMG`, `Piano riabilitativo`, `Relazione fisioterapia`, `Denuncia sinistro`, `Denuncia infortunio INAIL`, `Verbale INAIL`, `Verbale Commissione Invalidi Civili`, `Perizia precedente`, `Altro`. Scegli la categoria più specifica disponibile."
+        },
+        {
+            "index": 2,
+            "name": "Struttura",
+            "format": "text",
+            "prompt": "Struttura sanitaria emittente: nome dell'ospedale + reparto/servizio quando disponibile (es. 'Osp. San Raffaele — PS Generale', 'Centro Diagnostico Italiano — Radiologia'). Per documenti emessi dal MMG, indica 'MMG Dr./Dr.ssa Cognome' se identificabile. Per documenti assicurativi/INAIL, indica l'ente (es. 'INAIL Sede di Milano'). Se non specificato, scrivi 'Non specificato'."
+        },
+        {
+            "index": 3,
+            "name": "Refertante",
+            "format": "text",
+            "prompt": "Nome del medico responsabile/refertante quando indicato in calce al documento. Formato: 'Dr./Dr.ssa Cognome' o 'Dr./Dr.ssa Nome Cognome' se nome completo presente. Se assente o non leggibile scrivi '—'."
+        },
+        {
+            "index": 4,
+            "name": "Distretto anatomico",
+            "format": "tag",
+            "prompt": "Distretto principale interessato. Una o più (separate da virgola) tra: `Cranio-encefalo`, `Faccia`, `Colonna cervicale`, `Colonna dorsale`, `Colonna lombare`, `Spalla dx`, `Spalla sx`, `Gomito dx`, `Gomito sx`, `Polso/mano dx`, `Polso/mano sx`, `Bacino`, `Anca dx`, `Anca sx`, `Ginocchio dx`, `Ginocchio sx`, `Caviglia/piede dx`, `Caviglia/piede sx`, `Torace`, `Addome`, `Psiche`, `Altro`. Se il documento ha portata generale (cartella clinica multidistrettuale), elenca tutti i distretti rilevanti."
+        },
+        {
+            "index": 5,
+            "name": "Sintesi reperto",
+            "format": "text",
+            "prompt": "Sintesi clinica del documento in 1-2 frasi: diagnosi principale + reperti rilevanti. Per referti strumentali: esito (es. 'Distorsione C5-C6 con edema midollare', 'Negativa per fratture'). Per certificati: motivo dell'emissione + durata prescritta. Per verbali PS: codice triage + diagnosi di uscita. Cita il numero di pagina del PDF tra parentesi (es. 'p. 3') quando l'estratto proviene da un punto specifico di un PDF lungo."
+        },
+        {
+            "index": 6,
+            "name": "Rilevanza ML",
+            "format": "tag",
+            "prompt": "Una sola tra: `DIRETTA` (reperto compatibile per distretto e tempo con l'evento lesivo), `INDIRETTA` (reperto positivo ma con sovrapposizione a patologia preesistente documentata), `ESCLUSIVA` (reperto negativo che esclude una lesione strutturale, valore probatorio negativo), `DA VALUTARE` (compatibilità temporale o anatomica dubbia, richiede approfondimento). Per documenti amministrativi (denunce, verbali burocratici) usa `DA VALUTARE`."
+        },
+        {
+            "index": 7,
+            "name": "Ref.",
+            "format": "text",
+            "prompt": "Codice progressivo univoco nel set documentale, formato `DOC-NN` (es. `DOC-01`, `DOC-02`, …). È il riferimento che useranno tutte le tabelle successive (timeline, diagnosi strumentali, ITT, IP) per puntare a questo documento. Mantieni la numerazione strettamente sequenziale partendo da DOC-01."
+        }
+    ]
+}
