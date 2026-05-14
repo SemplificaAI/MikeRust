@@ -715,6 +715,144 @@ mod tests {
         assert!(prompt.contains("[REPEATING BLOCK]"));
     }
 
+    // ── auto_generated_prompt_md edge cases on hand-rolled fixtures ──
+
+    /// Build a maximally-minimal template — only the fields parse()
+    /// would require — to test the "no optionals" path of the prompt
+    /// generator.
+    fn bare_template() -> DocxTemplate {
+        let json = minimal_template_json("it/bare", "legal");
+        serde_json::from_str(&json).unwrap()
+    }
+
+    #[test]
+    fn prompt_md_omits_sections_for_empty_optionals() {
+        // A bare template has no source_reference, no
+        // character_limits, no section_skeleton, no required_metadata,
+        // no prompt_md_extra. The generator must omit those headers,
+        // not emit empty ones.
+        let t = bare_template();
+        let prompt = t.auto_generated_prompt_md("it");
+        // Headers absent
+        assert!(!prompt.contains("Authoritative spec:"));
+        assert!(!prompt.contains("REQUIRED METADATA"));
+        assert!(!prompt.contains("SECTION SKELETON"));
+        assert!(!prompt.contains("CHARACTER LIMITS"));
+        assert!(!prompt.contains("ADDITIONAL AUTHOR NOTES"));
+        // The closing instruction is always present.
+        assert!(prompt.contains("generate_docx"));
+    }
+
+    #[test]
+    fn prompt_md_emits_character_limits_sorted() {
+        let mut t = bare_template();
+        let mut limits = std::collections::HashMap::new();
+        limits.insert("note_udienza".to_string(), 10000u64);
+        limits.insert("atto_di_citazione".to_string(), 80000u64);
+        limits.insert("memoria_ex_art_183_cpc".to_string(), 50000u64);
+        t.character_limits = Some(CharacterLimits { by_atto_type: limits });
+
+        let prompt = t.auto_generated_prompt_md("it");
+        assert!(prompt.contains("CHARACTER LIMITS"));
+        assert!(prompt.contains("`atto_di_citazione`: max 80000"));
+        assert!(prompt.contains("`memoria_ex_art_183_cpc`: max 50000"));
+        assert!(prompt.contains("`note_udienza`: max 10000"));
+        // Alphabetic order: 'a' < 'm' < 'n'. Find each substring and
+        // assert their relative position.
+        let pos_a = prompt.find("atto_di_citazione").unwrap();
+        let pos_m = prompt.find("memoria_ex_art_183_cpc").unwrap();
+        let pos_n = prompt.find("note_udienza").unwrap();
+        assert!(pos_a < pos_m && pos_m < pos_n, "limits must be alphabetically sorted");
+    }
+
+    #[test]
+    fn prompt_md_appends_author_override_when_present() {
+        let mut t = bare_template();
+        t.prompt_md_extra =
+            Some("Use 'all'Ill.mo Tribunale adito' without 'contrariis reiectis'.".into());
+        let prompt = t.auto_generated_prompt_md("it");
+        assert!(prompt.contains("ADDITIONAL AUTHOR NOTES"));
+        assert!(prompt.contains("all'Ill.mo Tribunale adito"));
+    }
+
+    #[test]
+    fn prompt_md_handles_section_skeleton_with_literal_render() {
+        // A section with `render` (literal text, e.g. "* * *") and no
+        // title should be rendered as `literal: ...` so the LLM
+        // knows to emit the verbatim string.
+        let mut t = bare_template();
+        t.section_skeleton = vec![
+            SectionSkeletonEntry {
+                id: "in_fatto".into(),
+                title: Some("IN FATTO".into()),
+                render: None,
+                guidance: Some("Esposizione fatti.".into()),
+                repeating: false,
+            },
+            SectionSkeletonEntry {
+                id: "separator".into(),
+                title: None,
+                render: Some("* * *".into()),
+                guidance: None,
+                repeating: false,
+            },
+        ];
+        let prompt = t.auto_generated_prompt_md("it");
+        assert!(prompt.contains("**IN FATTO**"));
+        assert!(prompt.contains("Esposizione fatti."));
+        assert!(prompt.contains("literal: `* * *`"));
+    }
+
+    #[test]
+    fn prompt_md_field_prompts_attached_to_required_metadata() {
+        let mut t = bare_template();
+        t.required_metadata = vec!["DEBITORE".into(), "IMPORTO".into()];
+        t.field_prompts.insert(
+            "DEBITORE".into(),
+            "Nome o ragione sociale del debitore.".into(),
+        );
+        // IMPORTO without a field_prompts entry — should still appear
+        // in the prompt, just without the hint.
+        let prompt = t.auto_generated_prompt_md("it");
+        assert!(prompt.contains("`DEBITORE` — Nome o ragione sociale del debitore."));
+        // IMPORTO line: id present, no em-dash hint.
+        let importo_line = prompt
+            .lines()
+            .find(|l| l.contains("`IMPORTO`"))
+            .expect("IMPORTO listed");
+        assert!(!importo_line.contains(" — "), "IMPORTO line should not carry a hint dash");
+    }
+
+    #[test]
+    fn prompt_md_uses_locale_for_display_name() {
+        let mut t = bare_template();
+        t.display_name.insert("en".to_string(), "Bare template (EN)".to_string());
+        let it = t.auto_generated_prompt_md("it");
+        // "it" → Italian display name from minimal_template_json
+        assert!(it.contains("Test it/bare"));
+        let en = t.auto_generated_prompt_md("en");
+        assert!(en.contains("Bare template (EN)"));
+    }
+
+    #[test]
+    fn prompt_md_mentions_uso_bollo_special_format() {
+        let mut t = bare_template();
+        t.paper.format = "uso_bollo".into();
+        t.uso_bollo = Some(UsoBollo {
+            line_spacing_pt_exact: 28.35,
+            lines_per_facciata: 25,
+            facciate_per_foglio: 4,
+            mirror_margins: true,
+            duplex: true,
+            forbid_empty_lines: true,
+            marginal_signature_required: true,
+            signature_exclude_last_page: true,
+        });
+        let prompt = t.auto_generated_prompt_md("it");
+        // Special-format line surfaces the variant name.
+        assert!(prompt.contains("Special format: uso_bollo"));
+    }
+
     #[test]
     fn character_limits_parses_flexible_map() {
         let json = r#"{

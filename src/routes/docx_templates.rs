@@ -200,3 +200,78 @@ fn sanitize_filename(input: &str) -> String {
     let s: String = trimmed.chars().take(80).collect();
     if s.is_empty() { "Documento".to_string() } else { s }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::sanitize_filename;
+
+    #[test]
+    fn sanitize_replaces_each_unsafe_char_with_dash() {
+        // Every char that's reserved on Windows (`\/:*?"<>|`) plus
+        // forward-slash (POSIX path separator we don't want either).
+        for c in r#"\/:*?"<>|"#.chars() {
+            let input = format!("foo{c}bar");
+            let out = sanitize_filename(&input);
+            assert!(
+                !out.contains(c),
+                "char {c:?} survived in {out:?} (from {input:?})"
+            );
+            assert!(out.contains('-'), "expected dash replacement, got {out:?}");
+        }
+    }
+
+    #[test]
+    fn sanitize_collapses_internal_whitespace() {
+        assert_eq!(
+            sanitize_filename("  Atto    difensivo\t\tCaio"),
+            "Atto difensivo Caio"
+        );
+    }
+
+    #[test]
+    fn sanitize_trims_leading_and_trailing_dots_and_dashes() {
+        assert_eq!(sanitize_filename("...Documento..."), "Documento");
+        assert_eq!(sanitize_filename("---Atto---"), "Atto");
+        // Trailing slashes turn into dashes first then trim.
+        assert_eq!(sanitize_filename("/Atto/"), "Atto");
+    }
+
+    #[test]
+    fn sanitize_caps_at_80_chars() {
+        let huge = "a".repeat(200);
+        let out = sanitize_filename(&huge);
+        assert_eq!(out.chars().count(), 80);
+    }
+
+    #[test]
+    fn sanitize_falls_back_to_documento_on_empty_or_garbage() {
+        assert_eq!(sanitize_filename(""), "Documento");
+        assert_eq!(sanitize_filename("   "), "Documento");
+        assert_eq!(sanitize_filename("..."), "Documento");
+        assert_eq!(sanitize_filename("---"), "Documento");
+        // Only unsafe chars → all turn to dashes → trimmed to nothing.
+        assert_eq!(sanitize_filename(r#"\\\:::"""#), "Documento");
+    }
+
+    #[test]
+    fn sanitize_preserves_italian_accents_and_apostrophes() {
+        // Italian display names commonly carry accents; they're safe
+        // on every modern filesystem and must survive sanitisation.
+        let out = sanitize_filename("Perizia d'ufficio – è urgente");
+        assert!(out.contains("d'ufficio"));
+        assert!(out.contains("è"));
+        assert!(out.contains("–"));
+    }
+
+    #[test]
+    fn sanitize_caps_at_80_chars_when_truncating_template_display_name() {
+        // Real-world case: a long template display name shouldn't blow
+        // up Windows' 255-char limit on the full path.
+        let out =
+            sanitize_filename("Contratto di locazione ad uso abitativo per immobile sito in Cremona Via Roma 1 piano terzo interno 4");
+        assert!(out.chars().count() <= 80);
+        // We didn't accidentally cut in the middle of an accented
+        // codepoint (chars().take prevents that).
+        assert!(out.is_char_boundary(out.len()));
+    }
+}

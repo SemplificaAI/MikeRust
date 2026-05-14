@@ -309,13 +309,14 @@ async fn exec_read_workflow(state: &AppState, user_id: &str, arguments: &Value) 
     // (`builtin-*`) live there, not in the DB. Without this branch
     // every preset workflow would 404 on read_workflow.
     if let Some(preset) = state.workflow_presets.iter().find(|p| p.id == id) {
-        return augment_workflow_with_template(
-            state,
+        return build_read_workflow_response(
             id,
             &preset.title,
             preset.prompt_md.as_deref().unwrap_or(""),
             preset.default_output_template.as_deref(),
-        );
+            &state.docx_templates,
+        )
+        .to_string();
     }
 
     let row: Option<(String, String)> =
@@ -332,19 +333,21 @@ async fn exec_read_workflow(state: &AppState, user_id: &str, arguments: &Value) 
     // User-created workflows don't carry default_output_template yet
     // — that's a system-preset-only field for now. Phase 2 may surface
     // it in the workflow editor UI and add the DB column.
-    augment_workflow_with_template(state, id, &title, &prompt_md, None)
+    build_read_workflow_response(id, &title, &prompt_md, None, &state.docx_templates)
+        .to_string()
 }
 
-/// Bundle workflow prompt with the linked DOCX template's authoring
-/// contract (if any) in a single tool response. Saves the LLM a
-/// round-trip when the workflow is wired to produce a docx.
-fn augment_workflow_with_template(
-    state: &AppState,
+/// Bundle a workflow's prompt with the linked DOCX template's
+/// authoring contract (if any) into the JSON payload `read_workflow`
+/// returns. Pure function — takes only the inputs it needs, no
+/// AppState — so unit tests can drive it with hand-rolled templates.
+fn build_read_workflow_response(
     workflow_id: &str,
     title: &str,
     prompt_md: &str,
     default_output_template: Option<&str>,
-) -> String {
+    docx_templates: &[crate::presets::docx_template::DocxTemplate],
+) -> Value {
     let mut payload = json!({
         "workflow_id": workflow_id,
         "title": title,
@@ -352,7 +355,7 @@ fn augment_workflow_with_template(
     });
 
     if let Some(tpl_id) = default_output_template {
-        if let Some(template) = state.docx_templates.iter().find(|t| t.id == tpl_id) {
+        if let Some(template) = docx_templates.iter().find(|t| t.id == tpl_id) {
             payload["default_output_template"] = json!({
                 "template_id": template.id,
                 "display_name": template.display_name_for("it"),
@@ -371,7 +374,7 @@ fn augment_workflow_with_template(
             ));
         }
     }
-    payload.to_string()
+    payload
 }
 
 async fn exec_generate_docx(state: &AppState, user_id: &str, arguments: &Value) -> String {
@@ -752,6 +755,105 @@ mod tests {
                 assert!(props.contains_key(key), "{} requires {key} but property not declared", sch.function.name);
             }
         }
+    }
+
+    // ── build_read_workflow_response ────────────────────────────────
+
+    fn diffida_template() -> crate::presets::docx_template::DocxTemplate {
+        let dir = crate::presets::config_subdir("docx-templates");
+        let templates =
+            crate::presets::docx_template::load_docx_templates(&dir).expect("load");
+        templates
+            .into_iter()
+            .find(|t| t.id == "it/diffida-messa-in-mora")
+            .expect("diffida present")
+    }
+
+    #[test]
+    fn read_workflow_response_without_template_carries_only_core_fields() {
+        let payload = build_read_workflow_response(
+            "wf-id",
+            "Test workflow",
+            "Sei un assistente. Aiuta l'utente.",
+            None,
+            &[],
+        );
+        assert_eq!(payload["workflow_id"], json!("wf-id"));
+        assert_eq!(payload["title"], json!("Test workflow"));
+        assert!(payload.get("default_output_template").is_none());
+        assert!(payload.get("default_output_template_missing").is_none());
+        assert!(payload.get("closing_instruction").is_none());
+    }
+
+    #[test]
+    fn read_workflow_response_with_template_bundles_authoring_contract() {
+        let templates = vec![diffida_template()];
+        let payload = build_read_workflow_response(
+            "builtin-redazione-diffida",
+            "Redazione diffida",
+            "Sei un avvocato. Redigi una diffida.",
+            Some("it/diffida-messa-in-mora"),
+            &templates,
+        );
+
+        // Core fields
+        assert_eq!(payload["workflow_id"], json!("builtin-redazione-diffida"));
+
+        // default_output_template object present and well-formed
+        let dot = payload["default_output_template"].as_object().expect("dot present");
+        assert_eq!(dot["template_id"], json!("it/diffida-messa-in-mora"));
+        assert_eq!(dot["automation_level"], json!("L1"));
+        // required_metadata is a non-empty array
+        assert!(dot["required_metadata"].as_array().unwrap().len() >= 5);
+        // prompt_md contains the layout description (anchored to a
+        // stable substring from the sidecar)
+        assert!(dot["prompt_md"].as_str().unwrap().contains("Calibri"));
+        // source_reference points back to the Prontuario
+        assert!(dot["source_reference"]
+            .as_str()
+            .unwrap()
+            .contains("TEMPLATE_PRONTUARIO"));
+
+        // closing_instruction explicitly names generate_docx with the id
+        let ci = payload["closing_instruction"].as_str().expect("closing");
+        assert!(ci.contains("generate_docx"));
+        assert!(ci.contains(r#"template_id="it/diffida-messa-in-mora""#));
+    }
+
+    #[test]
+    fn read_workflow_response_with_unknown_template_emits_missing_field() {
+        let payload = build_read_workflow_response(
+            "wf-id",
+            "Workflow rotto",
+            "...",
+            Some("it/non-esiste"),
+            &[diffida_template()],
+        );
+        let missing = payload["default_output_template_missing"]
+            .as_str()
+            .expect("missing field present");
+        assert!(missing.contains("it/non-esiste"));
+        assert!(missing.contains("config/docx-templates/"));
+        // No legit template object — the wiring failed.
+        assert!(payload.get("default_output_template").is_none());
+        // No closing_instruction either — there's no template to wrap up against.
+        assert!(payload.get("closing_instruction").is_none());
+    }
+
+    #[test]
+    fn read_workflow_response_with_template_id_but_empty_registry() {
+        // Edge case: server starts with the docx-templates dir empty
+        // (or removed). A workflow that references a template should
+        // still produce a usable response — just with the
+        // _missing field set.
+        let payload = build_read_workflow_response(
+            "wf-id",
+            "Test",
+            "...",
+            Some("it/diffida-messa-in-mora"),
+            &[],
+        );
+        assert!(payload["default_output_template_missing"].is_string());
     }
 
     #[test]
