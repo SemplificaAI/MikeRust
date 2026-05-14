@@ -181,20 +181,39 @@ impl EmbeddingService {
 
                 *status.write().await = ModelStatus::Loading;
                 let providers = build_execution_providers();
+                let provider_label = if providers.is_empty() {
+                    "CPU only".to_string()
+                } else {
+                    providers
+                        .iter()
+                        .map(|_| "preferred → CPU fallback")
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                };
                 tracing::info!(
-                    "[rag] building ONNX session for multilingual-e5-base; \
-                     execution providers configured: [{}]",
-                    if providers.is_empty() {
-                        "CPU".to_string()
-                    } else {
-                        providers
-                            .iter()
-                            .map(|_| "preferred → CPU fallback")
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    },
+                    "[rag] building ONNX session for multilingual-e5-base \
+                     (onnx_bytes={} MB, tokenizer_bytes={} KB, providers=[{}], \
+                     env ORT_DYLIB_PATH={:?})",
+                    files.onnx.len() / (1024 * 1024),
+                    files.tokenizer.len() / 1024,
+                    provider_label,
+                    std::env::var("ORT_DYLIB_PATH").ok(),
+                );
+
+                // Snapshot file byte sizes before move so we keep stable
+                // identifiers across the spawn_blocking boundary; the
+                // closure consumes `files` by value.
+                let onnx_mb = files.onnx.len() / (1024 * 1024);
+                let init_start = std::time::Instant::now();
+                tracing::info!(
+                    "[rag] step 1/4: assembling UserDefinedEmbeddingModel struct"
                 );
                 let model_result = tokio::task::spawn_blocking(move || {
+                    let blocking_start = std::time::Instant::now();
+                    tracing::info!(
+                        "[rag] step 2/4: inside spawn_blocking, building struct ({} MB onnx)",
+                        onnx_mb
+                    );
                     let model = UserDefinedEmbeddingModel {
                         onnx_file: files.onnx,
                         external_initializers: vec![],
@@ -214,26 +233,48 @@ impl EmbeddingService {
                     let opts = InitOptionsUserDefined::new()
                         .with_max_length(512)
                         .with_execution_providers(providers);
-                    TextEmbedding::try_new_from_user_defined(model, opts)
+                    tracing::info!(
+                        "[rag] step 3/4: calling TextEmbedding::try_new_from_user_defined \
+                         (after {} ms in spawn_blocking)",
+                        blocking_start.elapsed().as_millis()
+                    );
+                    let session_start = std::time::Instant::now();
+                    let res = TextEmbedding::try_new_from_user_defined(model, opts);
+                    tracing::info!(
+                        "[rag] step 3/4 RETURNED: try_new_from_user_defined took {} ms, ok={}",
+                        session_start.elapsed().as_millis(),
+                        res.is_ok(),
+                    );
+                    res
                 })
                 .await;
+
+                tracing::info!(
+                    "[rag] step 4/4: spawn_blocking joined (total {} ms since step 1)",
+                    init_start.elapsed().as_millis()
+                );
 
                 let model = match model_result {
                     Ok(Ok(m)) => m,
                     Ok(Err(e)) => {
                         let msg = format!("model init: {e}");
+                        tracing::error!("[rag] model init failed: {msg}");
                         *status.write().await = ModelStatus::Failed(msg.clone());
                         return Err(anyhow!(msg));
                     }
                     Err(e) => {
                         let msg = format!("spawn_blocking failed: {e}");
+                        tracing::error!("[rag] spawn_blocking failed: {msg}");
                         *status.write().await = ModelStatus::Failed(msg.clone());
                         return Err(anyhow!(msg));
                     }
                 };
 
                 *status.write().await = ModelStatus::Ready;
-                tracing::info!("[rag] model ready");
+                tracing::info!(
+                    "[rag] model ready (total init: {} ms)",
+                    init_start.elapsed().as_millis()
+                );
                 Ok::<_, anyhow::Error>(Mutex::new(model))
             })
             .await

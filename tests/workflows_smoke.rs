@@ -44,10 +44,18 @@ async fn fresh_app() -> (axum::Router, Arc<AppState>) {
         sessions,
         biometric_tx: None,
         no_tools_models: Default::default(),
+        mcp_discovery_cache: Default::default(),
         #[cfg(feature = "rag")]
         embeddings: None,
         #[cfg(feature = "rag")]
         scans: Default::default(),
+        corpus_plugins: Default::default(),
+        corpus_adapters: Default::default(),
+        corpus_import_progress: Default::default(),
+        workflow_presets: Default::default(),
+        column_presets: Default::default(),
+        model_catalogue: Default::default(),
+        docx_templates: Default::default(),
     };
     let state = Arc::new(state);
 

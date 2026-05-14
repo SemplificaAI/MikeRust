@@ -46,30 +46,21 @@ sha2 = "0.10"
 # text. Optional feature gate so devs without ort/onnxruntime libs can
 # still build the rest of MikeRust.
 #
-# `default-features = false` disables fastembed's auto-download of
-# pre-built onnxruntime binaries. We point ort at our own
-# `libs/onnxruntime/` instead (see ort dep below + the `ort-load-dynamic`
-# fastembed feature). This keeps the runtime DLL under direct project
-# control — no system-wide onnxruntime, no statically-linked variant
-# baked into the binary.
-fastembed = { version = "5", optional = true, default-features = false, features = [
-    "hf-hub-native-tls",
-    "image-models",
-    "ort-load-dynamic",
-] }
+# Default fastembed features include `ort-download-binaries-native-tls`
+# which pulls the correct onnxruntime build for the active target at
+# compile time (via ort-sys) and links it statically into the binary.
+# Tried `ort/load-dynamic` + libs/onnxruntime/*/onnxruntime.dll
+# (commit b565e08 2026-05-14) — ort 2.0.0-rc.12 hangs on session
+# init when paired with Microsoft's stock ARM64 1.20.0 DLL on
+# Snapdragon X Elite. The version baked at compile time by ort-sys
+# is the one that actually works. Reverted to defaults.
+fastembed = { version = "5", optional = true }
 # Direct dep on the same ort version fastembed pulls transitively, so
-# we can configure execution providers without forking fastembed. Cargo
+# we can configure execution providers (DirectML on Windows GPUs, QNN
+# on Qualcomm Snapdragon NPUs) without forking fastembed. Cargo
 # deduplicates: there's still a single ort 2.0.0-rc.12 in the build,
-# our features merge into fastembed's existing feature set.
-#
-# `load-dynamic` is non-negotiable: onnxruntime.dll lives in
-# `libs/onnxruntime/<platform>/` and is loaded at runtime via
-# `ORT_DYLIB_PATH`. No static link, no fallback to a system DLL —
-# the platform is what we ship, period.
-ort = { version = "=2.0.0-rc.12", optional = true, default-features = false, features = [
-    "std",
-    "load-dynamic",
-] }
+# our features just merge into fastembed's existing feature set.
+ort = { version = "=2.0.0-rc.12", optional = true, default-features = false }
 # Vector store via the sqlite-vec extension. Same SQLite file as the
 # rest of MikeRust (mike.db) — atomic transactions, single backup,
 # no extra daemon, no protoc. Brute-force cosine in C with SIMD;
