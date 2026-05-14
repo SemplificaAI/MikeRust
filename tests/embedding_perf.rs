@@ -214,6 +214,41 @@ fn time_pipeline(label: &str, dir: &PathBuf, onnx_filename: &str) {
     );
 }
 
+/// Build a fastembed model from a cache directory, returning None on any
+/// failure (skipped cache, IO error, session build failure). Shared by
+/// the timing test and the quality test.
+fn build_model(dir: &PathBuf, onnx_filename: &str) -> Option<TextEmbedding> {
+    ensure_ort_dylib();
+    let files = load_files(dir, onnx_filename).ok()?;
+    let model = UserDefinedEmbeddingModel {
+        onnx_file: files.onnx,
+        external_initializers: vec![],
+        tokenizer_files: TokenizerFiles {
+            tokenizer_file: files.tokenizer,
+            config_file: files.config,
+            special_tokens_map_file: files.special_tokens_map,
+            tokenizer_config_file: files.tokenizer_config,
+        },
+        pooling: Some(Pooling::Mean),
+        quantization: QuantizationMode::None,
+        output_key: None,
+    };
+    let opts = InitOptionsUserDefined::new()
+        .with_max_length(512)
+        .with_execution_providers(vec![]);
+    TextEmbedding::try_new_from_user_defined(model, opts).ok()
+}
+
+fn cosine(a: &[f32], b: &[f32]) -> f32 {
+    let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+    let na: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+    let nb: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if na == 0.0 || nb == 0.0 {
+        return 0.0;
+    }
+    dot / (na * nb)
+}
+
 #[test]
 #[ignore = "loads heavy models; run on-demand with --ignored --nocapture"]
 fn perf_fp32_intfloat() {
@@ -242,4 +277,118 @@ fn perf_int8_xenova() {
         &dir,
         "model_quantized.onnx",
     );
+}
+
+/// FP32-vs-INT8 quality comparison. For a curated set of Italian
+/// legal/insurance text, this measures:
+///
+///   1. **Cross-model drift** — for each identical text, the cosine
+///      between its FP32 embedding and its INT8 embedding. A clean
+///      INT8 dynamic quantization should leave drift ≥ 0.97; below
+///      0.95 means quantization is materially degrading the semantic
+///      geometry.
+///
+///   2. **Ranking preservation** — for several realistic queries,
+///      whether the top-1 passage selected by INT8 matches the one
+///      selected by FP32. This is the metric that actually predicts
+///      retrieval quality in the RAG pipeline; same-text drift can
+///      be high while top-1 still agrees, and conversely a low drift
+///      doesn't guarantee correct ranking if it's biased.
+///
+/// Loads both models simultaneously (~1.3 GB RAM peak), so it lives
+/// behind `--ignored` like the per-model timing tests.
+#[test]
+#[ignore = "loads both FP32 and INT8 models (~1.3 GB RAM); --ignored --nocapture"]
+fn quality_fp32_vs_int8() {
+    let fp32_dir = match cache_dir("mike-e5-base") {
+        Ok(d) => d,
+        Err(e) => { eprintln!("[SKIP QUALITY] FP32 cache: {e}"); return; }
+    };
+    let int8_dir = match cache_dir("mike-e5-base-quantized") {
+        Ok(d) => d,
+        Err(e) => { eprintln!("[SKIP QUALITY] INT8 cache: {e}"); return; }
+    };
+
+    eprintln!("\n===== Quality: FP32 vs INT8 (multilingual-e5-base) =====");
+    let t = Instant::now();
+    let mut fp32 = match build_model(&fp32_dir, "model.onnx") {
+        Some(m) => m,
+        None => { eprintln!("[SKIP QUALITY] FP32 model build failed"); return; }
+    };
+    eprintln!("[t={:>5} ms] FP32 model ready", t.elapsed().as_millis());
+
+    let t2 = Instant::now();
+    let mut int8 = match build_model(&int8_dir, "model_quantized.onnx") {
+        Some(m) => m,
+        None => { eprintln!("[SKIP QUALITY] INT8 model build failed"); return; }
+    };
+    eprintln!("[t={:>5} ms] INT8 model ready", t2.elapsed().as_millis());
+
+    // ── Curated Italian legal/insurance corpus. Queries use the e5
+    // "query:" prefix; passages use "passage:" — required by the
+    // asymmetric retrieval training of multilingual-e5-base.
+    let queries: Vec<(&str, &str)> = vec![
+        ("query: chi è il contraente della polizza?", "Q_PARTY"),
+        ("query: qual è la franchigia per danni materiali?", "Q_DEDUCT"),
+        ("query: qual è il foro competente?", "Q_VENUE"),
+        ("query: l'IVA è inclusa nel premio?", "Q_TAX"),
+    ];
+    let passages: Vec<(&str, &str)> = vec![
+        ("passage: il contraente della polizza è A.TEC. S.r.l., con sede legale in Milano.", "P_PARTY"),
+        ("passage: la franchigia per danni materiali ammonta a € 500 per sinistro.", "P_DEDUCT"),
+        ("passage: per ogni controversia il foro competente è il Tribunale di Milano.", "P_VENUE"),
+        ("passage: il premio annuale è di € 3.200, IVA esclusa.", "P_TAX"),
+        ("passage: la durata della polizza è triennale con tacito rinnovo annuale.", "P_DURATION_DISTRACTOR"),
+    ];
+
+    let all_texts: Vec<String> = queries.iter().chain(passages.iter()).map(|(t, _)| t.to_string()).collect();
+    let labels: Vec<&str>      = queries.iter().chain(passages.iter()).map(|(_, l)| *l).collect();
+
+    let fp32_vecs = fp32.embed(all_texts.clone(), Some(16)).expect("fp32 batch embed");
+    let int8_vecs = int8.embed(all_texts.clone(), Some(16)).expect("int8 batch embed");
+    assert_eq!(fp32_vecs.len(), int8_vecs.len());
+
+    // ── 1. Cross-model drift
+    eprintln!("\n— Cross-model drift on identical text (cosine FP32, INT8) —");
+    let mut drifts = Vec::with_capacity(fp32_vecs.len());
+    for i in 0..fp32_vecs.len() {
+        let c = cosine(&fp32_vecs[i], &int8_vecs[i]);
+        drifts.push(c);
+        eprintln!("  [{:<22}] cosine = {:.6}", labels[i], c);
+    }
+    let mean: f32 = drifts.iter().sum::<f32>() / drifts.len() as f32;
+    let min  = drifts.iter().cloned().fold(1.0f32, f32::min);
+    let max  = drifts.iter().cloned().fold(0.0f32, f32::max);
+    eprintln!("  → mean = {:.6}   min = {:.6}   max = {:.6}", mean, min, max);
+
+    // ── 2. Ranking preservation
+    eprintln!("\n— Ranking preservation per query (top-1 passage) —");
+    let qn = queries.len();
+    let pn = passages.len();
+    let mut agree_count = 0usize;
+    for qi in 0..qn {
+        let q_fp = &fp32_vecs[qi];
+        let q_q8 = &int8_vecs[qi];
+        let mut rank_fp: Vec<(usize, f32)> = (0..pn).map(|pi| (pi, cosine(q_fp, &fp32_vecs[qn + pi]))).collect();
+        let mut rank_q8: Vec<(usize, f32)> = (0..pn).map(|pi| (pi, cosine(q_q8, &int8_vecs[qn + pi]))).collect();
+        rank_fp.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        rank_q8.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+        let top_fp = passages[rank_fp[0].0].1;
+        let top_q8 = passages[rank_q8[0].0].1;
+        let agree = top_fp == top_q8;
+        if agree { agree_count += 1; }
+        eprintln!(
+            "  [{}] {:<8} FP32 → {:<22} ({:.4})   INT8 → {:<22} ({:.4})",
+            if agree { "MATCH" } else { "DIFF " },
+            queries[qi].1,
+            top_fp, rank_fp[0].1,
+            top_q8, rank_q8[0].1,
+        );
+    }
+    eprintln!("  → top-1 agreement: {}/{} queries", agree_count, qn);
+
+    // ── 3. Soft assertions so this surfaces regressions without
+    //      requiring a manual eyeball every run.
+    assert!(min >= 0.90, "INT8 drift too high (min={:.4} < 0.90) — quantization may have corrupted weights", min);
+    assert!(agree_count >= qn - 1, "INT8 top-1 disagrees on {} queries (allow at most 1)", qn - agree_count);
 }
