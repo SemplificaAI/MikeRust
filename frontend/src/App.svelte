@@ -9,10 +9,10 @@
   import Boot from './routes/Boot.svelte'
   import Setup from './routes/Setup.svelte'
   import Unlock from './routes/Unlock.svelte'
-  import Home from './routes/Home.svelte'
+  import Shell from './routes/Shell.svelte'
   import Playground from './routes/Playground.svelte'
   import ToastRegion from '$lib/components/ui/ToastRegion.svelte'
-  import { router } from '$lib/stores/router.svelte'
+  import { router, isFeatureRoute } from '$lib/stores/router.svelte'
   import { apiBase } from '$lib/stores/api-base.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { healthApi } from '$lib/api/health'
@@ -60,8 +60,8 @@
   <Setup />
 {:else if router.current === 'unlock'}
   <Unlock username={knownUsername} />
-{:else if router.current === 'home'}
-  <Home />
+{:else if isFeatureRoute(router.current)}
+  <Shell />
 {/if}
 
 <ToastRegion />

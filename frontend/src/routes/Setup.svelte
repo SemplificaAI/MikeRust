@@ -15,7 +15,7 @@
     } catch {
       // non-fatal: defaults are fine, Settings can fix later
     }
-    router.go('home')
+    router.go('workflows')
   }
 </script>
 

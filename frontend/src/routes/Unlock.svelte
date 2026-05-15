@@ -21,7 +21,7 @@
     } catch {
       // non-fatal
     }
-    router.go('home')
+    router.go('workflows')
   }
 </script>
 

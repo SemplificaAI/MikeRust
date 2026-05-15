@@ -3,14 +3,33 @@
 /**
  * Minimal SPA router (plan §13). No history integration yet — the app
  * is a desktop shell, not a website. Pre-unlock routes (boot/setup/
- * unlock) and the post-unlock landing are all this phase needs; the
- * feature routes (assistant/projects/…) land in later phases.
+ * unlock) precede the authenticated feature routes.
  */
 export type Route =
   | 'boot'
   | 'setup'
   | 'unlock'
-  | 'home'
+  | 'assistant'
+  | 'projects'
+  | 'tabular'
+  | 'workflows'
+  | 'templates'
+  | 'settings'
+
+/** Feature routes — the ones rendered inside the authenticated Shell. */
+export const FEATURE_ROUTES = [
+  'assistant',
+  'projects',
+  'tabular',
+  'workflows',
+  'templates',
+  'settings',
+] as const
+export type FeatureRoute = (typeof FEATURE_ROUTES)[number]
+
+export function isFeatureRoute(route: Route): route is FeatureRoute {
+  return (FEATURE_ROUTES as readonly string[]).includes(route)
+}
 
 function createRouter() {
   let current = $state<Route>('boot')
