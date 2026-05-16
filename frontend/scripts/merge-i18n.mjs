@@ -63,6 +63,21 @@ const EN = {
     restoredToast: '"{title}" restored',
     hiddenToast: '"{title}" hidden',
     updateError: 'Could not update workflow',
+    columnsEmptyHint:
+      'Add columns to define what this tabular review workflow extracts from each document.',
+    columnPromptPlaceholder:
+      'Write the analysis prompt — describe what should be extracted from each document for this column…',
+  },
+  ColumnFormats: {
+    free_text: 'Free text',
+    bulleted_list: 'Bulleted list',
+    number: 'Number',
+    percentage: 'Percentage',
+    monetary_amount: 'Monetary amount',
+    currency: 'Currency',
+    yes_no: 'Yes / No',
+    date: 'Date',
+    tags: 'Tags',
   },
   Settings: {
     llmModels: 'LLM models',
@@ -141,6 +156,21 @@ const IT = {
     restoredToast: '"{title}" ripristinato',
     hiddenToast: '"{title}" nascosto',
     updateError: 'Impossibile aggiornare il workflow',
+    columnsEmptyHint:
+      'Aggiungi colonne per definire cosa questo workflow di revisione tabellare estrae da ogni documento.',
+    columnPromptPlaceholder:
+      "Scrivi il prompt di analisi — descrivi cosa estrarre da ogni documento per questa colonna…",
+  },
+  ColumnFormats: {
+    free_text: 'Testo libero',
+    bulleted_list: 'Elenco puntato',
+    number: 'Numero',
+    percentage: 'Percentuale',
+    monetary_amount: 'Importo monetario',
+    currency: 'Valuta',
+    yes_no: 'Sì / No',
+    date: 'Data',
+    tags: 'Tag',
   },
   Settings: {
     llmModels: 'Modelli LLM',

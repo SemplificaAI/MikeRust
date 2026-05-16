@@ -13,6 +13,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import IconButton from '$lib/components/ui/IconButton.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
+  import WorkflowModal from '$lib/components/workflow/WorkflowModal.svelte'
   import { workflowStore } from '$lib/stores/workflows.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -23,6 +24,7 @@
   type TabId = 'all' | 'builtin' | 'custom' | 'hidden'
   let activeTab = $state<TabId>('all')
   let domainFilter = $state<string>('')
+  let modalOpen = $state(false)
 
   $effect(() => {
     void workflowStore.refresh()
@@ -91,7 +93,7 @@
         {t('Workflows.allHint')}
       </p>
     </div>
-    <Button variant="primary" disabled>{t('Workflows.newWorkflow')}</Button>
+    <Button variant="primary" onclick={() => (modalOpen = true)}>{t('Workflows.newWorkflow')}</Button>
   </header>
 
   <div class="flex items-end justify-between gap-4">
@@ -177,3 +179,5 @@
     </ul>
   {/if}
 </div>
+
+<WorkflowModal bind:open={modalOpen} onsuccess={() => workflowStore.refresh()} />

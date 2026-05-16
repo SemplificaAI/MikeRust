@@ -666,7 +666,9 @@
     "allHint": "Automate document analysis with reusable prompts and tabular review templates.",
     "restoredToast": "\"{title}\" restored",
     "hiddenToast": "\"{title}\" hidden",
-    "updateError": "Could not update workflow"
+    "updateError": "Could not update workflow",
+    "columnsEmptyHint": "Add columns to define what this tabular review workflow extracts from each document.",
+    "columnPromptPlaceholder": "Write the analysis prompt — describe what should be extracted from each document for this column…"
   },
   "TabularReviews": {
     "title": "Tabular reviews",
@@ -869,5 +871,16 @@
     "mcpServers": "MCP servers",
     "dataSources": "Data sources",
     "dangerZone": "Danger zone"
+  },
+  "ColumnFormats": {
+    "free_text": "Free text",
+    "bulleted_list": "Bulleted list",
+    "number": "Number",
+    "percentage": "Percentage",
+    "monetary_amount": "Monetary amount",
+    "currency": "Currency",
+    "yes_no": "Yes / No",
+    "date": "Date",
+    "tags": "Tags"
   }
 }

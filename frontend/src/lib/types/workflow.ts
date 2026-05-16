@@ -7,6 +7,23 @@ import type { Domain } from './domain'
 export type WorkflowType = 'assistant' | 'tabular'
 
 /**
+ * Tabular-column output formats. Canonical snake_case ids — the value
+ * stored in `columns_config[].format`; UI labels are localised.
+ */
+export const COLUMN_FORMATS = [
+  'free_text',
+  'bulleted_list',
+  'number',
+  'percentage',
+  'monetary_amount',
+  'currency',
+  'yes_no',
+  'date',
+  'tags',
+] as const
+export type ColumnFormat = (typeof COLUMN_FORMATS)[number]
+
+/**
  * Per-column config for `tabular` workflows. The backend stores
  * `columns_config` as opaque JSON (preset-defined); kept permissive
  * here — the tabular screen will refine this when it's built.
