@@ -100,7 +100,7 @@
         </header>
       {/if}
 
-      <div class="px-5 py-4 overflow-y-auto">
+      <div class="px-5 py-4 overflow-y-auto flex-1 min-h-0">
         {@render children()}
       </div>
 

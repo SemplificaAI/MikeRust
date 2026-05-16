@@ -92,6 +92,7 @@
     id={editId}
     onback={() => { editId = null; void workflowStore.refresh() }}
     ondeleted={() => { editId = null; void workflowStore.refresh() }}
+    onopen={(wid) => { editId = wid; void workflowStore.refresh() }}
   />
 {:else}
 <div class="max-w-4xl mx-auto p-8 space-y-5">

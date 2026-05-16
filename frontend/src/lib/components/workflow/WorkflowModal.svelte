@@ -176,16 +176,16 @@
 
     <div class="border-t border-(--color-surface-100)"></div>
 
-    <!-- Fixed-height region so the modal does not resize when the type
-         toggles between the (tall) prompt editor and the column list. -->
-    <div class="h-[360px] overflow-y-auto -mx-1 px-1">
+    <!-- The Modal body is the single scroll container; the prompt
+         editor scrolls internally only once it overflows. -->
+    <div>
     {#if type === 'assistant'}
       <div class="space-y-1.5">
         <span class="text-xs font-medium text-(--color-text-secondary)">{t('Workflows.prompt')}</span>
         <MarkdownEditor
           bind:value={promptMd}
           placeholder={t('Workflows.promptPlaceholder')}
-          minHeight="296px"
+          minHeight="240px"
         />
       </div>
     {:else}

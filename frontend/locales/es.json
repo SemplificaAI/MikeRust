@@ -663,7 +663,16 @@
     "deletedToast": "Flujo de trabajo eliminado",
     "deleteConfirmTitle": "¿Eliminar el flujo de trabajo?",
     "deleteConfirmBody": "«{title}» se eliminará de forma permanente.",
-    "columnFormat": "Formato"
+    "columnFormat": "Formato",
+    "preview": "Vista previa",
+    "editPrompt": "Editar",
+    "translate": "Traducir",
+    "translating": "Traduciendo…",
+    "translateHint": "Traducir el prompt a tu idioma",
+    "duplicatedToast": "Flujo de trabajo duplicado",
+    "translatedToast": "Prompt traducido",
+    "translateError": "No se pudo traducir el prompt",
+    "copySuffix": "{title} (copia)"
   },
   "TabularReviews": {
     "title": "Revisiones tabulares",

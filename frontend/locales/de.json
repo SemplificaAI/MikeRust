@@ -663,7 +663,16 @@
     "deletedToast": "Workflow gelöscht",
     "deleteConfirmTitle": "Workflow löschen?",
     "deleteConfirmBody": "„{title}“ wird endgültig gelöscht.",
-    "columnFormat": "Format"
+    "columnFormat": "Format",
+    "preview": "Vorschau",
+    "editPrompt": "Bearbeiten",
+    "translate": "Übersetzen",
+    "translating": "Wird übersetzt…",
+    "translateHint": "Den Prompt in Ihre Sprache übersetzen",
+    "duplicatedToast": "Workflow dupliziert",
+    "translatedToast": "Prompt übersetzt",
+    "translateError": "Prompt konnte nicht übersetzt werden",
+    "copySuffix": "{title} (Kopie)"
   },
   "TabularReviews": {
     "title": "Tabellarische Auswertungen",

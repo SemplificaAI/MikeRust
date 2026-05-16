@@ -1,7 +1,7 @@
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
-    routing::get,
+    routing::{get, post},
     Json, Router,
 };
 use serde::Deserialize;
@@ -9,7 +9,13 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::{auth::middleware::AuthUser, AppState};
+use crate::{
+    auth::middleware::AuthUser,
+    llm::{self, Message, StreamParams},
+    routes::chat::build_local_config,
+    routes::user::fetch_llm_settings,
+    AppState,
+};
 
 type ApiResult = Result<Json<Value>, (StatusCode, Json<Value>)>;
 
@@ -22,6 +28,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/", get(list_workflows).post(create_workflow))
         .route("/hidden", get(list_hidden).post(hide_workflow))
         .route("/hidden/{id}", axum::routing::delete(unhide_workflow))
+        .route("/translate", post(translate_prompt))
         .route(
             "/{id}",
             get(get_workflow)
@@ -405,4 +412,76 @@ async fn unhide_workflow(
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
     Ok(Json(json!({ "ok": true })))
+}
+
+// ---------------------------------------------------------------------------
+// POST /workflow/translate  { text, target_locale }
+// Translates a prompt into the user's language, preserving Markdown.
+// Used by the workflow editor: built-ins are duplicated, then translated.
+// ---------------------------------------------------------------------------
+#[derive(Deserialize)]
+struct TranslateBody {
+    text: String,
+    target_locale: Option<String>,
+}
+
+async fn translate_prompt(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Json(body): Json<TranslateBody>,
+) -> ApiResult {
+    let text = body.text.trim();
+    if text.is_empty() {
+        return Ok(Json(json!({ "text": "" })));
+    }
+    let language = match body.target_locale.as_deref().unwrap_or("en") {
+        "it" => "Italian",
+        "fr" => "French",
+        "de" => "German",
+        "es" => "Spanish",
+        "pt" => "Portuguese",
+        _ => "English",
+    };
+
+    let settings = fetch_llm_settings(&state.db, &auth.user_id)
+        .await
+        .unwrap_or_default();
+    let model = settings
+        .title_model
+        .clone()
+        .filter(|m| !m.trim().is_empty())
+        .or_else(|| settings.main_model.clone().filter(|m| !m.trim().is_empty()))
+        .ok_or_else(|| {
+            err(
+                StatusCode::BAD_REQUEST,
+                "No model configured. Set one in Settings → Models.",
+            )
+        })?;
+
+    let system = format!(
+        "Translate the user's text into {language}. Preserve all Markdown \
+         formatting (headings, lists, bold, code) exactly. Do not translate \
+         code, placeholders or tokens wrapped in braces/brackets. Output ONLY \
+         the translation, with no preamble or explanation."
+    );
+    let params = StreamParams {
+        model: model.clone(),
+        system_prompt: system,
+        messages: vec![Message::user(text.to_string())],
+        tools: vec![],
+        max_iterations: 1,
+        enable_thinking: false,
+        local_config: build_local_config(&model, Some(&settings)),
+        claude_api_key: settings.claude_api_key.clone(),
+        gemini_api_key: settings.gemini_api_key.clone(),
+        gemini_region: settings.gemini_region.clone(),
+    };
+    let translated = match llm::provider_for_model(&model) {
+        llm::Provider::Claude => llm::claude::complete(params).await,
+        llm::Provider::OpenAI => llm::local::complete(params).await,
+        llm::Provider::Gemini => llm::gemini::complete(params).await,
+    }
+    .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+
+    Ok(Json(json!({ "text": translated.trim() })))
 }

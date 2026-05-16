@@ -663,7 +663,16 @@
     "deletedToast": "Workflow supprimé",
     "deleteConfirmTitle": "Supprimer le workflow ?",
     "deleteConfirmBody": "« {title} » sera supprimé définitivement.",
-    "columnFormat": "Format"
+    "columnFormat": "Format",
+    "preview": "Aperçu",
+    "editPrompt": "Modifier",
+    "translate": "Traduire",
+    "translating": "Traduction…",
+    "translateHint": "Traduire l'invite dans votre langue",
+    "duplicatedToast": "Workflow dupliqué",
+    "translatedToast": "Invite traduite",
+    "translateError": "Impossible de traduire l'invite",
+    "copySuffix": "{title} (copie)"
   },
   "TabularReviews": {
     "title": "Revues tabulaires",

@@ -251,6 +251,15 @@ const T = {
   'DocxTemplates.renderError': { en: 'Could not generate the document', it: 'Impossibile generare il documento', fr: 'Impossible de générer le document', de: 'Dokument konnte nicht erzeugt werden', es: 'No se pudo generar el documento', pt: 'Não foi possível gerar o documento' },
 
   // Keys added with the workflow editor.
+  'Workflows.preview': { en: 'Preview', it: 'Anteprima', fr: 'Aperçu', de: 'Vorschau', es: 'Vista previa', pt: 'Pré-visualização' },
+  'Workflows.editPrompt': { en: 'Edit', it: 'Modifica', fr: 'Modifier', de: 'Bearbeiten', es: 'Editar', pt: 'Editar' },
+  'Workflows.translate': { en: 'Translate', it: 'Traduci', fr: 'Traduire', de: 'Übersetzen', es: 'Traducir', pt: 'Traduzir' },
+  'Workflows.translating': { en: 'Translating…', it: 'Traduzione…', fr: 'Traduction…', de: 'Wird übersetzt…', es: 'Traduciendo…', pt: 'A traduzir…' },
+  'Workflows.translateHint': { en: 'Translate the prompt into your language', it: 'Traduci il prompt nella tua lingua', fr: "Traduire l'invite dans votre langue", de: 'Den Prompt in Ihre Sprache übersetzen', es: 'Traducir el prompt a tu idioma', pt: 'Traduzir o prompt para o seu idioma' },
+  'Workflows.duplicatedToast': { en: 'Workflow duplicated', it: 'Workflow duplicato', fr: 'Workflow dupliqué', de: 'Workflow dupliziert', es: 'Flujo de trabajo duplicado', pt: 'Fluxo de trabalho duplicado' },
+  'Workflows.translatedToast': { en: 'Prompt translated', it: 'Prompt tradotto', fr: 'Invite traduite', de: 'Prompt übersetzt', es: 'Prompt traducido', pt: 'Prompt traduzido' },
+  'Workflows.translateError': { en: 'Could not translate the prompt', it: 'Impossibile tradurre il prompt', fr: "Impossible de traduire l'invite", de: 'Prompt konnte nicht übersetzt werden', es: 'No se pudo traducir el prompt', pt: 'Não foi possível traduzir o prompt' },
+  'Workflows.copySuffix': { en: '{title} (copy)', it: '{title} (copia)', fr: '{title} (copie)', de: '{title} (Kopie)', es: '{title} (copia)', pt: '{title} (cópia)' },
   'Workflows.savedStatus': { en: 'Saved', it: 'Salvato', fr: 'Enregistré', de: 'Gespeichert', es: 'Guardado', pt: 'Guardado' },
   'Workflows.readOnly': { en: 'Read-only', it: 'Sola lettura', fr: 'Lecture seule', de: 'Schreibgeschützt', es: 'Solo lectura', pt: 'Apenas leitura' },
   'Workflows.deletedToast': { en: 'Workflow deleted', it: 'Workflow eliminato', fr: 'Workflow supprimé', de: 'Workflow gelöscht', es: 'Flujo de trabajo eliminado', pt: 'Fluxo de trabalho eliminado' },

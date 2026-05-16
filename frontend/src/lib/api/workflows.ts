@@ -30,4 +30,11 @@ export const workflowsApi = {
     api<{ ok: boolean }>(`/workflow/hidden/${encodeURIComponent(workflow_id)}`, {
       method: 'DELETE',
     }),
+
+  /** Translate a prompt into the target locale, preserving Markdown. */
+  translate: (text: string, target_locale: string) =>
+    api<{ text: string }>('/workflow/translate', {
+      method: 'POST',
+      body: { text, target_locale },
+    }),
 }
