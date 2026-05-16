@@ -22,6 +22,8 @@
   import { domainLabel } from '$lib/types/domain'
   import {
     COLUMN_FORMATS,
+    columnTitle,
+    normalizeColumnFormat,
     type ColumnFormat,
     type Workflow,
     type WorkflowColumn,
@@ -78,8 +80,8 @@
         title = w.title
         promptMd = w.prompt_md ?? ''
         columns = (w.columns_config ?? []).map((c) => ({
-          name: (c.label ?? c.key ?? '') as string,
-          format: (c.format as ColumnFormat) ?? 'free_text',
+          name: ((c.name ?? c.label ?? c.key ?? '') as string).trim(),
+          format: normalizeColumnFormat(c.format),
           prompt: (c.prompt ?? '') as string,
         }))
       })
@@ -108,7 +110,7 @@
   function buildColumns(): WorkflowColumn[] {
     return columns.map((c, i): WorkflowColumn => ({
       key: slugKey(c.name, i),
-      label: c.name.trim(),
+      name: c.name.trim(),
       prompt: c.prompt.trim(),
       format: c.format,
     }))
@@ -342,7 +344,7 @@
                          rounded-(--radius-md)">
                 <Table2 size={15} class="shrink-0 text-(--color-text-secondary)" />
                 <span class="flex-1 min-w-0 text-sm text-(--color-text-primary) truncate">
-                  {col.name || `#${i + 1}`}
+                  {columnTitle(col, i)}
                 </span>
                 <Badge tone="neutral" size="xs">{t(`ColumnFormats.${col.format}`)}</Badge>
               </li>

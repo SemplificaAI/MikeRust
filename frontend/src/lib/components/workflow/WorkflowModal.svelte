@@ -120,7 +120,7 @@
         payload.columns_config = columns.map(
           (c, i): WorkflowColumn => ({
             key: slugKey(c.name, i),
-            label: c.name.trim(),
+            name: c.name.trim(),
             prompt: c.prompt.trim(),
             format: c.format,
           })

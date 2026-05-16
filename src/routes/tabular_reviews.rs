@@ -459,9 +459,11 @@ fn parse_columns(columns_config: &str) -> Vec<(String, String, String, String)> 
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| format!("col_{}", i + 1));
+            // Presets use `name`; the create modal historically used `label`.
             let label = c
-                .get("label")
+                .get("name")
                 .and_then(|v| v.as_str())
+                .or_else(|| c.get("label").and_then(|v| v.as_str()))
                 .unwrap_or(&key)
                 .to_string();
             let prompt = c

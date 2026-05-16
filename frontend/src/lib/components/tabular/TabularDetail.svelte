@@ -57,7 +57,12 @@
     return (col.key as string) ?? (col.label as string) ?? `col_${i + 1}`
   }
   function colLabel(col: Record<string, unknown>, i: number): string {
-    return (col.label as string) ?? (col.key as string) ?? `#${i + 1}`
+    return (
+      (col.name as string) ||
+      (col.label as string) ||
+      (col.key as string) ||
+      `#${i + 1}`
+    )
   }
   function cellOf(row: TabularRow, key: string): TabularCell | undefined {
     return row.cells.find((c) => c.key === key)
