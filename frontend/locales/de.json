@@ -400,7 +400,15 @@
     "uploadingFiles": "Hochladen…",
     "browseAll": "Alle durchsuchen",
     "startChatInProject": "Chat in einem Projekt starten",
-    "continue": "Fortfahren"
+    "continue": "Fortfahren",
+    "untitledChat": "Unbenannter Chat",
+    "greeting": "Hallo, {name}",
+    "emptyHint": "Stellen Sie eine Frage oder hängen Sie Dokumente, ein Projekt, einen Workflow oder eine Vorlage an, um zu beginnen.",
+    "inputPlaceholder": "Nachricht an den Assistenten…",
+    "attachDocuments": "Dokumente anhängen",
+    "attachProject": "Projekt anhängen",
+    "attachWorkflow": "Workflow anhängen",
+    "attachTemplate": "Vorlage anhängen"
   },
   "People": {
     "addByEmail": "Per E-Mail hinzufügen…",

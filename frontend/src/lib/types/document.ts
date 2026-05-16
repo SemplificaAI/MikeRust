@@ -1,0 +1,14 @@
+// Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only.
+
+import type { Domain } from './domain'
+
+/** Document metadata from `GET /document` (src/routes/documents.rs). */
+export interface DocumentMeta {
+  id: string
+  filename: string
+  file_type: string
+  size_bytes: number
+  status: string
+  domain: Domain
+  created_at: string
+}

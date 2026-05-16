@@ -22,7 +22,7 @@
     } catch {
       // non-fatal
     }
-    router.go('workflows')
+    router.go('assistant')
   }
 </script>
 

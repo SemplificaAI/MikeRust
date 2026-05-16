@@ -400,7 +400,15 @@
     "uploadingFiles": "Téléversement…",
     "browseAll": "Tout parcourir",
     "startChatInProject": "Démarrer un chat dans un projet",
-    "continue": "Continuer"
+    "continue": "Continuer",
+    "untitledChat": "Chat sans titre",
+    "greeting": "Bonjour, {name}",
+    "emptyHint": "Posez n'importe quelle question, ou joignez des documents, un projet, un workflow ou un modèle pour commencer.",
+    "inputPlaceholder": "Écrivez à l'assistant…",
+    "attachDocuments": "Joindre des documents",
+    "attachProject": "Joindre un projet",
+    "attachWorkflow": "Joindre un workflow",
+    "attachTemplate": "Joindre un modèle"
   },
   "People": {
     "addByEmail": "Ajouter par e-mail…",

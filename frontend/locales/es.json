@@ -400,7 +400,15 @@
     "uploadingFiles": "Subiendo…",
     "browseAll": "Ver todos",
     "startChatInProject": "Iniciar chat en un proyecto",
-    "continue": "Continuar"
+    "continue": "Continuar",
+    "untitledChat": "Chat sin título",
+    "greeting": "Hola, {name}",
+    "emptyHint": "Pregunta lo que quieras, o adjunta documentos, un proyecto, un flujo de trabajo o una plantilla para empezar.",
+    "inputPlaceholder": "Escribe al asistente…",
+    "attachDocuments": "Adjuntar documentos",
+    "attachProject": "Adjuntar un proyecto",
+    "attachWorkflow": "Adjuntar un flujo de trabajo",
+    "attachTemplate": "Adjuntar una plantilla"
   },
   "People": {
     "addByEmail": "Añadir por correo electrónico…",

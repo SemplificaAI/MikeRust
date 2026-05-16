@@ -136,6 +136,17 @@ const T = {
   'Projects.deleteError': { en: 'Could not delete project', it: 'Impossibile eliminare il progetto', fr: 'Impossible de supprimer le projet', de: 'Projekt konnte nicht gelöscht werden', es: 'No se pudo eliminar el proyecto', pt: 'Não foi possível eliminar o projeto' },
   'Projects.deleteConfirmTitle': { en: 'Delete project?', it: 'Eliminare il progetto?', fr: 'Supprimer le projet ?', de: 'Projekt löschen?', es: '¿Eliminar el proyecto?', pt: 'Eliminar o projeto?' },
   'Projects.deleteConfirmBody': { en: '"{name}" and its contents will be permanently deleted.', it: '"{name}" e i suoi contenuti verranno eliminati definitivamente.', fr: '« {name} » et son contenu seront supprimés définitivement.', de: '„{name}“ und seine Inhalte werden endgültig gelöscht.', es: '«{name}» y su contenido se eliminarán de forma permanente.', pt: '“{name}” e o respetivo conteúdo serão eliminados definitivamente.' },
+
+  // Keys added with the Assistant screen.
+  'Assistant.newChat': { en: 'New chat', it: 'Nuova chat', fr: 'Nouveau chat', de: 'Neuer Chat', es: 'Nuevo chat', pt: 'Novo chat' },
+  'Assistant.untitledChat': { en: 'Untitled chat', it: 'Chat senza titolo', fr: 'Chat sans titre', de: 'Unbenannter Chat', es: 'Chat sin título', pt: 'Chat sem título' },
+  'Assistant.greeting': { en: 'Hello, {name}', it: 'Ciao, {name}', fr: 'Bonjour, {name}', de: 'Hallo, {name}', es: 'Hola, {name}', pt: 'Olá, {name}' },
+  'Assistant.emptyHint': { en: 'Ask anything, or attach documents, a project, a workflow or a template to get started.', it: 'Chiedi qualsiasi cosa, oppure allega documenti, un progetto, un workflow o un template per iniziare.', fr: "Posez n'importe quelle question, ou joignez des documents, un projet, un workflow ou un modèle pour commencer.", de: 'Stellen Sie eine Frage oder hängen Sie Dokumente, ein Projekt, einen Workflow oder eine Vorlage an, um zu beginnen.', es: 'Pregunta lo que quieras, o adjunta documentos, un proyecto, un flujo de trabajo o una plantilla para empezar.', pt: 'Pergunte o que quiser, ou anexe documentos, um projeto, um fluxo de trabalho ou um modelo para começar.' },
+  'Assistant.inputPlaceholder': { en: 'Message the assistant…', it: "Scrivi all'assistente…", fr: "Écrivez à l'assistant…", de: 'Nachricht an den Assistenten…', es: 'Escribe al asistente…', pt: 'Escreva ao assistente…' },
+  'Assistant.attachDocuments': { en: 'Attach documents', it: 'Allega documenti', fr: 'Joindre des documents', de: 'Dokumente anhängen', es: 'Adjuntar documentos', pt: 'Anexar documentos' },
+  'Assistant.attachProject': { en: 'Attach a project', it: 'Allega un progetto', fr: 'Joindre un projet', de: 'Projekt anhängen', es: 'Adjuntar un proyecto', pt: 'Anexar um projeto' },
+  'Assistant.attachWorkflow': { en: 'Attach a workflow', it: 'Allega un workflow', fr: 'Joindre un workflow', de: 'Workflow anhängen', es: 'Adjuntar un flujo de trabajo', pt: 'Anexar um fluxo de trabalho' },
+  'Assistant.attachTemplate': { en: 'Attach a template', it: 'Allega un template', fr: 'Joindre un modèle', de: 'Vorlage anhängen', es: 'Adjuntar una plantilla', pt: 'Anexar um modelo' },
 }
 
 function flat(o, p = '') {

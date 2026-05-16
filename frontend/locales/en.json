@@ -400,7 +400,15 @@
     "uploadingFiles": "Uploading…",
     "browseAll": "Browse all",
     "startChatInProject": "Start chat in a project",
-    "continue": "Continue"
+    "continue": "Continue",
+    "untitledChat": "Untitled chat",
+    "greeting": "Hello, {name}",
+    "emptyHint": "Ask anything, or attach documents, a project, a workflow or a template to get started.",
+    "inputPlaceholder": "Message the assistant…",
+    "attachDocuments": "Attach documents",
+    "attachProject": "Attach a project",
+    "attachWorkflow": "Attach a workflow",
+    "attachTemplate": "Attach a template"
   },
   "People": {
     "addByEmail": "Add by email…",

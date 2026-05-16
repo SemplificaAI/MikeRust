@@ -134,6 +134,49 @@ body {
   display: grid;
 }
 
+/* Rendered-Markdown body for assistant chat messages. */
+.md-body > :first-child { margin-top: 0; }
+.md-body > :last-child { margin-bottom: 0; }
+.md-body p { margin: 0.5em 0; line-height: 1.6; }
+.md-body h1, .md-body h2, .md-body h3 {
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 1em 0 0.4em;
+}
+.md-body h1 { font-size: 1.25em; }
+.md-body h2 { font-size: 1.12em; }
+.md-body h3 { font-size: 1em; }
+.md-body ul, .md-body ol { margin: 0.5em 0; padding-left: 1.4em; }
+.md-body li { margin: 0.2em 0; }
+.md-body code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background-color: var(--color-surface-100);
+  padding: 0.1em 0.35em;
+  border-radius: var(--radius-sm);
+}
+.md-body pre {
+  background-color: var(--color-surface-100);
+  border-radius: var(--radius-md);
+  padding: 0.75em 0.9em;
+  overflow-x: auto;
+  margin: 0.6em 0;
+}
+.md-body pre code { background: none; padding: 0; }
+.md-body a { color: var(--color-brand-600); text-decoration: underline; }
+.md-body blockquote {
+  border-left: 3px solid var(--color-surface-300);
+  padding-left: 0.8em;
+  margin: 0.5em 0;
+  color: var(--color-text-secondary);
+}
+.md-body table { border-collapse: collapse; margin: 0.6em 0; }
+.md-body th, .md-body td {
+  border: 1px solid var(--color-surface-200);
+  padding: 0.3em 0.6em;
+  text-align: left;
+}
+
 /* Streaming caret per §9.5 — usato in ChatMessage */
 .streaming-caret {
   display: inline-block;
