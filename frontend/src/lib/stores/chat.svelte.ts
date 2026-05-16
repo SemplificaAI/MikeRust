@@ -1,6 +1,7 @@
 // Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only.
 
 import { chatApi, streamChat } from '$lib/api/chat'
+import { toCitation } from '$lib/types/citation'
 import type {
   Chat,
   ChatMessage,
@@ -137,8 +138,16 @@ function createChatStore() {
       }
       messages = [...messages, userMsg]
       const outgoing = messages.map(toOutgoing)
-      messages = [...messages, { role: 'assistant', content: '', streaming: true }]
+      messages = [
+        ...messages,
+        { role: 'assistant', content: '', streaming: true, steps: [], citations: [] },
+      ]
       streaming = true
+
+      const assistant = () => {
+        const last = messages[messages.length - 1]
+        return last && last.role === 'assistant' ? last : null
+      }
 
       abortCtrl = streamChat(
         { messages: outgoing, ...(activeId ? { chat_id: activeId } : {}) },
@@ -147,8 +156,44 @@ function createChatStore() {
             if (!activeId) activeId = id
           },
           onDelta: (delta) => {
-            const last = messages[messages.length - 1]
-            if (last && last.role === 'assistant') last.content += delta
+            const m = assistant()
+            if (m) m.content += delta
+          },
+          onToolCallStart: (name) => {
+            const m = assistant()
+            if (!m) return
+            m.steps ??= []
+            // A new tool starting means any earlier tool has finished.
+            for (const s of m.steps) if (s.kind === 'tool') s.done = true
+            m.steps.push({ kind: 'tool', name, elapsedSecs: 0, done: false })
+          },
+          onToolCallProgress: (name, secs) => {
+            const m = assistant()
+            if (!m?.steps) return
+            for (let i = m.steps.length - 1; i >= 0; i--) {
+              const s = m.steps[i]
+              if (s.kind === 'tool' && s.name === name && !s.done) {
+                s.elapsedSecs = secs
+                break
+              }
+            }
+          },
+          onDocCreated: (doc) => {
+            const m = assistant()
+            if (!m) return
+            m.steps ??= []
+            m.steps.push({
+              kind: 'doc',
+              filename: doc.filename,
+              documentId: doc.documentId,
+              downloadUrl: doc.downloadUrl,
+            })
+          },
+          onCitations: (data) => {
+            const ev = data as { citations?: unknown[] }
+            const list = Array.isArray(ev.citations) ? ev.citations : []
+            const m = assistant()
+            if (m) m.citations = list.map((c) => toCitation(c as Record<string, unknown>))
           },
           onError: (msg) => {
             error = msg
@@ -156,8 +201,11 @@ function createChatStore() {
           onDone: () => {
             streaming = false
             abortCtrl = null
-            const last = messages[messages.length - 1]
-            if (last && last.role === 'assistant') last.streaming = false
+            const m = assistant()
+            if (m) {
+              m.streaming = false
+              for (const s of m.steps ?? []) if (s.kind === 'tool') s.done = true
+            }
             void refreshChats()
           },
         },

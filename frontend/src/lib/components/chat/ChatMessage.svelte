@@ -1,15 +1,39 @@
 <!-- Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only. -->
 <script lang="ts">
   import Badge from '$lib/components/ui/Badge.svelte'
-  import { renderMarkdown } from '$lib/utils/markdown'
+  import ChatSteps from './ChatSteps.svelte'
+  import { renderMessageHtml } from '$lib/utils/citations'
+  import { docViewer } from '$lib/stores/doc-viewer.svelte'
   import type { ChatMessage } from '$lib/types/chat'
   import { FileText, Workflow as WorkflowIcon, FileType2 } from 'lucide-svelte'
 
   let { message }: { message: ChatMessage } = $props()
 
   const html = $derived(
-    message.role === 'assistant' ? renderMarkdown(message.content) : ''
+    message.role === 'assistant'
+      ? renderMessageHtml(message.content, message.citations ?? [])
+      : ''
   )
+
+  /** Open the document behind a clicked citation pill. */
+  function openCitation(ref: string) {
+    const c = (message.citations ?? []).find((x) => x.ref === ref)
+    if (c) docViewer.openCitation(c)
+  }
+
+  function onBodyClick(e: MouseEvent) {
+    const pill = (e.target as HTMLElement).closest<HTMLElement>('[data-cite-ref]')
+    if (pill?.dataset.citeRef) openCitation(pill.dataset.citeRef)
+  }
+
+  function onBodyKeydown(e: KeyboardEvent) {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    const pill = (e.target as HTMLElement).closest<HTMLElement>('[data-cite-ref]')
+    if (pill?.dataset.citeRef) {
+      e.preventDefault()
+      openCitation(pill.dataset.citeRef)
+    }
+  }
 </script>
 
 {#if message.role === 'user'}
@@ -41,7 +65,17 @@
   </div>
 {:else}
   <div class="max-w-[85%]">
-    <div class="md-body text-sm text-(--color-text-primary)">
+    {#if message.steps && message.steps.length}
+      <ChatSteps steps={message.steps} />
+    {/if}
+    <!-- Citation pills inside the body are delegated click targets. -->
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="md-body text-sm text-(--color-text-primary)"
+      onclick={onBodyClick}
+      onkeydown={onBodyKeydown}
+    >
       {@html html}{#if message.streaming}<span class="streaming-caret"></span>{/if}
     </div>
   </div>

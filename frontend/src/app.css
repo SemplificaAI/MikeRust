@@ -191,6 +191,43 @@ body {
   50% { opacity: 0; }
 }
 
+/* ── Citation pills ──────────────────────────────────────────────── */
+
+.cite-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.1em;
+  height: 1.1em;
+  padding: 0 0.3em;
+  margin: 0 0.1em;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+  cursor: pointer;
+  user-select: none;
+  transition: filter var(--transition-fast);
+}
+.cite-pill:hover { filter: brightness(0.92); }
+.cite-pill:focus-visible {
+  outline: 2px solid var(--color-brand-500);
+  outline-offset: 1px;
+}
+.cite-document {
+  background: var(--color-surface-200);
+  color: var(--color-text-secondary);
+}
+.cite-global {
+  background: #d1fae5;
+  color: #047857;
+}
+.cite-project {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
 /* ── Document viewer ─────────────────────────────────────────────── */
 
 /* Highlighted cited passage — shared by every renderer. */

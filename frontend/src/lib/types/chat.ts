@@ -2,6 +2,8 @@
 
 /** Types mirroring `src/routes/chat.rs`. */
 
+import type { Citation } from './citation'
+
 export type ChatRole = 'user' | 'assistant'
 
 /** Chat row from `GET /chat`. */
@@ -33,6 +35,15 @@ export interface FileRef {
  * is still receiving SSE deltas. Attachment fields are echoed back so
  * the user turn can show its chips after send.
  */
+/**
+ * A non-text step inside an assistant turn — a running tool or a
+ * generated document. Rendered as an ordered "steps" block above the
+ * answer text.
+ */
+export type ChatStep =
+  | { kind: 'tool'; name: string; elapsedSecs: number; done: boolean }
+  | { kind: 'doc'; filename: string; documentId: string; downloadUrl: string }
+
 export interface ChatMessage {
   role: ChatRole
   content: string
@@ -40,6 +51,10 @@ export interface ChatMessage {
   workflow?: WorkflowRef
   template?: TemplateRef
   files?: FileRef[]
+  /** Resolved citations for an assistant message (from the SSE stream). */
+  citations?: Citation[]
+  /** Ordered tool / document steps for an assistant message. */
+  steps?: ChatStep[]
 }
 
 /** One message in the `POST /chat` request body. */
