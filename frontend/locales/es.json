@@ -561,7 +561,14 @@
     "deletedToast": "Proyecto eliminado",
     "deleteError": "No se pudo eliminar el proyecto",
     "deleteConfirmTitle": "¿Eliminar el proyecto?",
-    "deleteConfirmBody": "«{name}» y su contenido se eliminarán de forma permanente."
+    "deleteConfirmBody": "«{name}» y su contenido se eliminarán de forma permanente.",
+    "isolationLabel": "Ámbito de recuperación",
+    "isolationShared": "Compartido — global + proyecto",
+    "isolationStrict": "Estricto — solo proyecto",
+    "isolationHint": "Controla qué pueden recuperar los chats del proyecto: toda la base de conocimiento, o solo los documentos de este proyecto.",
+    "isolationSaved": "Ámbito de recuperación actualizado",
+    "documentRemoved": "Documento eliminado",
+    "openConversation": "Abrir conversación"
   },
   "Domains": {
     "label": "Dominio",

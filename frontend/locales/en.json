@@ -561,7 +561,14 @@
     "deletedToast": "Project deleted",
     "deleteError": "Could not delete project",
     "deleteConfirmTitle": "Delete project?",
-    "deleteConfirmBody": "\"{name}\" and its contents will be permanently deleted."
+    "deleteConfirmBody": "\"{name}\" and its contents will be permanently deleted.",
+    "isolationLabel": "Retrieval scope",
+    "isolationShared": "Shared — global + project",
+    "isolationStrict": "Strict — project only",
+    "isolationHint": "Controls what the project's chats can retrieve: the whole knowledge base, or only this project's documents.",
+    "isolationSaved": "Retrieval scope updated",
+    "documentRemoved": "Document removed",
+    "openConversation": "Open conversation"
   },
   "EmbeddingStatus": {
     "loadingModelTitle": "Loading embedding model…",

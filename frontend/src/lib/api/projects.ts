@@ -33,7 +33,14 @@ export const projectsApi = {
   remove: (id: string) =>
     api<{ ok: boolean }>(`/project/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 
-  /** Export to an encrypted .mikeprj blob (UI wiring is a later phase). */
+  /** Rename a document inside a project. */
+  renameDocument: (id: string, docId: string, filename: string) =>
+    api<{ ok: boolean }>(
+      `/project/${encodeURIComponent(id)}/documents/${encodeURIComponent(docId)}`,
+      { method: 'PATCH', body: { filename } },
+    ),
+
+  /** Export to an encrypted .mikeprj blob. */
   exportProject: (id: string, recipient_email: string, include_chats = false) =>
     api<Blob>(`/project/${encodeURIComponent(id)}/export`, {
       method: 'POST',

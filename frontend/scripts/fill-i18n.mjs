@@ -229,6 +229,15 @@ const T = {
   'Settings.followSystemPrompt': { en: 'Follow the system prompt to continue.', it: 'Segui la richiesta di sistema per continuare.', fr: "Suivez l'invite du système pour continuer.", de: 'Folgen Sie der Systemaufforderung, um fortzufahren.', es: 'Sigue la indicación del sistema para continuar.', pt: 'Siga a solicitação do sistema para continuar.' },
   'Settings.biometricVerifyAria': { en: 'Biometric verification', it: 'Verifica biometrica', fr: 'Vérification biométrique', de: 'Biometrische Überprüfung', es: 'Verificación biométrica', pt: 'Verificação biométrica' },
 
+  // Keys added with the project detail view.
+  'Projects.isolationLabel': { en: 'Retrieval scope', it: 'Ambito di recupero', fr: 'Périmètre de recherche', de: 'Abrufbereich', es: 'Ámbito de recuperación', pt: 'Âmbito de recuperação' },
+  'Projects.isolationShared': { en: 'Shared — global + project', it: 'Condiviso — globale + progetto', fr: 'Partagé — global + projet', de: 'Geteilt — global + Projekt', es: 'Compartido — global + proyecto', pt: 'Partilhado — global + projeto' },
+  'Projects.isolationStrict': { en: 'Strict — project only', it: 'Rigoroso — solo progetto', fr: 'Strict — projet uniquement', de: 'Strikt — nur Projekt', es: 'Estricto — solo proyecto', pt: 'Restrito — apenas projeto' },
+  'Projects.isolationHint': { en: "Controls what the project's chats can retrieve: the whole knowledge base, or only this project's documents.", it: 'Controlla cosa possono recuperare le chat del progetto: l’intera base di conoscenza, o solo i documenti di questo progetto.', fr: 'Détermine ce que les chats du projet peuvent récupérer : toute la base de connaissances, ou uniquement les documents de ce projet.', de: 'Legt fest, worauf die Chats des Projekts zugreifen: die gesamte Wissensbasis oder nur die Dokumente dieses Projekts.', es: 'Controla qué pueden recuperar los chats del proyecto: toda la base de conocimiento, o solo los documentos de este proyecto.', pt: 'Controla o que os chats do projeto podem recuperar: toda a base de conhecimento, ou apenas os documentos deste projeto.' },
+  'Projects.isolationSaved': { en: 'Retrieval scope updated', it: 'Ambito di recupero aggiornato', fr: 'Périmètre de recherche mis à jour', de: 'Abrufbereich aktualisiert', es: 'Ámbito de recuperación actualizado', pt: 'Âmbito de recuperação atualizado' },
+  'Projects.documentRemoved': { en: 'Document removed', it: 'Documento rimosso', fr: 'Document supprimé', de: 'Dokument entfernt', es: 'Documento eliminado', pt: 'Documento removido' },
+  'Projects.openConversation': { en: 'Open conversation', it: 'Apri conversazione', fr: 'Ouvrir la conversation', de: 'Unterhaltung öffnen', es: 'Abrir conversación', pt: 'Abrir conversa' },
+
   // Keys added with the document-viewer side panel.
   'DocViewer.closeTab': { en: 'Close tab', it: 'Chiudi scheda', fr: "Fermer l'onglet", de: 'Tab schließen', es: 'Cerrar pestaña', pt: 'Fechar separador' },
   'DocViewer.closeAll': { en: 'Close all', it: 'Chiudi tutto', fr: 'Tout fermer', de: 'Alle schließen', es: 'Cerrar todo', pt: 'Fechar tudo' },

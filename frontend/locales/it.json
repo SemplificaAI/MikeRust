@@ -561,7 +561,14 @@
     "deletedToast": "Progetto eliminato",
     "deleteError": "Impossibile eliminare il progetto",
     "deleteConfirmTitle": "Eliminare il progetto?",
-    "deleteConfirmBody": "\"{name}\" e i suoi contenuti verranno eliminati definitivamente."
+    "deleteConfirmBody": "\"{name}\" e i suoi contenuti verranno eliminati definitivamente.",
+    "isolationLabel": "Ambito di recupero",
+    "isolationShared": "Condiviso — globale + progetto",
+    "isolationStrict": "Rigoroso — solo progetto",
+    "isolationHint": "Controlla cosa possono recuperare le chat del progetto: l’intera base di conoscenza, o solo i documenti di questo progetto.",
+    "isolationSaved": "Ambito di recupero aggiornato",
+    "documentRemoved": "Documento rimosso",
+    "openConversation": "Apri conversazione"
   },
   "EmbeddingStatus": {
     "loadingModelTitle": "Istanza modello embeddings…",

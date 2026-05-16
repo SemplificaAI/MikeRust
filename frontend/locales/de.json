@@ -561,7 +561,14 @@
     "deletedToast": "Projekt gelöscht",
     "deleteError": "Projekt konnte nicht gelöscht werden",
     "deleteConfirmTitle": "Projekt löschen?",
-    "deleteConfirmBody": "„{name}“ und seine Inhalte werden endgültig gelöscht."
+    "deleteConfirmBody": "„{name}“ und seine Inhalte werden endgültig gelöscht.",
+    "isolationLabel": "Abrufbereich",
+    "isolationShared": "Geteilt — global + Projekt",
+    "isolationStrict": "Strikt — nur Projekt",
+    "isolationHint": "Legt fest, worauf die Chats des Projekts zugreifen: die gesamte Wissensbasis oder nur die Dokumente dieses Projekts.",
+    "isolationSaved": "Abrufbereich aktualisiert",
+    "documentRemoved": "Dokument entfernt",
+    "openConversation": "Unterhaltung öffnen"
   },
   "Domains": {
     "label": "Bereich",

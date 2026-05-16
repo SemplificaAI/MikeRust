@@ -12,8 +12,11 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
+  import Modal from '$lib/components/ui/Modal.svelte'
   import ProjectModal from '$lib/components/projects/ProjectModal.svelte'
+  import ProjectDetail from '$lib/components/projects/ProjectDetail.svelte'
   import { projectStore } from '$lib/stores/projects.svelte'
+  import { projectsApi } from '$lib/api/projects'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel } from '$lib/types/domain'
@@ -27,6 +30,49 @@
   let modalOpen = $state(false)
   let editTarget = $state<Project | null>(null)
   let deleteTarget = $state<Project | null>(null)
+  let detailId = $state<string | null>(null)
+
+  // ── .mikeprj import (drag & drop) ──────────────────────────────────
+  let dragActive = $state(false)
+  let importFile = $state<File | null>(null)
+  let importEmail = $state('')
+  let importing = $state(false)
+
+  function onDragOver(e: DragEvent) {
+    if (e.dataTransfer?.types.includes('Files')) {
+      e.preventDefault()
+      dragActive = true
+    }
+  }
+  function onDragLeave(e: DragEvent) {
+    if (e.currentTarget === e.target) dragActive = false
+  }
+  function onDrop(e: DragEvent) {
+    e.preventDefault()
+    dragActive = false
+    const file = e.dataTransfer?.files?.[0]
+    if (file && file.name.toLowerCase().endsWith('.mikeprj')) {
+      importFile = file
+      importEmail = ''
+    } else if (file) {
+      toastStore.danger(t('ProjectImport.errorImport'))
+    }
+  }
+
+  async function runImport() {
+    if (!importFile || !importEmail.trim()) return
+    importing = true
+    try {
+      await projectsApi.importProject(importFile, importEmail.trim())
+      toastStore.success(t('ProjectImport.imported'))
+      importFile = null
+      void projectStore.refresh()
+    } catch (e) {
+      toastStore.danger(t('ProjectImport.errorImport'), { detail: (e as Error).message })
+    } finally {
+      importing = false
+    }
+  }
 
   $effect(() => {
     void projectStore.refresh()
@@ -76,7 +122,23 @@
   }
 </script>
 
-<div class="max-w-4xl mx-auto p-8 space-y-5">
+{#if detailId}
+  <ProjectDetail id={detailId} onback={() => { detailId = null; void projectStore.refresh() }} />
+{:else}
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  class="relative max-w-4xl mx-auto p-8 space-y-5"
+  ondragover={onDragOver}
+  ondragleave={onDragLeave}
+  ondrop={onDrop}
+>
+  {#if dragActive}
+    <div class="absolute inset-4 z-10 flex items-center justify-center rounded-(--radius-lg)
+                border-2 border-dashed border-(--color-brand-500) bg-(--color-brand-50)/80
+                text-sm font-medium text-(--color-brand-700) pointer-events-none">
+      {t('ProjectImport.dropHint')}
+    </div>
+  {/if}
   <header class="flex items-end justify-between gap-4">
     <div class="space-y-1">
       <h2 class="text-2xl font-semibold text-(--color-text-primary)">{t('Projects.title')}</h2>
@@ -117,8 +179,8 @@
   {:else}
     <ul class="flex flex-col gap-2">
       {#each rows as p (p.id)}
-        <li class="flex items-center gap-3 px-4 py-3 bg-(--color-surface-0) border border-(--color-surface-200) rounded-(--radius-md)">
-          <div class="flex-1 min-w-0">
+        <li class="flex items-center gap-3 px-4 py-3 bg-(--color-surface-0) border border-(--color-surface-200) rounded-(--radius-md) hover:border-(--color-surface-300)">
+          <button type="button" class="flex-1 min-w-0 text-left" onclick={() => (detailId = p.id)}>
             <span class="text-sm font-medium text-(--color-text-primary) truncate">{p.name}</span>
             {#if p.description}
               <p class="text-xs text-(--color-text-secondary) truncate">{p.description}</p>
@@ -127,7 +189,7 @@
                 {t('Ui.createdOn', { date: fmtDate(p.created_at) })}
               </p>
             {/if}
-          </div>
+          </button>
           <Badge tone="brand">{domainLabel(p.domain)}</Badge>
           <IconButton label={t('Projects.renameProject')} size="sm" onclick={() => openEdit(p)}>
             <Pencil size={14} />
@@ -145,6 +207,7 @@
     </ul>
   {/if}
 </div>
+{/if}
 
 <ProjectModal bind:open={modalOpen} project={editTarget} onsuccess={() => projectStore.refresh()} />
 
@@ -157,3 +220,31 @@
   onconfirm={confirmDelete}
   oncancel={() => (deleteTarget = null)}
 />
+
+<!-- .mikeprj import (after drag & drop) -->
+<Modal
+  open={importFile !== null}
+  title={t('ProjectImport.title')}
+  size="md"
+  onclose={() => (importFile = null)}
+>
+  <div class="space-y-3">
+    <p class="text-sm text-(--color-text-secondary)">{t('ProjectImport.subtitle')}</p>
+    {#if importFile}
+      <p class="text-sm font-medium text-(--color-text-primary)">{importFile.name}</p>
+    {/if}
+    <Input
+      label={t('ProjectImport.yourEmail')}
+      bind:value={importEmail}
+      placeholder={t('ProjectExport.recipientEmailPlaceholder')}
+      type="email"
+    />
+    <p class="text-xs text-(--color-text-secondary)">{t('ProjectImport.yourEmailHint')}</p>
+  </div>
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (importFile = null)}>{t('Common.cancel')}</Button>
+    <Button loading={importing} disabled={!importEmail.trim()} onclick={runImport}>
+      {t('ProjectImport.importNow')}
+    </Button>
+  {/snippet}
+</Modal>

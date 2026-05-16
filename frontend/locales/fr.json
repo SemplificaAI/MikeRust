@@ -561,7 +561,14 @@
     "deletedToast": "Projet supprimé",
     "deleteError": "Impossible de supprimer le projet",
     "deleteConfirmTitle": "Supprimer le projet ?",
-    "deleteConfirmBody": "« {name} » et son contenu seront supprimés définitivement."
+    "deleteConfirmBody": "« {name} » et son contenu seront supprimés définitivement.",
+    "isolationLabel": "Périmètre de recherche",
+    "isolationShared": "Partagé — global + projet",
+    "isolationStrict": "Strict — projet uniquement",
+    "isolationHint": "Détermine ce que les chats du projet peuvent récupérer : toute la base de connaissances, ou uniquement les documents de ce projet.",
+    "isolationSaved": "Périmètre de recherche mis à jour",
+    "documentRemoved": "Document supprimé",
+    "openConversation": "Ouvrir la conversation"
   },
   "Domains": {
     "label": "Domaine",
