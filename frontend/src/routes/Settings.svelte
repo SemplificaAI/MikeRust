@@ -7,6 +7,7 @@
 <script lang="ts">
   import ProfileSection from '$lib/components/settings/ProfileSection.svelte'
   import SecuritySection from '$lib/components/settings/SecuritySection.svelte'
+  import ModelsSection from '$lib/components/settings/ModelsSection.svelte'
   import DangerZoneSection from '$lib/components/settings/DangerZoneSection.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
 
@@ -21,7 +22,7 @@
   const sections: SectionEntry[] = [
     { id: 'profile', label: 'Profile', ready: true },
     { id: 'security', label: 'Security', ready: true },
-    { id: 'models', label: 'LLM models', ready: false },
+    { id: 'models', label: 'LLM models', ready: true },
     { id: 'mcp', label: 'MCP servers', ready: false },
     { id: 'data', label: 'Data sources', ready: false },
     { id: 'danger', label: 'Danger zone', ready: true },
@@ -61,6 +62,8 @@
         <ProfileSection />
       {:else if active === 'security'}
         <SecuritySection />
+      {:else if active === 'models'}
+        <ModelsSection />
       {:else if active === 'danger'}
         <DangerZoneSection />
       {:else}
