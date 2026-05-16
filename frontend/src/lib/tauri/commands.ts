@@ -31,3 +31,15 @@ export async function openExternal(url: string): Promise<void> {
   }
   await invoke('open_external_url', { url })
 }
+
+/**
+ * Open the native folder picker. Returns the chosen absolute path, or
+ * null if the user cancelled or we are not running inside Tauri.
+ */
+export async function pickFolder(): Promise<string | null> {
+  try {
+    return (await invoke<string | null>('pick_folder')) ?? null
+  } catch {
+    return null
+  }
+}

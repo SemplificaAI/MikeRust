@@ -17,7 +17,8 @@
   import { syncApi, type SyncFolder, type ScanStatus, type SyncedFile, type ModelStatus } from '$lib/api/data-sources'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
-  import { Trash2, RefreshCw, ChevronDown, ChevronRight } from 'lucide-svelte'
+  import { pickFolder } from '$lib/tauri/commands'
+  import { Trash2, RefreshCw, ChevronDown, ChevronRight, FolderOpen } from 'lucide-svelte'
 
   const t = (k: string, p?: Record<string, string | number>) => i18n.t(k, p)
 
@@ -62,6 +63,11 @@
     void refreshModel()
     return () => clearInterval(pollTimer)
   })
+
+  async function browseFolder() {
+    const picked = await pickFolder()
+    if (picked) fPath = picked
+  }
 
   async function addFolder() {
     if (!fPath.trim()) return
@@ -163,7 +169,17 @@
 
   <Card title={t('Sync.title')} subtitle={t('Sync.subtitle')}>
     <div class="space-y-3">
-      <Input label={t('Sync.folderPath')} bind:value={fPath} placeholder={t('Sync.folderPathPlaceholder')} />
+      <div class="flex items-end gap-2">
+        <Input
+          label={t('Sync.folderPath')}
+          bind:value={fPath}
+          placeholder={t('Sync.folderPathPlaceholder')}
+          class="flex-1"
+        />
+        <Button variant="secondary" onclick={browseFolder}>
+          <FolderOpen size={15} class="mr-1" />{t('Sync.browse')}
+        </Button>
+      </div>
       <div class="flex items-end gap-3">
         <Input label={t('Sync.label')} bind:value={fLabel} placeholder={t('Sync.labelPlaceholder')} class="flex-1" />
         <Button loading={adding} disabled={!fPath.trim()} onclick={addFolder}>{t('Sync.addFolder')}</Button>

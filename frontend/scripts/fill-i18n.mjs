@@ -228,6 +228,11 @@ const T = {
   'Settings.verifyingIdentity': { en: 'Verifying your identity…', it: "Verifica dell'identità…", fr: 'Vérification de votre identité…', de: 'Ihre Identität wird überprüft…', es: 'Verificando tu identidad…', pt: 'A verificar a sua identidade…' },
   'Settings.followSystemPrompt': { en: 'Follow the system prompt to continue.', it: 'Segui la richiesta di sistema per continuare.', fr: "Suivez l'invite du système pour continuer.", de: 'Folgen Sie der Systemaufforderung, um fortzufahren.', es: 'Sigue la indicación del sistema para continuar.', pt: 'Siga a solicitação do sistema para continuar.' },
   'Settings.biometricVerifyAria': { en: 'Biometric verification', it: 'Verifica biometrica', fr: 'Vérification biométrique', de: 'Biometrische Überprüfung', es: 'Verificación biométrica', pt: 'Verificação biométrica' },
+  'Settings.forgotPin': { en: "Forgot your PIN?", it: 'Hai dimenticato il PIN?', fr: 'PIN oublié ?', de: 'PIN vergessen?', es: '¿Olvidaste el PIN?', pt: 'Esqueceu o PIN?' },
+  'Settings.resetWithBiometric': { en: 'Reset with biometrics', it: 'Reimposta con la biometria', fr: 'Réinitialiser avec la biométrie', de: 'Mit Biometrie zurücksetzen', es: 'Restablecer con biometría', pt: 'Repor com biometria' },
+  'Settings.usePinInstead': { en: 'Use the current PIN instead', it: 'Usa invece il PIN attuale', fr: 'Utiliser plutôt le PIN actuel', de: 'Stattdessen den aktuellen PIN verwenden', es: 'Usar el PIN actual en su lugar', pt: 'Usar antes o PIN atual' },
+  'Settings.pinResetReason': { en: 'Verify your identity to reset your PIN', it: "Verifica la tua identità per reimpostare il PIN", fr: 'Vérifiez votre identité pour réinitialiser le PIN', de: 'Bestätigen Sie Ihre Identität, um den PIN zurückzusetzen', es: 'Verifica tu identidad para restablecer el PIN', pt: 'Verifique a sua identidade para repor o PIN' },
+  'Settings.pinResetHint': { en: "If you don't remember your current PIN, you can set a new one by verifying with Windows Hello / Touch ID.", it: 'Se non ricordi il PIN attuale, puoi impostarne uno nuovo verificando con Windows Hello / Touch ID.', fr: "Si vous ne vous souvenez plus de votre PIN actuel, vous pouvez en définir un nouveau en vous vérifiant avec Windows Hello / Touch ID.", de: 'Wenn Sie sich nicht an Ihren aktuellen PIN erinnern, können Sie über Windows Hello / Touch ID einen neuen festlegen.', es: 'Si no recuerdas tu PIN actual, puedes establecer uno nuevo verificándote con Windows Hello / Touch ID.', pt: 'Se não se lembra do PIN atual, pode definir um novo verificando-se com o Windows Hello / Touch ID.' },
 
   // Keys added with the tabular-review grid.
   'TabularReviews.run': { en: 'Run', it: 'Esegui', fr: 'Exécuter', de: 'Ausführen', es: 'Ejecutar', pt: 'Executar' },
@@ -266,6 +271,8 @@ const T = {
   'Workflows.deleteConfirmTitle': { en: 'Delete workflow?', it: 'Eliminare il workflow?', fr: 'Supprimer le workflow ?', de: 'Workflow löschen?', es: '¿Eliminar el flujo de trabajo?', pt: 'Eliminar o fluxo de trabalho?' },
   'Workflows.deleteConfirmBody': { en: '"{title}" will be permanently deleted.', it: '"{title}" verrà eliminato definitivamente.', fr: '« {title} » sera supprimé définitivement.', de: '„{title}“ wird endgültig gelöscht.', es: '«{title}» se eliminará de forma permanente.', pt: '“{title}” será eliminado definitivamente.' },
   'Workflows.columnFormat': { en: 'Format', it: 'Formato', fr: 'Format', de: 'Format', es: 'Formato', pt: 'Formato' },
+
+  'Sync.browse': { en: 'Browse…', it: 'Sfoglia…', fr: 'Parcourir…', de: 'Durchsuchen…', es: 'Examinar…', pt: 'Procurar…' },
 
   // Keys added with the project detail view.
   'Projects.isolationLabel': { en: 'Retrieval scope', it: 'Ambito di recupero', fr: 'Périmètre de recherche', de: 'Abrufbereich', es: 'Ámbito de recuperación', pt: 'Âmbito de recuperação' },

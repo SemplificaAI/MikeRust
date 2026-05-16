@@ -243,7 +243,8 @@
     "modelLoading": "Initialising model…",
     "modelReady": "Model ready",
     "modelFailed": "Model load failed: {error}",
-    "modelHint": "First download is ~280 MB and happens once; subsequent scans start offline."
+    "modelHint": "First download is ~280 MB and happens once; subsequent scans start offline.",
+    "browse": "Browse…"
   },
   "Corpora": {
     "sourceOriginalLink": "Source",
@@ -1000,7 +1001,12 @@
     "remove": "Remove",
     "verifyingIdentity": "Verifying your identity…",
     "followSystemPrompt": "Follow the system prompt to continue.",
-    "biometricVerifyAria": "Biometric verification"
+    "biometricVerifyAria": "Biometric verification",
+    "forgotPin": "Forgot your PIN?",
+    "resetWithBiometric": "Reset with biometrics",
+    "usePinInstead": "Use the current PIN instead",
+    "pinResetReason": "Verify your identity to reset your PIN",
+    "pinResetHint": "If you don't remember your current PIN, you can set a new one by verifying with Windows Hello / Touch ID."
   },
   "ColumnFormats": {
     "free_text": "Free text",

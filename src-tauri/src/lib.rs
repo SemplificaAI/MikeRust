@@ -96,7 +96,11 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(api_base)
-        .invoke_handler(tauri::generate_handler![open_external_url, api_base_url])
+        .invoke_handler(tauri::generate_handler![
+            open_external_url,
+            api_base_url,
+            pick_folder
+        ])
         .setup(move |app| {
 
             #[cfg(debug_assertions)]
@@ -225,4 +229,15 @@ fn open_external_url(url: String) -> Result<(), String> {
         return Err(format!("rejected non-http(s) URL: {url}"));
     }
     open::that(&url).map_err(|e| e.to_string())
+}
+
+/// Open the native folder picker. Returns the selected absolute path,
+/// or `None` if the user cancelled. Used by the Settings sync-folder
+/// field so a path can be chosen instead of typed.
+#[tauri::command]
+async fn pick_folder() -> Option<String> {
+    rfd::AsyncFileDialog::new()
+        .pick_folder()
+        .await
+        .map(|h| h.path().to_string_lossy().into_owned())
 }

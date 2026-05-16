@@ -45,6 +45,9 @@ dotenvy = "0.15"
 # by the WebView itself (which makes the in-app shell behave like a
 # mini-browser, not what the user wants for "Apri su EUR-Lex").
 open = "5"
+# Native folder/file picker. Used by the `pick_folder` Tauri command
+# so the sync-folder field in Settings can be filled from an OS dialog.
+rfd = "0.15"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.61", features = [

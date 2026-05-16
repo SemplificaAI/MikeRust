@@ -243,7 +243,8 @@
     "modelLoading": "Inizializzazione del modello…",
     "modelReady": "Modello pronto",
     "modelFailed": "Caricamento modello fallito: {error}",
-    "modelHint": "Il primo download è ~280 MB e avviene una volta sola; le scansioni successive partono offline."
+    "modelHint": "Il primo download è ~280 MB e avviene una volta sola; le scansioni successive partono offline.",
+    "browse": "Sfoglia…"
   },
   "Corpora": {
     "sourceOriginalLink": "Fonte originale",
@@ -1000,7 +1001,12 @@
     "remove": "Rimuovi",
     "verifyingIdentity": "Verifica dell'identità…",
     "followSystemPrompt": "Segui la richiesta di sistema per continuare.",
-    "biometricVerifyAria": "Verifica biometrica"
+    "biometricVerifyAria": "Verifica biometrica",
+    "forgotPin": "Hai dimenticato il PIN?",
+    "resetWithBiometric": "Reimposta con la biometria",
+    "usePinInstead": "Usa invece il PIN attuale",
+    "pinResetReason": "Verifica la tua identità per reimpostare il PIN",
+    "pinResetHint": "Se non ricordi il PIN attuale, puoi impostarne uno nuovo verificando con Windows Hello / Touch ID."
   },
   "ColumnFormats": {
     "free_text": "Testo libero",

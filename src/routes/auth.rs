@@ -33,6 +33,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/biometric-enable",    post(biometric_enable))
         .route("/biometric-disable",   post(biometric_disable))
         .route("/change-pin",          post(change_pin))
+        .route("/change-pin-biometric", post(change_pin_biometric))
         .route("/logout",              post(logout))
         .route("/me",                  get(me))
 }
@@ -271,6 +272,61 @@ async fn change_pin(
     let new_hash = hash_pin(&body.new_pin)
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
+    sqlx::query("UPDATE user_profiles SET pin_hash = ? WHERE id = ?")
+        .bind(&new_hash)
+        .bind(&auth.user_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    Ok(Json(json!({ "ok": true })))
+}
+
+// ---------------------------------------------------------------------------
+// POST /auth/change-pin-biometric  — requires auth
+// Body: { new_pin }
+// Lets a user who has forgotten the current PIN set a new one by
+// proving identity with the OS biometric prompt instead.
+// ---------------------------------------------------------------------------
+#[derive(Deserialize)]
+struct ResetPinBody {
+    new_pin: String,
+}
+
+async fn change_pin_biometric(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Json(body): Json<ResetPinBody>,
+) -> ApiResult {
+    let row: Option<(i64,)> =
+        sqlx::query_as("SELECT biometric_enrolled FROM user_profiles WHERE id = ?")
+            .bind(&auth.user_id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let (enrolled,) = row.ok_or_else(|| err(StatusCode::NOT_FOUND, "Profile not found"))?;
+    if enrolled == 0 {
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "Biometric not enrolled for this profile",
+        ));
+    }
+
+    let verified = bio_verify(&state, "Reset MikeRust PIN")
+        .await
+        .map_err(|e| err(StatusCode::SERVICE_UNAVAILABLE, &e.to_string()))?;
+    if !verified {
+        return Err(err(
+            StatusCode::UNAUTHORIZED,
+            "Biometric verification failed or cancelled",
+        ));
+    }
+
+    if !validate_pin_format(&body.new_pin) {
+        return Err(err(StatusCode::BAD_REQUEST, "New PIN must be 4–8 digits"));
+    }
+    let new_hash = hash_pin(&body.new_pin)
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     sqlx::query("UPDATE user_profiles SET pin_hash = ? WHERE id = ?")
         .bind(&new_hash)
         .bind(&auth.user_id)

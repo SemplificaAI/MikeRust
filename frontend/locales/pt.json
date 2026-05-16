@@ -243,7 +243,8 @@
     "modelLoading": "A inicializar o modelo…",
     "modelReady": "Modelo pronto",
     "modelFailed": "Falha ao carregar o modelo: {error}",
-    "modelHint": "A primeira transferência tem cerca de 280 MB e ocorre apenas uma vez; as análises seguintes começam offline."
+    "modelHint": "A primeira transferência tem cerca de 280 MB e ocorre apenas uma vez; as análises seguintes começam offline.",
+    "browse": "Procurar…"
   },
   "Corpora": {
     "sourceOriginalLink": "Fonte",
@@ -1000,7 +1001,12 @@
     "remove": "Remover",
     "verifyingIdentity": "A verificar a sua identidade…",
     "followSystemPrompt": "Siga a solicitação do sistema para continuar.",
-    "biometricVerifyAria": "Verificação biométrica"
+    "biometricVerifyAria": "Verificação biométrica",
+    "forgotPin": "Esqueceu o PIN?",
+    "resetWithBiometric": "Repor com biometria",
+    "usePinInstead": "Usar antes o PIN atual",
+    "pinResetReason": "Verifique a sua identidade para repor o PIN",
+    "pinResetHint": "Se não se lembra do PIN atual, pode definir um novo verificando-se com o Windows Hello / Touch ID."
   },
   "ColumnFormats": {
     "free_text": "Texto livre",

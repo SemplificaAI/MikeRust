@@ -39,6 +39,13 @@ export const authApi = {
       body: { current_pin, new_pin },
     }),
 
+  /** Reset the PIN by proving identity with biometrics (forgot-PIN path). Auth. */
+  changePinBiometric: (new_pin: string) =>
+    api<{ ok: boolean }>('/auth/change-pin-biometric', {
+      method: 'POST',
+      body: { new_pin },
+    }),
+
   /** Revoke all sessions for the current user. Auth. */
   logout: () => api<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
 
