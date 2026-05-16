@@ -15,6 +15,7 @@
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
+  import TabularDetail from '$lib/components/tabular/TabularDetail.svelte'
   import { tabularStore } from '$lib/stores/tabular.svelte'
   import { workflowsApi } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
@@ -27,6 +28,7 @@
 
   let domainFilter = $state<string>('')
   let tabularWorkflows = $state<Workflow[]>([])
+  let detailId = $state<string | null>(null)
 
   $effect(() => {
     void tabularStore.refresh()
@@ -129,6 +131,9 @@
   }
 </script>
 
+{#if detailId}
+  <TabularDetail id={detailId} onback={() => (detailId = null)} />
+{:else}
 <div class="max-w-4xl mx-auto p-8 space-y-5">
   <header class="flex items-end justify-between gap-4">
     <div class="space-y-1">
@@ -167,14 +172,18 @@
   {:else}
     <ul class="flex flex-col gap-2">
       {#each rows as r (r.id)}
-        <li class="flex items-center gap-3 px-4 py-3 bg-(--color-surface-0) border border-(--color-surface-200) rounded-(--radius-md)">
-          <div class="flex-1 min-w-0">
+        <li class="flex items-center gap-3 px-4 py-3 bg-(--color-surface-0) border border-(--color-surface-200) rounded-(--radius-md) hover:border-(--color-surface-300)">
+          <button
+            type="button"
+            class="flex-1 min-w-0 text-left"
+            onclick={() => (detailId = r.id)}
+          >
             <span class="text-sm font-medium text-(--color-text-primary) truncate">{r.title}</span>
             <p class="text-xs text-(--color-text-secondary)">
               {t('Ui.columnCountFull', { n: r.columns_config.length })}
               · {t('Ui.createdOn', { date: fmtDate(r.created_at) })}
             </p>
-          </div>
+          </button>
           <Badge tone="brand">{domainLabel(r.domain)}</Badge>
           <IconButton
             label={t('Ui.deleteReview')}
@@ -189,6 +198,7 @@
     </ul>
   {/if}
 </div>
+{/if}
 
 <Modal bind:open={modalOpen} title={t('TabularReviews.newReview')} size="md">
   <div class="space-y-3">
