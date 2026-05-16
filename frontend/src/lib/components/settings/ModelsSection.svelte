@@ -100,19 +100,35 @@
       label: r.display_name,
     }))
   )
-  // Role-model ids must carry the dispatch prefix the backend expects:
-  // openai:/mistral: for those providers, bare id for Claude/Gemini.
+  const keySet = (v: string): boolean => v.trim().length > 0
+
+  // Providers the user has actually configured (an API key is present).
+  // Drives which models the role dropdowns may offer.
+  const configuredProviders = $derived.by(() => {
+    const s = new Set<string>()
+    if (keySet(form.claude_api_key)) s.add('anthropic')
+    if (keySet(form.gemini_api_key)) s.add('google')
+    if (keySet(form.openai_api_key)) s.add('openai')
+    if (keySet(form.mistral_api_key)) s.add('mistral')
+    return s
+  })
+
+  // Role-model options — only models from configured providers. Ids
+  // carry the dispatch prefix the backend expects: openai:/mistral: for
+  // those providers, bare id for Claude/Gemini.
   const roleOptions = $derived([
     { value: '', label: '— not set —' },
-    ...modelsStore.allModels.map((m) => ({
-      value:
-        m.providerId === 'openai'
-          ? `openai:${m.id}`
-          : m.providerId === 'mistral'
-            ? `mistral:${m.id}`
-            : m.id,
-      label: `${m.display_name} · ${m.provider}`,
-    })),
+    ...modelsStore.allModels
+      .filter((m) => configuredProviders.has(m.providerId))
+      .map((m) => ({
+        value:
+          m.providerId === 'openai'
+            ? `openai:${m.id}`
+            : m.providerId === 'mistral'
+              ? `mistral:${m.id}`
+              : m.id,
+        label: `${m.display_name} · ${m.provider}`,
+      })),
   ])
 
   const providerChips = [
@@ -122,8 +138,6 @@
     { value: 'mistral', label: 'Mistral' },
     { value: 'local', label: 'Local' },
   ]
-
-  const keySet = (v: string): boolean => v.trim().length > 0
 
   async function save() {
     try {
