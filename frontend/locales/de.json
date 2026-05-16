@@ -1110,5 +1110,12 @@
     "yes_no": "Ja / Nein",
     "date": "Datum",
     "tags": "Tags"
+  },
+  "Translate": {
+    "title": "Übersetzen",
+    "description": "Wählen Sie die Sprache, in die der Text übersetzt werden soll.",
+    "language": "Zielsprache",
+    "done": "Übersetzung abgeschlossen",
+    "error": "Übersetzung fehlgeschlagen"
   }
 }

@@ -1110,5 +1110,12 @@
     "yes_no": "Yes / No",
     "date": "Date",
     "tags": "Tags"
+  },
+  "Translate": {
+    "title": "Translate",
+    "description": "Choose the language to translate the text into.",
+    "language": "Target language",
+    "done": "Translation complete",
+    "error": "Translation failed"
   }
 }

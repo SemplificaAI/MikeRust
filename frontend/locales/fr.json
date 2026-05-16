@@ -1110,5 +1110,12 @@
     "yes_no": "Oui / Non",
     "date": "Date",
     "tags": "Étiquettes"
+  },
+  "Translate": {
+    "title": "Traduire",
+    "description": "Choisissez la langue dans laquelle traduire le texte.",
+    "language": "Langue cible",
+    "done": "Traduction terminée",
+    "error": "Échec de la traduction"
   }
 }

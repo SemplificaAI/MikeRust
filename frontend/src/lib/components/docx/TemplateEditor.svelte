@@ -16,10 +16,13 @@
   import Toggle from '$lib/components/ui/Toggle.svelte'
   import Checkbox from '$lib/components/ui/Checkbox.svelte'
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
+  import TranslateModal from '$lib/components/ui/TranslateModal.svelte'
   import { templatesApi } from '$lib/api/templates'
+  import { workflowsApi } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel, type Domain } from '$lib/types/domain'
+  import type { Locale } from '$lib/types/user'
   import {
     blankUserTemplate,
     defaultFootnotes,
@@ -33,7 +36,7 @@
     type SectionSkeletonEntry,
     type FewShotExample,
   } from '$lib/types/template'
-  import { ArrowLeft, Trash2, Copy, Plus, X } from 'lucide-svelte'
+  import { ArrowLeft, Trash2, Copy, Plus, X, Languages } from 'lucide-svelte'
 
   let {
     initial,
@@ -66,6 +69,7 @@
   let slug = $state(seed ? userSlug(seed.id) : '')
   let saving = $state(false)
   let deleteOpen = $state(false)
+  let translateOpen = $state(false)
 
   // Optional-block toggles.
   let usoBolloOn = $state(!!seed?.uso_bollo)
@@ -80,13 +84,24 @@
   let fieldPromptPairs = $state<Pair[]>(toPairs(tpl.field_prompts))
   let charLimitPairs = $state<Pair[]>(toPairs(tpl.character_limits))
 
-  // List fields edited inline.
+  // List fields edited inline. Optional string fields are normalised to
+  // '' so `bind:value` never sees `undefined` (Svelte rejects binding an
+  // undefined value into an input that has a fallback). `buildPayload`
+  // converts the empties back to `undefined` before saving.
   let directives = $state<string[]>([...(tpl.directives_supported ?? [])])
   let requiredMeta = $state<string[]>([...(tpl.required_metadata ?? [])])
   let skeleton = $state<SectionSkeletonEntry[]>(
-    (tpl.section_skeleton ?? []).map((s) => ({ ...s })),
+    (tpl.section_skeleton ?? []).map((s) => ({
+      id: s.id ?? '',
+      title: s.title ?? '',
+      render: s.render ?? '',
+      guidance: s.guidance ?? '',
+      repeating: !!s.repeating,
+    })),
   )
-  let fewShot = $state<FewShotExample[]>((tpl.few_shot_examples ?? []).map((e) => ({ ...e })))
+  let fewShot = $state<FewShotExample[]>(
+    (tpl.few_shot_examples ?? []).map((e) => ({ label: e.label ?? '', path: e.path ?? '' })),
+  )
 
   // New-tag drafts.
   let directiveDraft = $state('')
@@ -177,6 +192,25 @@
       }
     }
     toastStore.info(t('DocxTemplates.edDuplicateHint'))
+  }
+
+  /** Translate the free-text authoring fields into the chosen language. */
+  async function translateTo(locale: Locale) {
+    if (readOnly) return
+    const tr = async (text: string) => (await workflowsApi.translate(text, locale)).text
+    try {
+      for (const p of fieldPromptPairs) if (p.v.trim()) p.v = await tr(p.v)
+      for (const s of skeleton) {
+        if (s.title?.trim()) s.title = await tr(s.title)
+        if (s.guidance?.trim()) s.guidance = await tr(s.guidance)
+      }
+      if (tpl.prompt_md_extra?.trim()) tpl.prompt_md_extra = await tr(tpl.prompt_md_extra)
+      if (tpl.header_block?.trim()) tpl.header_block = await tr(tpl.header_block)
+      if (tpl.footer_block?.trim()) tpl.footer_block = await tr(tpl.footer_block)
+      toastStore.success(t('Translate.done'))
+    } catch (e) {
+      toastStore.danger(t('Translate.error'), { detail: (e as Error).message })
+    }
   }
 
   function buildPayload(): DocxTemplate | null {
@@ -284,10 +318,19 @@
     <div class="flex items-center gap-2 shrink-0">
       {#if readOnly}
         <Badge tone="neutral" size="xs">{t('Workflows.readOnly')}</Badge>
-        <Button size="sm" variant="secondary" onclick={duplicate}>
-          <Copy size={14} class="mr-1" />{t('Workflows.duplicate')}
+      {/if}
+      <Button size="sm" variant="secondary" onclick={duplicate}>
+        <Copy size={14} class="mr-1" />{t('Workflows.duplicate')}
+      </Button>
+      {#if !readOnly}
+        <Button
+          size="sm"
+          variant="ghost"
+          title={t('Translate.title')}
+          onclick={() => (translateOpen = true)}
+        >
+          <Languages size={14} class="mr-1" />{t('Workflows.translate')}
         </Button>
-      {:else}
         {#if !isNew}
           <IconButton
             label={t('Common.delete')}
@@ -792,3 +835,5 @@
   danger
   onconfirm={confirmDelete}
 />
+
+<TranslateModal bind:open={translateOpen} onconfirm={translateTo} />

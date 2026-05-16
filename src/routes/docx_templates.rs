@@ -42,6 +42,8 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/render", post(render_docx_template))
         .route("/save", post(save_docx_template))
         .route("/delete", post(delete_docx_template))
+        .route("/hidden", get(list_hidden_templates).post(hide_template))
+        .route("/unhide", post(unhide_template))
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -347,6 +349,72 @@ async fn delete_docx_template(
 
     tracing::info!("[docx-templates] deleted user template {}", body.template_id);
     Ok(Json(json!({ "deleted": true })))
+}
+
+/// `GET /docx-templates/hidden` — ids of templates the user has hidden.
+async fn list_hidden_templates(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+) -> ApiResult {
+    let rows: Vec<(String,)> =
+        sqlx::query_as("SELECT template_id FROM docx_template_hidden WHERE user_id = ?")
+            .bind(&auth.user_id)
+            .fetch_all(&state.db)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({ "error": e.to_string() })),
+                )
+            })?;
+    let ids: Vec<String> = rows.into_iter().map(|(id,)| id).collect();
+    Ok(Json(json!(ids)))
+}
+
+#[derive(Debug, Deserialize)]
+struct HideBody {
+    template_id: String,
+}
+
+/// `POST /docx-templates/hidden` — hide a template (system or user) from
+/// the user's listing. The id is free text — no foreign key.
+async fn hide_template(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Json(body): Json<HideBody>,
+) -> ApiResult {
+    sqlx::query("INSERT OR IGNORE INTO docx_template_hidden (user_id, template_id) VALUES (?, ?)")
+        .bind(&auth.user_id)
+        .bind(&body.template_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
+    Ok(Json(json!({ "ok": true })))
+}
+
+/// `POST /docx-templates/unhide` — restore a previously hidden template.
+async fn unhide_template(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Json(body): Json<HideBody>,
+) -> ApiResult {
+    sqlx::query("DELETE FROM docx_template_hidden WHERE user_id = ? AND template_id = ?")
+        .bind(&auth.user_id)
+        .bind(&body.template_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({ "error": e.to_string() })),
+            )
+        })?;
+    Ok(Json(json!({ "ok": true })))
 }
 
 /// Strip characters that are problematic in filenames on either

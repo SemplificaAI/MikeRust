@@ -20,6 +20,9 @@ export default defineConfig({
     alias: {
       $lib: path.resolve(import.meta.dirname, 'src/lib'),
     },
+    // Component tests mount Svelte 5 components, so under Vitest resolve
+    // the client (browser) build of svelte rather than its server entry.
+    conditions: process.env.VITEST ? ['browser'] : undefined,
   },
   build: {
     target: ['es2022', 'chrome120', 'safari17'],

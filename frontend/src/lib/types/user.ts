@@ -19,6 +19,16 @@ export function isLocale(value: unknown): value is Locale {
   return typeof value === 'string' && (LOCALES as readonly string[]).includes(value)
 }
 
+/** Native names of the supported locales — for language pickers. */
+export const LOCALE_LABELS: Record<Locale, string> = {
+  en: 'English',
+  it: 'Italiano',
+  fr: 'Français',
+  de: 'Deutsch',
+  es: 'Español',
+  pt: 'Português',
+}
+
 /** Active LLM provider. */
 export type LlmProvider = 'anthropic' | 'google' | 'openai' | 'mistral' | 'local'
 

@@ -83,4 +83,21 @@ export const templatesApi = {
       method: 'POST',
       body: { template_id },
     }),
+
+  /** Ids of templates the user has hidden — a bare string[]. */
+  listHidden: () => api<string[]>('/docx-templates/hidden'),
+
+  /** Hide a template (system or user) from the listing. */
+  hide: (template_id: string) =>
+    api<{ ok: boolean }>('/docx-templates/hidden', {
+      method: 'POST',
+      body: { template_id },
+    }),
+
+  /** Restore a previously hidden template. */
+  unhide: (template_id: string) =>
+    api<{ ok: boolean }>('/docx-templates/unhide', {
+      method: 'POST',
+      body: { template_id },
+    }),
 }

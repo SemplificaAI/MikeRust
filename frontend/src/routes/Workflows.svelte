@@ -21,7 +21,7 @@
   import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel } from '$lib/types/domain'
   import type { Workflow } from '$lib/types/workflow'
-  import { Eye, EyeOff } from 'lucide-svelte'
+  import { Eye, EyeOff, Pencil } from 'lucide-svelte'
 
   type TabId = 'all' | 'builtin' | 'custom' | 'hidden'
   let activeTab = $state<TabId>('all')
@@ -183,20 +183,25 @@
                   {t('Workflows.originSelf')}
                 {/if}
               </td>
-              <td class="px-3 py-2.5 text-right">
-                {#if w.is_system}
-                  <IconButton
-                    label={workflowStore.isHidden(w.id) ? t('Workflows.unhide') : t('Ui.hide')}
-                    size="sm"
-                    onclick={() => toggleHidden(w)}
-                  >
-                    {#if workflowStore.isHidden(w.id)}
-                      <EyeOff size={15} />
-                    {:else}
-                      <Eye size={15} />
-                    {/if}
+              <td class="px-3 py-2.5">
+                <div class="flex items-center justify-end gap-1">
+                  <IconButton label={t('Common.edit')} size="sm" onclick={() => (editId = w.id)}>
+                    <Pencil size={15} />
                   </IconButton>
-                {/if}
+                  {#if w.is_system}
+                    <IconButton
+                      label={workflowStore.isHidden(w.id) ? t('Workflows.unhide') : t('Ui.hide')}
+                      size="sm"
+                      onclick={() => toggleHidden(w)}
+                    >
+                      {#if workflowStore.isHidden(w.id)}
+                        <EyeOff size={15} />
+                      {:else}
+                        <Eye size={15} />
+                      {/if}
+                    </IconButton>
+                  {/if}
+                </div>
               </td>
             </tr>
           {/each}

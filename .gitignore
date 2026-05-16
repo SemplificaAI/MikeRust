@@ -151,6 +151,12 @@ ehthumbs.db
 # ─── Ad-hoc planning notes ──────────────────────────────────────────
 TODO.md
 
+# ─── User-created runtime data ──────────────────────────────────────
+# DOCX templates authored through the in-app editor. Runtime user data,
+# not source; keeping it untracked also stops the `tauri dev` file
+# watcher from rebuilding the app every time a template is saved.
+config/docx-templates/user/
+
 # Upstream Mike reference material (third-party docs from
 # willchen96/mike + Semplifica adaptation notes) — kept on disk for
 # author convenience but NOT shipped in this repo: those docs talk

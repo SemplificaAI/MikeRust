@@ -381,6 +381,13 @@ const T = {
   'DocxTemplates.edValidationSlug': { en: "Enter a valid identifier (lowercase letters, digits, - and _).", it: "Inserisci un identificatore valido (lettere minuscole, cifre, - e _).", fr: "Saisissez un identifiant valide (minuscules, chiffres, - et _).", de: "Geben Sie einen gültigen Bezeichner ein (Kleinbuchstaben, Ziffern, - und _).", es: "Introduce un identificador válido (minúsculas, dígitos, - y _).", pt: "Introduza um identificador válido (minúsculas, dígitos, - e _)." },
   'DocxTemplates.edValidationName': { en: "Add at least one display name.", it: "Aggiungi almeno un nome visualizzato.", fr: "Ajoutez au moins un nom affiché.", de: "Fügen Sie mindestens einen Anzeigenamen hinzu.", es: "Añade al menos un nombre mostrado.", pt: "Adicione pelo menos um nome apresentado." },
   'DocxTemplates.edValidationCategory': { en: "Category is required.", it: "La categoria è obbligatoria.", fr: "La catégorie est obligatoire.", de: "Kategorie ist erforderlich.", es: "La categoría es obligatoria.", pt: "A categoria é obrigatória." },
+
+  // Keys added with the translate-language modal.
+  'Translate.title': { en: "Translate", it: "Traduci", fr: "Traduire", de: "Übersetzen", es: "Traducir", pt: "Traduzir" },
+  'Translate.description': { en: "Choose the language to translate the text into.", it: "Scegli la lingua in cui tradurre il testo.", fr: "Choisissez la langue dans laquelle traduire le texte.", de: "Wählen Sie die Sprache, in die der Text übersetzt werden soll.", es: "Elige el idioma al que traducir el texto.", pt: "Escolha o idioma para o qual traduzir o texto." },
+  'Translate.language': { en: "Target language", it: "Lingua di destinazione", fr: "Langue cible", de: "Zielsprache", es: "Idioma de destino", pt: "Idioma de destino" },
+  'Translate.done': { en: "Translation complete", it: "Traduzione completata", fr: "Traduction terminée", de: "Übersetzung abgeschlossen", es: "Traducción completada", pt: "Tradução concluída" },
+  'Translate.error': { en: "Translation failed", it: "Traduzione non riuscita", fr: "Échec de la traduction", de: "Übersetzung fehlgeschlagen", es: "Error de traducción", pt: "Falha na tradução" },
 }
 
 function flat(o, p = '') {

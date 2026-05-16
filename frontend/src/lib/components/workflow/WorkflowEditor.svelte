@@ -14,12 +14,14 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
+  import TranslateModal from '$lib/components/ui/TranslateModal.svelte'
   import MarkdownEditor from '$lib/components/ui/MarkdownEditor.svelte'
   import { renderMarkdown } from '$lib/utils/markdown'
   import { workflowsApi } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { domainLabel } from '$lib/types/domain'
+  import type { Locale } from '$lib/types/user'
   import {
     COLUMN_FORMATS,
     columnTitle,
@@ -62,7 +64,7 @@
   let deleteOpen = $state(false)
   let promptMode = $state<'edit' | 'preview'>('edit')
   let duplicating = $state(false)
-  let translating = $state(false)
+  let translateOpen = $state(false)
 
   const readOnly = $derived(wf?.is_system ?? true)
 
@@ -155,30 +157,27 @@
     }
   }
 
-  /** Translate the prompt(s) into the user's UI language. */
-  async function translatePrompt() {
+  /** Translate the prompt(s) into the language chosen in the modal. */
+  async function translateTo(locale: Locale) {
     if (readOnly) return
-    translating = true
     try {
       if (wf?.type === 'assistant') {
         if (promptMd.trim()) {
-          const r = await workflowsApi.translate(promptMd, i18n.locale)
+          const r = await workflowsApi.translate(promptMd, locale)
           promptMd = r.text
         }
       } else {
         for (const col of columns) {
           if (col.prompt.trim()) {
-            const r = await workflowsApi.translate(col.prompt, i18n.locale)
+            const r = await workflowsApi.translate(col.prompt, locale)
             col.prompt = r.text
           }
         }
       }
       scheduleSave()
-      toastStore.success(t('Workflows.translatedToast'))
+      toastStore.success(t('Translate.done'))
     } catch (e) {
-      toastStore.danger(t('Workflows.translateError'), { detail: (e as Error).message })
-    } finally {
-      translating = false
+      toastStore.danger(t('Translate.error'), { detail: (e as Error).message })
     }
   }
 
@@ -271,9 +270,8 @@
               <Button
                 size="sm"
                 variant="ghost"
-                loading={translating}
                 title={t('Workflows.translateHint')}
-                onclick={translatePrompt}
+                onclick={() => (translateOpen = true)}
               >
                 <Languages size={14} class="mr-1" />{t('Workflows.translate')}
               </Button>
@@ -321,9 +319,8 @@
               <Button
                 size="sm"
                 variant="ghost"
-                loading={translating}
                 title={t('Workflows.translateHint')}
-                onclick={translatePrompt}
+                onclick={() => (translateOpen = true)}
               >
                 <Languages size={14} class="mr-1" />{t('Workflows.translate')}
               </Button>
@@ -394,3 +391,5 @@
   danger
   onconfirm={confirmDelete}
 />
+
+<TranslateModal bind:open={translateOpen} onconfirm={translateTo} />

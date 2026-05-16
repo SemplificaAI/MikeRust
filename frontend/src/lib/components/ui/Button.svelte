@@ -62,7 +62,7 @@
 <button
   {type}
   disabled={disabled || loading}
-  class="inline-flex items-center justify-center font-medium select-none
+  class="inline-flex items-center justify-center whitespace-nowrap font-medium select-none cursor-pointer
          transition-colors duration-(--transition-fast)
          focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1
          disabled:opacity-50 disabled:cursor-not-allowed

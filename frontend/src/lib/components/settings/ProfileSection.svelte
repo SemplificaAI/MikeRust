@@ -8,17 +8,8 @@
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel } from '$lib/types/domain'
-  import { LOCALES, type Locale } from '$lib/types/user'
+  import { LOCALES, LOCALE_LABELS, type Locale } from '$lib/types/user'
   import type { Domain } from '$lib/types/domain'
-
-  const LOCALE_LABELS: Record<Locale, string> = {
-    en: 'English',
-    it: 'Italiano',
-    fr: 'Français',
-    de: 'Deutsch',
-    es: 'Español',
-    pt: 'Português',
-  }
 
   let displayName = $state(userStore.profile?.display_name ?? '')
   let savingName = $state(false)
