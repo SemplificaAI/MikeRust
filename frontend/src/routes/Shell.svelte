@@ -11,6 +11,7 @@
   import TopBar from '$lib/components/layout/TopBar.svelte'
   import Button from '$lib/components/ui/Button.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
+  import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte'
   import Workflows from './Workflows.svelte'
   import { router, type FeatureRoute } from '$lib/stores/router.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
@@ -82,6 +83,7 @@
   {#snippet topbar()}
     <TopBar title={activeLabel}>
       {#snippet actions()}
+        <ThemeToggle />
         {#if greetingName}
           <span class="text-xs text-(--color-text-secondary)">{greetingName}</span>
         {/if}

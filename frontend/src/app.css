@@ -80,8 +80,29 @@
   --badge-tabular-fg:   #6d28d9;
 }
 
+/*
+ * Dark theme. Driven by a class on <html> set by stores/theme.svelte.ts:
+ *   .theme-dark    → always dark
+ *   .theme-light   → always light (no overrides — :root defaults win)
+ *   .theme-system  → follow the OS via prefers-color-scheme
+ * The dark token block is shared between the explicit class and the
+ * system-mode media query.
+ */
+:root.theme-dark {
+  --color-surface-0:   #0b0b0e;
+  --color-surface-50:  #111114;
+  --color-surface-100: #18181c;
+  --color-surface-200: #232328;
+  --color-surface-300: #2f2f36;
+  --color-text-primary:   #f3f4f6;
+  --color-text-secondary: #9ca3af;
+  --color-text-disabled:  #6b7280;
+  --color-active-bg: #18181c;
+  --color-hover-bg:  #111114;
+}
+
 @media (prefers-color-scheme: dark) {
-  @theme {
+  :root.theme-system {
     --color-surface-0:   #0b0b0e;
     --color-surface-50:  #111114;
     --color-surface-100: #18181c;
