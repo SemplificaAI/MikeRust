@@ -129,3 +129,120 @@ export const eurlexApi = {
 
   embedProgress: () => api<EmbedProgress | null>('/eurlex/embed-progress'),
 }
+
+// ── Corpora registry ─────────────────────────────────────────────────
+
+export interface CorpusCapabilities {
+  search: boolean
+  fetch: boolean
+  documents: boolean
+  documents_delete: boolean
+  documents_resync: boolean
+  embed_progress: boolean
+  bulk_import: boolean
+  user_config: boolean
+}
+
+export interface CorpusItem {
+  id: string
+  display_name: string
+  description: string
+  homepage: string
+  languages: string[]
+  default_language: string
+  identifier_label: string
+  identifier_example: string
+  enabled_by_default: boolean
+  runnable: boolean
+  capabilities: CorpusCapabilities
+}
+
+export const corporaApi = {
+  /** All registered corpus plugins (from config/corpora-plugins/*.json). */
+  list: () => api<{ corpora: CorpusItem[] }>('/corpora'),
+}
+
+// ── Italian Legal corpus (dedicated /italian-legal/* routes) ─────────
+
+export interface ItalianLegalConfig {
+  enabled: boolean
+  sources: string[]
+}
+
+export interface ItalianLegalHit {
+  hf_id: string
+  source: string | null
+  doc_type: string | null
+  title: string | null
+  authority: string | null
+  number: string | null
+  year: number | null
+  date: string | null
+}
+
+export interface CorpusDocument {
+  id: string
+  filename: string
+  corpus_identifier: string | null
+  size_bytes: number
+  created_at: string
+  status: string
+}
+
+export interface ImportStatus {
+  job_state: string
+  current_shard?: number
+  total_shards?: number
+  rows_imported?: number
+  percent?: number
+  row_count?: number
+  last_import_at?: string | null
+  job_error?: string | null
+}
+
+export const italianLegalApi = {
+  getConfig: () => api<ItalianLegalConfig>('/italian-legal/config'),
+  putConfig: (body: ItalianLegalConfig) =>
+    api<ItalianLegalConfig>('/italian-legal/config', { method: 'PUT', body }),
+  startImport: () => api<{ started: boolean }>('/italian-legal/import', { method: 'POST' }),
+  importStatus: () => api<ImportStatus>('/italian-legal/import-status'),
+  search: (query: string) =>
+    api<{ hits: ItalianLegalHit[] }>('/italian-legal/search', {
+      method: 'POST',
+      body: { query },
+    }),
+  fetchRow: (hf_id: string) =>
+    api<unknown>('/italian-legal/fetch', { method: 'POST', body: { hf_id } }),
+  documents: () => api<{ documents: CorpusDocument[] }>('/italian-legal/documents'),
+  deleteDocument: (id: string) =>
+    api<{ ok: boolean }>(`/italian-legal/documents/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    }),
+  resyncDocument: (id: string) =>
+    api<unknown>(`/italian-legal/documents/${encodeURIComponent(id)}/resync`, {
+      method: 'POST',
+    }),
+}
+
+// ── Generic corpus (declarative plugins, /corpora/{id}/* routes) ─────
+
+/** API surface for a plugin-defined corpus (e.g. CNIL). */
+export function genericCorpusApi(id: string) {
+  const base = `/corpora/${encodeURIComponent(id)}`
+  return {
+    search: (query: string) =>
+      api<{ hits: CorpusHit[]; note: string | null }>(`${base}/search`, {
+        method: 'POST',
+        body: { query },
+      }),
+    fetch: (identifier: string) =>
+      api<unknown>(`${base}/fetch`, { method: 'POST', body: { identifier } }),
+    documents: () => api<{ documents: CorpusDocument[] }>(`${base}/documents`),
+    deleteDocument: (docId: string) =>
+      api<{ ok: boolean }>(`${base}/documents/${encodeURIComponent(docId)}`, {
+        method: 'DELETE',
+      }),
+    startImport: () => api<{ started?: boolean }>(`${base}/import`, { method: 'POST' }),
+    importStatus: () => api<ImportStatus>(`${base}/import-status`),
+  }
+}
