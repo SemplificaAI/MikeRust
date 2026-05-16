@@ -6,6 +6,7 @@
 <script lang="ts">
   import ChatMessage from '$lib/components/chat/ChatMessage.svelte'
   import ChatInput from '$lib/components/chat/ChatInput.svelte'
+  import EmbeddingBanner from '$lib/components/chat/EmbeddingBanner.svelte'
   import { chatStore, type SendAttachments } from '$lib/stores/chat.svelte'
   import { userStore } from '$lib/stores/user.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -58,6 +59,7 @@
     {#if chatStore.error}
       <p class="text-xs text-(--color-danger-500) mb-2">{chatStore.error}</p>
     {/if}
+    <EmbeddingBanner active={chatStore.streaming} />
     <ChatInput streaming={chatStore.streaming} {onsend} onstop={() => chatStore.abort()} />
   </div>
 </div>
