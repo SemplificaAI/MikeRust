@@ -127,6 +127,15 @@ const T = {
   'EmbeddingStatus.downloadingTitle': { fr: "Téléchargement du modèle d'embedding…", de: 'Embedding-Modell wird heruntergeladen…', es: 'Descargando el modelo de embeddings…', pt: 'A transferir o modelo de embeddings…' },
   'EmbeddingStatus.embeddingTitle': { fr: 'Calcul des embeddings…', de: 'Embeddings werden berechnet…', es: 'Calculando embeddings…', pt: 'A calcular embeddings…' },
   'EmbeddingStatus.failedTitle': { fr: "Échec du chargement du modèle d'embedding", de: 'Embedding-Modell konnte nicht geladen werden', es: 'No se pudo cargar el modelo de embeddings', pt: 'Falha ao carregar o modelo de embeddings' },
+
+  // Keys added with the Projects screen — full six-locale entries
+  // (en/it included so the script can seed every locale at once).
+  'Projects.editProject': { en: 'Edit project', it: 'Modifica progetto', fr: 'Modifier le projet', de: 'Projekt bearbeiten', es: 'Editar proyecto', pt: 'Editar projeto' },
+  'Projects.descriptionPlaceholder': { en: 'Add a description (optional)', it: 'Aggiungi una descrizione (facoltativa)', fr: 'Ajoutez une description (facultative)', de: 'Beschreibung hinzufügen (optional)', es: 'Añade una descripción (opcional)', pt: 'Adicione uma descrição (opcional)' },
+  'Projects.deletedToast': { en: 'Project deleted', it: 'Progetto eliminato', fr: 'Projet supprimé', de: 'Projekt gelöscht', es: 'Proyecto eliminado', pt: 'Projeto eliminado' },
+  'Projects.deleteError': { en: 'Could not delete project', it: 'Impossibile eliminare il progetto', fr: 'Impossible de supprimer le projet', de: 'Projekt konnte nicht gelöscht werden', es: 'No se pudo eliminar el proyecto', pt: 'Não foi possível eliminar o projeto' },
+  'Projects.deleteConfirmTitle': { en: 'Delete project?', it: 'Eliminare il progetto?', fr: 'Supprimer le projet ?', de: 'Projekt löschen?', es: '¿Eliminar el proyecto?', pt: 'Eliminar o projeto?' },
+  'Projects.deleteConfirmBody': { en: '"{name}" and its contents will be permanently deleted.', it: '"{name}" e i suoi contenuti verranno eliminati definitivamente.', fr: '« {name} » et son contenu seront supprimés définitivement.', de: '„{name}“ und seine Inhalte werden endgültig gelöscht.', es: '«{name}» y su contenido se eliminarán de forma permanente.', pt: '“{name}” e o respetivo conteúdo serão eliminados definitivamente.' },
 }
 
 function flat(o, p = '') {
@@ -149,37 +158,49 @@ function setPath(obj, dotted, value) {
   cur[parts.at(-1)] = value
 }
 
-const en = JSON.parse(readFileSync(join(localesDir, 'en.json'), 'utf-8'))
-const enKeys = Object.keys(flat(en))
-
+const LOCALES = ['en', 'it', 'fr', 'de', 'es', 'pt']
 let hadError = false
-for (const loc of ['it', 'fr', 'de', 'es', 'pt']) {
+
+// Pass 1 — fill every locale with any T key it lacks.
+for (const loc of LOCALES) {
   const file = join(localesDir, `${loc}.json`)
   const data = JSON.parse(readFileSync(file, 'utf-8'))
   const have = new Set(Object.keys(flat(data)))
   let added = 0
-  for (const key of enKeys) {
+  for (const [key, langs] of Object.entries(T)) {
     if (have.has(key)) continue
-    if (loc === 'it') {
-      console.error(`  it.json missing ${key} — should already be complete`)
-      hadError = true
-      continue
-    }
-    const entry = T[key]
-    if (!entry || !entry[loc]) {
+    if (!langs[loc]) {
       console.error(`  no ${loc} translation for ${key}`)
       hadError = true
       continue
     }
-    setPath(data, key, entry[loc])
+    setPath(data, key, langs[loc])
     added++
   }
   writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf-8')
   console.log(`${loc}.json: +${added} keys (${Object.keys(flat(data)).length} total)`)
 }
 
+// Pass 2 — assert every locale now carries the identical key set.
+const keySets = Object.fromEntries(
+  LOCALES.map((l) => [
+    l,
+    new Set(Object.keys(flat(JSON.parse(readFileSync(join(localesDir, `${l}.json`), 'utf-8'))))),
+  ]),
+)
+const base = keySets.en
+for (const loc of LOCALES) {
+  const missing = [...base].filter((k) => !keySets[loc].has(k))
+  const extra = [...keySets[loc]].filter((k) => !base.has(k))
+  if (missing.length || extra.length) {
+    hadError = true
+    for (const k of missing) console.error(`  ${loc} missing ${k}`)
+    for (const k of extra) console.error(`  ${loc} has extra ${k}`)
+  }
+}
+
 if (hadError) {
   console.error('\ni18n parity INCOMPLETE — see errors above')
   process.exit(1)
 }
-console.log('\ni18n parity OK — all locales match en.json')
+console.log(`\ni18n parity OK — all ${LOCALES.length} locales carry ${base.size} keys`)

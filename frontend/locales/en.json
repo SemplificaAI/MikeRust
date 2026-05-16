@@ -544,7 +544,13 @@
     "noExistingDocuments": "No existing documents",
     "errorCreate": "Failed to create project",
     "ownerOnlyDelete": "delete {count} of the selected projects — only the project owner can delete a project",
-    "folderName": "Folder name"
+    "folderName": "Folder name",
+    "editProject": "Edit project",
+    "descriptionPlaceholder": "Add a description (optional)",
+    "deletedToast": "Project deleted",
+    "deleteError": "Could not delete project",
+    "deleteConfirmTitle": "Delete project?",
+    "deleteConfirmBody": "\"{name}\" and its contents will be permanently deleted."
   },
   "EmbeddingStatus": {
     "loadingModelTitle": "Loading embedding model…",

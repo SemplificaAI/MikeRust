@@ -544,7 +544,13 @@
     "noExistingDocuments": "Keine vorhandenen Dokumente",
     "errorCreate": "Projekt konnte nicht erstellt werden",
     "ownerOnlyDelete": "{count} der ausgewählten Projekte löschen — nur der Projekteigentümer kann ein Projekt löschen",
-    "folderName": "Ordnername"
+    "folderName": "Ordnername",
+    "editProject": "Projekt bearbeiten",
+    "descriptionPlaceholder": "Beschreibung hinzufügen (optional)",
+    "deletedToast": "Projekt gelöscht",
+    "deleteError": "Projekt konnte nicht gelöscht werden",
+    "deleteConfirmTitle": "Projekt löschen?",
+    "deleteConfirmBody": "„{name}“ und seine Inhalte werden endgültig gelöscht."
   },
   "Domains": {
     "label": "Bereich",

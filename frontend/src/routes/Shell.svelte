@@ -15,6 +15,7 @@
   import Workflows from './Workflows.svelte'
   import Templates from './Templates.svelte'
   import Tabular from './Tabular.svelte'
+  import Projects from './Projects.svelte'
   import Settings from './Settings.svelte'
   import { router, type FeatureRoute } from '$lib/stores/router.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
@@ -103,6 +104,8 @@
     <Templates />
   {:else if router.current === 'tabular'}
     <Tabular />
+  {:else if router.current === 'projects'}
+    <Projects />
   {:else if router.current === 'settings'}
     <Settings />
   {:else}

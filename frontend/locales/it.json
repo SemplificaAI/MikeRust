@@ -544,7 +544,13 @@
     "noExistingDocuments": "Nessun documento esistente",
     "errorCreate": "Creazione del progetto fallita",
     "ownerOnlyDelete": "eliminare {count} dei progetti selezionati — solo il proprietario può eliminare un progetto",
-    "folderName": "Nome cartella"
+    "folderName": "Nome cartella",
+    "editProject": "Modifica progetto",
+    "descriptionPlaceholder": "Aggiungi una descrizione (facoltativa)",
+    "deletedToast": "Progetto eliminato",
+    "deleteError": "Impossibile eliminare il progetto",
+    "deleteConfirmTitle": "Eliminare il progetto?",
+    "deleteConfirmBody": "\"{name}\" e i suoi contenuti verranno eliminati definitivamente."
   },
   "EmbeddingStatus": {
     "loadingModelTitle": "Istanza modello embeddings…",

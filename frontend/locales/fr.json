@@ -544,7 +544,13 @@
     "noExistingDocuments": "Aucun document existant",
     "errorCreate": "Échec de la création du projet",
     "ownerOnlyDelete": "supprimer {count} des projets sélectionnés — seul le propriétaire du projet peut le supprimer",
-    "folderName": "Nom du dossier"
+    "folderName": "Nom du dossier",
+    "editProject": "Modifier le projet",
+    "descriptionPlaceholder": "Ajoutez une description (facultative)",
+    "deletedToast": "Projet supprimé",
+    "deleteError": "Impossible de supprimer le projet",
+    "deleteConfirmTitle": "Supprimer le projet ?",
+    "deleteConfirmBody": "« {name} » et son contenu seront supprimés définitivement."
   },
   "Domains": {
     "label": "Domaine",

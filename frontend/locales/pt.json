@@ -544,7 +544,13 @@
     "noExistingDocuments": "Sem documentos existentes",
     "errorCreate": "Falha ao criar o projeto",
     "ownerOnlyDelete": "eliminar {count} dos projetos selecionados — apenas o proprietário do projeto pode eliminar um projeto",
-    "folderName": "Nome da pasta"
+    "folderName": "Nome da pasta",
+    "editProject": "Editar projeto",
+    "descriptionPlaceholder": "Adicione uma descrição (opcional)",
+    "deletedToast": "Projeto eliminado",
+    "deleteError": "Não foi possível eliminar o projeto",
+    "deleteConfirmTitle": "Eliminar o projeto?",
+    "deleteConfirmBody": "“{name}” e o respetivo conteúdo serão eliminados definitivamente."
   },
   "Domains": {
     "label": "Domínio",
