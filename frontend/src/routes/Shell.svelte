@@ -13,6 +13,7 @@
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte'
   import Workflows from './Workflows.svelte'
+  import Templates from './Templates.svelte'
   import { router, type FeatureRoute } from '$lib/stores/router.svelte'
   import { authStore } from '$lib/stores/auth.svelte'
   import { userStore } from '$lib/stores/user.svelte'
@@ -94,6 +95,8 @@
 
   {#if router.current === 'workflows'}
     <Workflows />
+  {:else if router.current === 'templates'}
+    <Templates />
   {:else}
     <div class="p-8">
       <EmptyState
