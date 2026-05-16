@@ -176,10 +176,17 @@
 
     <div class="border-t border-(--color-surface-100)"></div>
 
+    <!-- Fixed-height region so the modal does not resize when the type
+         toggles between the (tall) prompt editor and the column list. -->
+    <div class="h-[360px] overflow-y-auto -mx-1 px-1">
     {#if type === 'assistant'}
       <div class="space-y-1.5">
         <span class="text-xs font-medium text-(--color-text-secondary)">{t('Workflows.prompt')}</span>
-        <MarkdownEditor bind:value={promptMd} placeholder={t('Workflows.promptPlaceholder')} />
+        <MarkdownEditor
+          bind:value={promptMd}
+          placeholder={t('Workflows.promptPlaceholder')}
+          minHeight="296px"
+        />
       </div>
     {:else}
       <div class="space-y-2">
@@ -221,6 +228,7 @@
         {/each}
       </div>
     {/if}
+    </div>
 
     {#if formError}
       <p class="text-sm text-(--color-danger-500)">{formError}</p>
