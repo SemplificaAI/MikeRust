@@ -118,7 +118,7 @@ pub struct AppState {
     pub scans: Arc<RwLock<HashMap<String, ScanProgressHandle>>>,
 
     /// JSON-driven corpus plugin registry, loaded once at startup from
-    /// `MIKE_CORPUS_PLUGINS_DIR` (or walks ancestors for `corpora-plugins`
+    /// `MRUST_CORPUS_PLUGINS_DIR` (or walks ancestors for `corpora-plugins`
     /// by default). Read by the `/corpora` endpoint and by the chat
     /// library-inventory builder. Empty when no manifest directory
     /// exists — the hardcoded EUR-Lex / Italian routes still work,

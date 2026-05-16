@@ -27,19 +27,19 @@ use std::path::{Path, PathBuf};
 
 /// Resolve the on-disk directory for a preset family. Lookup order:
 ///
-///   1. `MIKE_<KIND>_PRESETS_DIR` env var (absolute path).
+///   1. `MRUST_<KIND>_PRESETS_DIR` env var (absolute path).
 ///   2. Walk ancestors from CWD looking for `config/<kind>-presets/`.
 ///   3. Walk ancestors from the current executable's path.
 ///   4. Fallback to `./config/<kind>-presets`.
 ///
 /// `kind` is the lowercase prefix used both in the env var and in the
-/// directory name — `"workflow"` resolves to `MIKE_WORKFLOW_PRESETS_DIR`
+/// directory name — `"workflow"` resolves to `MRUST_WORKFLOW_PRESETS_DIR`
 /// and `config/workflow-presets/`; `"column"` resolves to
-/// `MIKE_COLUMN_PRESETS_DIR` and `config/column-presets/`. All
+/// `MRUST_COLUMN_PRESETS_DIR` and `config/column-presets/`. All
 /// JSON-driven config families live under the single `config/` root
 /// at the repository top level (alongside `config/corpora-plugins/`).
 pub fn presets_dir(kind: &str) -> PathBuf {
-    let env_var = format!("MIKE_{}_PRESETS_DIR", kind.to_ascii_uppercase());
+    let env_var = format!("MRUST_{}_PRESETS_DIR", kind.to_ascii_uppercase());
     let dir_name = format!("{kind}-presets");
 
     if let Ok(dir) = std::env::var(&env_var) {
@@ -64,14 +64,14 @@ pub fn presets_dir(kind: &str) -> PathBuf {
 /// is the docx-template registry (`config/docx-templates/`).
 ///
 /// Lookup order:
-///   1. `MIKE_<NAME>_DIR` env var (absolute path), where `<NAME>` is
+///   1. `MRUST_<NAME>_DIR` env var (absolute path), where `<NAME>` is
 ///      `dir_name` upper-cased with `-` rewritten to `_`.
 ///   2. Walk ancestors from CWD for `config/<dir_name>/`.
 ///   3. Walk ancestors from the current executable's path.
 ///   4. Fallback to `./config/<dir_name>`.
 pub fn config_subdir(dir_name: &str) -> PathBuf {
     let env_var = format!(
-        "MIKE_{}_DIR",
+        "MRUST_{}_DIR",
         dir_name.to_ascii_uppercase().replace('-', "_")
     );
     if let Ok(dir) = std::env::var(&env_var) {

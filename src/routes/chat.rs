@@ -935,7 +935,7 @@ async fn load_attached_docs(
 
 /// Mike's original legal-assistant system prompt, adapted from upstream
 /// (willchen96/mike, `backend/src/lib/chatTools.ts` SYSTEM_PROMPT).
-const MIKE_SYSTEM_PROMPT: &str = r#"You are Mike, an AI legal assistant that helps lawyers and legal professionals analyze documents, answer legal questions, and draft legal documents.
+const MRUST_SYSTEM_PROMPT: &str = r#"You are Mike, an AI legal assistant that helps lawyers and legal professionals analyze documents, answer legal questions, and draft legal documents.
 
 DOCUMENT CITATION INSTRUCTIONS:
 When you reference specific content from a document, place a numbered marker [1], [2], etc. inline in your prose at the point of reference.
@@ -1894,7 +1894,7 @@ async fn stream_chat_root(
     let mcp_prompt = build_mcp_system_prompt(&mcp_servers);
     let docs_prompt = build_doc_system_prompt(&attached_docs);
     let kb_prompt = build_kb_system_prompt(&kb_chunks);
-    let mut sections: Vec<String> = vec![MIKE_SYSTEM_PROMPT.trim().to_string()];
+    let mut sections: Vec<String> = vec![MRUST_SYSTEM_PROMPT.trim().to_string()];
     if !inventory_prompt.is_empty() {
         sections.push(inventory_prompt);
     }
@@ -1989,7 +1989,7 @@ async fn stream_chat_root(
             .map(|s| s.config_name.as_str())
             .collect();
         tracing::info!(
-            "[chat] MCP servers discovered ({} tools total) but NOT shipped — model {:?} not in supports_mcp_tools allowlist. Servers: {:?}. Set MIKE_FORCE_MCP_TOOLS=1 to override.",
+            "[chat] MCP servers discovered ({} tools total) but NOT shipped — model {:?} not in supports_mcp_tools allowlist. Servers: {:?}. Set MRUST_FORCE_MCP_TOOLS=1 to override.",
             mcp_tool_count,
             raw_model,
             server_names
@@ -2379,7 +2379,7 @@ async fn stream_chat_root(
             };
 
         // Parse the trailing <CITATIONS>…</CITATIONS> JSON block the model
-        // is instructed to emit (see MIKE_SYSTEM_PROMPT). Resolve each
+        // is instructed to emit (see MRUST_SYSTEM_PROMPT). Resolve each
         // citation's `doc_id` (a chat-local label like "doc-0") back to the
         // real document UUID + filename so the frontend viewer can fetch
         // and highlight it.

@@ -65,7 +65,7 @@ pub fn strip_model_prefix(model: &str) -> &str {
 ///     llama.cpp models (3B-13B) that get distracted by long tool
 ///     schemas; we observed gemma3 and llama3.2:3b in particular
 ///     emit malformed JSON when given >5 tools. Power users can
-///     opt in via the `MIKE_FORCE_MCP_TOOLS=1` env override.
+///     opt in via the `MRUST_FORCE_MCP_TOOLS=1` env override.
 ///   - Unknown / unconfigured — no, fail closed.
 ///
 /// The system prompt always summarises MCP servers as text (see
@@ -73,7 +73,7 @@ pub fn strip_model_prefix(model: &str) -> &str {
 /// that doesn't get the tool schemas still knows the servers exist
 /// and can ask the user to invoke them.
 pub fn supports_mcp_tools(model: &str) -> bool {
-    if std::env::var("MIKE_FORCE_MCP_TOOLS")
+    if std::env::var("MRUST_FORCE_MCP_TOOLS")
         .map(|v| matches!(v.trim(), "1" | "true" | "yes"))
         .unwrap_or(false)
     {
@@ -184,7 +184,7 @@ mod tests {
     fn supports_mcp_tools_yes_for_known_cloud_models() {
         // Force-disable env override so we only test the default
         // capability table.
-        unsafe { std::env::remove_var("MIKE_FORCE_MCP_TOOLS") };
+        unsafe { std::env::remove_var("MRUST_FORCE_MCP_TOOLS") };
         assert!(supports_mcp_tools("claude-opus-4-7"));
         assert!(supports_mcp_tools("claude-sonnet-4-6"));
         assert!(supports_mcp_tools("gemini-2.5-pro"));
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn supports_mcp_tools_no_for_local_or_unknown() {
-        unsafe { std::env::remove_var("MIKE_FORCE_MCP_TOOLS") };
+        unsafe { std::env::remove_var("MRUST_FORCE_MCP_TOOLS") };
         // local: prefix → conservative default OFF
         assert!(!supports_mcp_tools("local:llama3.2:3b"));
         assert!(!supports_mcp_tools("local:gemma3"));
@@ -207,10 +207,10 @@ mod tests {
 
     #[test]
     fn supports_mcp_tools_force_override() {
-        unsafe { std::env::set_var("MIKE_FORCE_MCP_TOOLS", "1") };
+        unsafe { std::env::set_var("MRUST_FORCE_MCP_TOOLS", "1") };
         assert!(supports_mcp_tools("local:gemma3"));
         assert!(supports_mcp_tools("foobar-7b"));
-        unsafe { std::env::remove_var("MIKE_FORCE_MCP_TOOLS") };
+        unsafe { std::env::remove_var("MRUST_FORCE_MCP_TOOLS") };
     }
 
     #[test]

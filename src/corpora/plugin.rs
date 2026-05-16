@@ -23,7 +23,7 @@
 //!
 //! Manifest location: `corpora-plugins/*.json` relative to the
 //! current working directory by default, override with
-//! `MIKE_CORPUS_PLUGINS_DIR`.
+//! `MRUST_CORPUS_PLUGINS_DIR`.
 //!
 //! ### Future strategies (schema-only, not implemented yet)
 //!
@@ -546,7 +546,7 @@ fn is_known_builtin(id: &str) -> bool {
 /// Resolve the directory to scan for plugin manifests.
 ///
 /// Resolution order:
-///   1. `MIKE_CORPUS_PLUGINS_DIR` env var, if set. Used verbatim.
+///   1. `MRUST_CORPUS_PLUGINS_DIR` env var, if set. Used verbatim.
 ///   2. Walk the ancestors of the current working directory looking
 ///      for a `corpora-plugins/` folder. Picks up the repo-root copy
 ///      when the dev binary runs from `src-tauri/target/...`.
@@ -562,7 +562,7 @@ fn is_known_builtin(id: &str) -> bool {
 /// asset locators in this codebase — keeps `cargo run` / `tauri dev`
 /// / installer scenarios working without an env var.
 pub fn plugins_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("MIKE_CORPUS_PLUGINS_DIR") {
+    if let Ok(dir) = std::env::var("MRUST_CORPUS_PLUGINS_DIR") {
         return PathBuf::from(dir);
     }
 

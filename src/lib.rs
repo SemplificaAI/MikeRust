@@ -189,8 +189,8 @@ pub async fn run_server_with_channels(
     // the bearer token from `localStorage` if a user ever opens the
     // backend port in a regular browser tab.
     //
-    // Override at runtime with `MIKE_ALLOWED_ORIGINS=https://x,https://y`.
-    let allowlist: Vec<axum::http::HeaderValue> = std::env::var("MIKE_ALLOWED_ORIGINS")
+    // Override at runtime with `MRUST_ALLOWED_ORIGINS=https://x,https://y`.
+    let allowlist: Vec<axum::http::HeaderValue> = std::env::var("MRUST_ALLOWED_ORIGINS")
         .ok()
         .map(|s| {
             s.split(',')

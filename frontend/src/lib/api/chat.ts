@@ -81,12 +81,20 @@ function dispatchSseChunk(chunk: string, cb: ChatStreamCallbacks): void {
           downloadUrl: String(ev.download_url ?? ''),
         })
         break
-      case 'citations':
+      case 'citations': {
+        const list = Array.isArray(ev.citations) ? ev.citations : []
+        console.info(
+          `[chat-sse] citations event: ${list.length} entries`,
+          list.map((c) => (c as Record<string, unknown>).ref),
+        )
         cb.onCitations?.(ev)
         break
+      }
       case 'error':
         cb.onError(String(ev.message ?? 'stream error'))
         break
+      default:
+        console.debug('[chat-sse]', ev.type)
     }
   }
 }
@@ -103,8 +111,21 @@ export function streamChat(
   cb: ChatStreamCallbacks,
 ): AbortController {
   const ctrl = new AbortController()
+  let sawCitations = false
+  const cbW: ChatStreamCallbacks = {
+    ...cb,
+    onCitations: (d) => {
+      sawCitations = true
+      cb.onCitations?.(d)
+    },
+  }
 
   void (async () => {
+    console.info('[streamChat] request', {
+      messages: payload.messages.length,
+      model: payload.model ?? '(backend default)',
+      attachedFiles: payload.messages.reduce((n, m) => n + (m.files?.length ?? 0), 0),
+    })
     let res: Response
     try {
       res = await fetch(new URL('/chat', apiBase.url || 'http://127.0.0.1:3001'), {
@@ -139,13 +160,18 @@ export function streamChat(
         buf += decoder.decode(value, { stream: true })
         let idx: number
         while ((idx = buf.indexOf('\n\n')) >= 0) {
-          dispatchSseChunk(buf.slice(0, idx), cb)
+          dispatchSseChunk(buf.slice(0, idx), cbW)
           buf = buf.slice(idx + 2)
         }
       }
-      if (buf.trim()) dispatchSseChunk(buf, cb)
+      if (buf.trim()) dispatchSseChunk(buf, cbW)
     } catch (e) {
       if ((e as Error).name !== 'AbortError') cb.onError((e as Error).message)
+    }
+    if (!sawCitations) {
+      console.warn(
+        '[streamChat] stream ended with NO citations event — the model did not emit a <CITATIONS> block (or the backend did not parse one).',
+      )
     }
     cb.onDone()
   })()
