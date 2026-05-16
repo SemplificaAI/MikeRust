@@ -379,7 +379,7 @@
     {/if}
 
     {#if streaming}
-      <Button size="sm" variant="secondary" onclick={onstop}>{t('Common.stop')}</Button>
+      <Button size="sm" variant="danger" onclick={onstop}>{t('Common.stop')}</Button>
     {:else}
       <Button size="sm" disabled={!text.trim()} onclick={send}>{t('Common.send')}</Button>
     {/if}

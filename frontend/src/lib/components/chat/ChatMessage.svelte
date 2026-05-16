@@ -1,6 +1,7 @@
 <!-- Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only. -->
 <script lang="ts">
   import Badge from '$lib/components/ui/Badge.svelte'
+  import Logo from '$lib/components/ui/Logo.svelte'
   import ChatSteps from './ChatSteps.svelte'
   import { renderMessageHtml } from '$lib/utils/citations'
   import { docViewer } from '$lib/stores/doc-viewer.svelte'
@@ -76,7 +77,9 @@
       onclick={onBodyClick}
       onkeydown={onBodyKeydown}
     >
-      {@html html}{#if message.streaming}<span class="streaming-caret"></span>{/if}
+      {@html html}{#if message.streaming}<span class="align-text-bottom ml-1 inline-block"
+          ><Logo size={15} activity="thinking" /></span
+        >{/if}
     </div>
   </div>
 {/if}
