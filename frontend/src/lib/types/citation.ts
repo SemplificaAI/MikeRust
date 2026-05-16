@@ -35,16 +35,21 @@ export function scopeForRef(ref: string): CitationScope {
 
 /**
  * Normalise a raw `citations` SSE payload entry into a `Citation`.
- * The backend uses snake_case (`doc_id`); tolerate both shapes.
+ *
+ * The backend entry carries BOTH `doc_id` (the chat-local label like
+ * `doc-0`) and `document_id` (the real document UUID). The viewer needs
+ * the UUID — `doc_id` would 404. KB chunks instead carry `path`.
  */
 export function toCitation(raw: Record<string, unknown>): Citation {
   const ref = String(raw.ref ?? '').trim()
   const pageRaw = raw.page
+  const realId = raw.document_id ?? raw.documentId
+  const label = raw.doc_id ?? raw.docId
   return {
     ref,
     scope: scopeForRef(ref),
-    docId: String(raw.doc_id ?? raw.docId ?? ''),
-    source: String(raw.source ?? ''),
+    docId: String(realId ?? label ?? ''),
+    source: String(raw.filename ?? raw.source ?? ''),
     page:
       typeof pageRaw === 'number' || typeof pageRaw === 'string'
         ? (pageRaw as number | string)
