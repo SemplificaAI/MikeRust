@@ -411,7 +411,8 @@
     "attachDocuments": "Attach documents",
     "attachProject": "Attach a project",
     "attachWorkflow": "Attach a workflow",
-    "attachTemplate": "Attach a template"
+    "attachTemplate": "Attach a template",
+    "jumpToLatest": "Jump to latest"
   },
   "People": {
     "addByEmail": "Add by email…",

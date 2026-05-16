@@ -100,6 +100,11 @@
         return
       }
     }
+    // Quote not found anywhere — at least jump to the cited page.
+    if (hint) {
+      const pageEl = pagesEl.querySelector<HTMLElement>(`.pdf-page[data-page="${hint}"]`)
+      pageEl?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }
   }
 
   async function load() {

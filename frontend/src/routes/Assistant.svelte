@@ -11,20 +11,31 @@
   import { chatStore, type SendAttachments } from '$lib/stores/chat.svelte'
   import { userStore } from '$lib/stores/user.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
+  import { ArrowDown } from 'lucide-svelte'
 
   const t = (k: string, p?: Record<string, string | number>) => i18n.t(k, p)
 
-  let scroller: HTMLDivElement | undefined = $state()
+  let scroller = $state<HTMLDivElement>()
+  /** True while the view is pinned to the bottom (sticky auto-scroll). */
+  let atBottom = $state(true)
 
-  // Auto-scroll to the bottom as messages grow / stream.
+  function checkAtBottom() {
+    if (!scroller) return
+    atBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120
+  }
+
+  function scrollToBottom() {
+    if (scroller) scroller.scrollTop = scroller.scrollHeight
+    atBottom = true
+  }
+
+  // Auto-scroll as messages grow / stream — but only while the user is
+  // pinned to the bottom, so scrolling up to read isn't yanked back.
   $effect(() => {
     void chatStore.messages.length
     void chatStore.messages.at(-1)?.content
-    if (scroller) {
-      queueMicrotask(() => {
-        if (scroller) scroller.scrollTop = scroller.scrollHeight
-      })
-    }
+    void chatStore.messages.at(-1)?.steps?.length
+    if (atBottom) queueMicrotask(scrollToBottom)
   })
 
   const greetingName = $derived(
@@ -32,30 +43,57 @@
   )
 
   function onsend(text: string, attach: SendAttachments) {
+    // A new turn always re-pins to the bottom.
+    atBottom = true
     void chatStore.send(text, attach)
   }
 </script>
 
 <div class="flex flex-col h-full">
-  <div bind:this={scroller} class="flex-1 overflow-y-auto">
-    {#if chatStore.messages.length === 0}
-      <div class="h-full flex flex-col items-center justify-center text-center px-6 gap-2">
-        <div class="flex items-center gap-3">
-          <Logo size={42} activity={chatStore.streaming ? 'thinking' : 'idle'} />
-          <h2 class="text-2xl font-semibold text-(--color-text-primary)">
-            {t('Assistant.greeting', { name: greetingName })}
-          </h2>
+  <div class="relative flex-1 min-h-0">
+    <div
+      bind:this={scroller}
+      onscroll={checkAtBottom}
+      class="h-full overflow-y-auto"
+    >
+      {#if chatStore.messages.length === 0}
+        <div class="h-full flex flex-col items-center justify-center text-center px-6 gap-2">
+          <div class="flex items-center gap-3">
+            <Logo size={42} activity={chatStore.streaming ? 'thinking' : 'idle'} />
+            <h2 class="text-2xl font-semibold text-(--color-text-primary)">
+              {t('Assistant.greeting', { name: greetingName })}
+            </h2>
+          </div>
+          <p class="text-sm text-(--color-text-secondary) max-w-md">
+            {t('Assistant.emptyHint')}
+          </p>
         </div>
-        <p class="text-sm text-(--color-text-secondary) max-w-md">
-          {t('Assistant.emptyHint')}
-        </p>
-      </div>
-    {:else}
-      <div class="max-w-3xl mx-auto px-6 py-6 flex flex-col gap-4">
-        {#each chatStore.messages as msg, i (i)}
-          <ChatMessage message={msg} />
-        {/each}
-      </div>
+      {:else}
+        <div class="max-w-3xl mx-auto px-6 py-6 flex flex-col gap-4">
+          {#each chatStore.messages as msg, i (i)}
+            <ChatMessage message={msg} />
+          {/each}
+        </div>
+      {/if}
+    </div>
+
+    <!-- Jump-to-latest: shown when scrolled up, especially while streaming. -->
+    {#if !atBottom && chatStore.messages.length > 0}
+      <button
+        type="button"
+        onclick={scrollToBottom}
+        class="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-1.5
+               px-3 h-8 rounded-full text-xs font-medium
+               bg-(--color-surface-0) border border-(--color-surface-200)
+               shadow-(--shadow-modal) text-(--color-text-secondary)
+               hover:text-(--color-text-primary)"
+      >
+        {#if chatStore.streaming}
+          <span class="streaming-caret"></span>
+        {/if}
+        <ArrowDown size={13} />
+        {t('Assistant.jumpToLatest')}
+      </button>
     {/if}
   </div>
 

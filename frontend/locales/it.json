@@ -411,7 +411,8 @@
     "attachDocuments": "Allega documenti",
     "attachProject": "Allega un progetto",
     "attachWorkflow": "Allega un workflow",
-    "attachTemplate": "Allega un template"
+    "attachTemplate": "Allega un template",
+    "jumpToLatest": "Vai all'ultimo"
   },
   "People": {
     "addByEmail": "Aggiungi via email…",
