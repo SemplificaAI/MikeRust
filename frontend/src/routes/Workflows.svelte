@@ -15,6 +15,7 @@
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import WorkflowModal from '$lib/components/workflow/WorkflowModal.svelte'
   import WorkflowEditor from '$lib/components/workflow/WorkflowEditor.svelte'
+  import Logo from '$lib/components/ui/Logo.svelte'
   import { workflowStore } from '$lib/stores/workflows.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -135,58 +136,73 @@
   {:else if rows.length === 0}
     <EmptyState title={t('Workflows.noWorkflows')} />
   {:else}
-    <ul class="flex flex-col gap-2">
-      {#each rows as w (w.id)}
-        <li
-          class="flex items-center gap-3 px-4 py-3
-                 bg-(--color-surface-0) border border-(--color-surface-200)
-                 rounded-(--radius-md)"
-        >
-          <button type="button" class="flex-1 min-w-0 text-left" onclick={() => (editId = w.id)}>
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-(--color-text-primary) truncate">
-                {w.title}
-              </span>
-              {#if w.is_system}
-                <Badge tone="neutral" size="xs">{t('Ui.preset')}</Badge>
-              {/if}
-            </div>
-            {#if w.practice}
-              <p class="text-xs text-(--color-text-secondary) truncate">{w.practice}</p>
-            {/if}
-          </button>
-
-          <Badge tone={w.type === 'assistant' ? 'assistant' : 'tabular'}>
-            {w.type === 'assistant' ? t('Workflows.typeAssistant') : t('Workflows.typeTabular')}
-          </Badge>
-          <Badge tone="brand">{domainLabel(w.domain)}</Badge>
-
-          {#if w.type === 'tabular'}
-            <span class="text-xs text-(--color-text-secondary) tabular-nums w-16 text-right">
-              {t('Ui.columnCount', { n: w.columns_config.length })}
-            </span>
-          {:else}
-            <span class="w-16"></span>
-          {/if}
-
-          {#if w.is_system}
-            <IconButton
-              label={workflowStore.isHidden(w.id) ? t('Workflows.unhide') : t('Ui.hide')}
-              size="sm"
-              onclick={() => toggleHidden(w)}
-            >
-              {#if workflowStore.isHidden(w.id)}
-                <EyeOff size={15} />
-              {:else}
-                <Eye size={15} />
-              {/if}
-            </IconButton>
-          {:else}
-            <span class="w-7"></span>
-          {/if}
-        </li>
-      {/each}
-    </ul>
+    <div class="border border-(--color-surface-200) rounded-(--radius-md) overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-(--color-surface-50) text-xs text-(--color-text-secondary)">
+            <th class="text-left font-medium px-4 py-2.5">{t('Common.name')}</th>
+            <th class="text-left font-medium px-3 py-2.5 w-32">{t('Workflows.type')}</th>
+            <th class="text-left font-medium px-3 py-2.5">{t('Workflows.practice')}</th>
+            <th class="text-left font-medium px-3 py-2.5">{t('Domains.label')}</th>
+            <th class="text-left font-medium px-3 py-2.5 w-32">{t('Workflows.source')}</th>
+            <th class="px-3 py-2.5 w-10"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each rows as w (w.id)}
+            <tr class="border-t border-(--color-surface-200) hover:bg-(--color-hover-bg)">
+              <td class="px-4 py-2.5">
+                <button
+                  type="button"
+                  class="text-left text-(--color-text-primary) font-medium hover:underline"
+                  onclick={() => (editId = w.id)}
+                >
+                  {w.title}
+                </button>
+                {#if w.type === 'tabular'}
+                  <span class="text-xs text-(--color-text-disabled) ml-2">
+                    {t('Ui.columnCount', { n: w.columns_config.length })}
+                  </span>
+                {/if}
+              </td>
+              <td class="px-3 py-2.5">
+                <Badge tone={w.type === 'assistant' ? 'assistant' : 'tabular'} size="xs">
+                  {w.type === 'assistant' ? t('Workflows.typeAssistant') : t('Workflows.typeTabular')}
+                </Badge>
+              </td>
+              <td class="px-3 py-2.5 text-(--color-text-secondary)">{w.practice ?? '—'}</td>
+              <td class="px-3 py-2.5">
+                <Badge tone="brand" size="xs">{domainLabel(w.domain)}</Badge>
+              </td>
+              <td class="px-3 py-2.5 text-(--color-text-secondary)">
+                {#if w.is_system}
+                  <span class="inline-flex items-center gap-1.5">
+                    <Logo size={13} spin="none" class="text-(--color-brand-500)" />MikeRust
+                  </span>
+                {:else}
+                  {t('Workflows.originSelf')}
+                {/if}
+              </td>
+              <td class="px-3 py-2.5 text-right">
+                {#if w.is_system}
+                  <IconButton
+                    label={workflowStore.isHidden(w.id) ? t('Workflows.unhide') : t('Ui.hide')}
+                    size="sm"
+                    onclick={() => toggleHidden(w)}
+                  >
+                    {#if workflowStore.isHidden(w.id)}
+                      <EyeOff size={15} />
+                    {:else}
+                      <Eye size={15} />
+                    {/if}
+                  </IconButton>
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
   {/if}
 </div>
 {/if}
