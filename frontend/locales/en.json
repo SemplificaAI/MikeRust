@@ -412,7 +412,8 @@
     "attachProject": "Attach a project",
     "attachWorkflow": "Attach a workflow",
     "attachTemplate": "Attach a template",
-    "jumpToLatest": "Jump to latest"
+    "jumpToLatest": "Jump to latest",
+    "gatheringSources": "Gathering sources…"
   },
   "People": {
     "addByEmail": "Add by email…",

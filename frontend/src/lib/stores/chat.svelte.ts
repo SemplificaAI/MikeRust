@@ -94,10 +94,18 @@ function createChatStore() {
       loadingMessages = true
       try {
         const res = await chatApi.messages(id)
-        messages = res.messages.map((m) => ({
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content,
-        }))
+        messages = res.messages.map((m) => {
+          const isAssistant = m.role === 'assistant'
+          const annots = Array.isArray(m.annotations) ? m.annotations : []
+          return {
+            role: isAssistant ? ('assistant' as const) : ('user' as const),
+            content: m.content,
+            // Re-hydrate persisted citations so reopened chats keep pills.
+            ...(isAssistant && annots.length
+              ? { citations: annots.map((a) => toCitation(a as Record<string, unknown>)) }
+              : {}),
+          }
+        })
       } catch (e) {
         error = (e as Error).message
       } finally {

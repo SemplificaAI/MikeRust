@@ -148,6 +148,7 @@ const T = {
   'Assistant.attachWorkflow': { en: 'Attach a workflow', it: 'Allega un workflow', fr: 'Joindre un workflow', de: 'Workflow anhängen', es: 'Adjuntar un flujo de trabajo', pt: 'Anexar um fluxo de trabalho' },
   'Assistant.attachTemplate': { en: 'Attach a template', it: 'Allega un template', fr: 'Joindre un modèle', de: 'Vorlage anhängen', es: 'Adjuntar una plantilla', pt: 'Anexar um modelo' },
   'Assistant.jumpToLatest': { en: 'Jump to latest', it: "Vai all'ultimo", fr: 'Aller au plus récent', de: 'Zum Neuesten springen', es: 'Ir a lo más reciente', pt: 'Ir para o mais recente' },
+  'Assistant.gatheringSources': { en: 'Gathering sources…', it: 'Raccolgo le fonti…', fr: 'Collecte des sources…', de: 'Quellen werden gesammelt…', es: 'Recopilando fuentes…', pt: 'A reunir as fontes…' },
 
   // Keys added with the Settings i18n retrofit (Profile / Security /
   // Models / MCP / Danger zone sections + biometric overlay).

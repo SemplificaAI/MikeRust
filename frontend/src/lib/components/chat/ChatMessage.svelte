@@ -5,6 +5,7 @@
   import ChatSteps from './ChatSteps.svelte'
   import { renderMessageHtml } from '$lib/utils/citations'
   import { docViewer } from '$lib/stores/doc-viewer.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
   import type { ChatMessage } from '$lib/types/chat'
   import { FileText, Workflow as WorkflowIcon, FileType2 } from 'lucide-svelte'
 
@@ -14,6 +15,12 @@
     message.role === 'assistant'
       ? renderMessageHtml(message.content, message.citations ?? [])
       : ''
+  )
+
+  // While the model streams the trailing <CITATIONS> block, the visible
+  // text stops growing — surface a label so it doesn't look stuck.
+  const gatheringSources = $derived(
+    message.streaming === true && /<citations>/i.test(message.content)
   )
 
   /** Open the document behind a clicked citation pill. */
@@ -77,8 +84,12 @@
       onclick={onBodyClick}
       onkeydown={onBodyKeydown}
     >
-      {@html html}{#if message.streaming}<span class="align-text-bottom ml-1 inline-block"
-          ><Logo size={15} activity="thinking" /></span
+      {@html html}{#if message.streaming}<span
+          class="inline-flex items-center gap-1.5 align-text-bottom ml-1"
+          ><Logo size={15} activity="thinking" />{#if gatheringSources}<span
+              class="text-xs text-(--color-text-secondary)"
+              >{i18n.t('Assistant.gatheringSources')}</span
+            >{/if}</span
         >{/if}
     </div>
   </div>

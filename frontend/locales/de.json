@@ -412,7 +412,8 @@
     "attachProject": "Projekt anhängen",
     "attachWorkflow": "Workflow anhängen",
     "attachTemplate": "Vorlage anhängen",
-    "jumpToLatest": "Zum Neuesten springen"
+    "jumpToLatest": "Zum Neuesten springen",
+    "gatheringSources": "Quellen werden gesammelt…"
   },
   "People": {
     "addByEmail": "Per E-Mail hinzufügen…",

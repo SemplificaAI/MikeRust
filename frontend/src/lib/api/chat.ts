@@ -14,9 +14,16 @@ export const chatApi = {
     api<{ id: string }>('/chat', { method: 'POST', body: { project_id, title } }),
 
   messages: (id: string) =>
-    api<{ messages: { id: string; role: string; content: string; created_at: string }[] }>(
-      `/chat/${encodeURIComponent(id)}/messages`,
-    ),
+    api<{
+      messages: {
+        id: string
+        role: string
+        content: string
+        created_at: string
+        /** Persisted citation annotations (assistant turns). */
+        annotations?: unknown[]
+      }[]
+    }>(`/chat/${encodeURIComponent(id)}/messages`),
 
   remove: (id: string) =>
     api<{ ok: boolean }>(`/chat/${encodeURIComponent(id)}`, { method: 'DELETE' }),

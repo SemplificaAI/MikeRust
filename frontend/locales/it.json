@@ -412,7 +412,8 @@
     "attachProject": "Allega un progetto",
     "attachWorkflow": "Allega un workflow",
     "attachTemplate": "Allega un template",
-    "jumpToLatest": "Vai all'ultimo"
+    "jumpToLatest": "Vai all'ultimo",
+    "gatheringSources": "Raccolgo le fonti…"
   },
   "People": {
     "addByEmail": "Aggiungi via email…",
