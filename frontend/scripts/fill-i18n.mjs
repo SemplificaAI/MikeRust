@@ -290,6 +290,8 @@ const T = {
   // Keys added with the document-viewer side panel.
   'DocViewer.closeTab': { en: 'Close tab', it: 'Chiudi scheda', fr: "Fermer l'onglet", de: 'Tab schließen', es: 'Cerrar pestaña', pt: 'Fechar separador' },
   'DocViewer.closeAll': { en: 'Close all', it: 'Chiudi tutto', fr: 'Tout fermer', de: 'Alle schließen', es: 'Cerrar todo', pt: 'Fechar tudo' },
+  'DocViewer.collapse': { en: 'Collapse document view', it: 'Comprimi la vista documento', fr: 'Réduire la vue du document', de: 'Dokumentansicht einklappen', es: 'Contraer la vista del documento', pt: 'Recolher a vista do documento' },
+  'DocViewer.expand': { en: 'Expand document view', it: 'Espandi la vista documento', fr: 'Agrandir la vue du document', de: 'Dokumentansicht ausklappen', es: 'Expandir la vista del documento', pt: 'Expandir a vista do documento' },
   'DocViewer.unsupported': { en: 'This file format cannot be previewed. Use Download to open it.', it: 'Questo formato di file non può essere visualizzato. Usa Scarica per aprirlo.', fr: "Ce format de fichier ne peut pas être prévisualisé. Utilisez Télécharger pour l'ouvrir.", de: 'Dieses Dateiformat kann nicht in der Vorschau angezeigt werden. Verwenden Sie zum Öffnen „Herunterladen“.', es: 'Este formato de archivo no se puede previsualizar. Usa Descargar para abrirlo.', pt: 'Este formato de ficheiro não pode ser pré-visualizado. Use Transferir para o abrir.' },
 }
 

@@ -46,6 +46,7 @@ function createDocViewer() {
   let tabs = $state<ViewerTab[]>([])
   let activeId = $state<string | null>(null)
   let open = $state(false)
+  let collapsed = $state(false)
   let width = $state(DEFAULT_WIDTH)
   /** Bumped whenever an existing tab is re-targeted, so the view re-runs
    *  its highlight pass even though the tab object identity is stable. */
@@ -77,6 +78,7 @@ function createDocViewer() {
       activeId = tab.id
     }
     open = true
+    collapsed = false
   }
 
   return {
@@ -92,8 +94,16 @@ function createDocViewer() {
     get open() {
       return open
     },
+    get collapsed() {
+      return collapsed
+    },
     get width() {
       return width
+    },
+
+    /** Collapse the panel to a thin strip, or restore the prior width. */
+    toggleCollapse() {
+      collapsed = !collapsed
     },
     get revision() {
       return revision

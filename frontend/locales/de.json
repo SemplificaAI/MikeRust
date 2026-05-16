@@ -479,7 +479,9 @@
     "version": "Version",
     "closeTab": "Tab schließen",
     "closeAll": "Alle schließen",
-    "unsupported": "Dieses Dateiformat kann nicht in der Vorschau angezeigt werden. Verwenden Sie zum Öffnen „Herunterladen“."
+    "unsupported": "Dieses Dateiformat kann nicht in der Vorschau angezeigt werden. Verwenden Sie zum Öffnen „Herunterladen“.",
+    "collapse": "Dokumentansicht einklappen",
+    "expand": "Dokumentansicht ausklappen"
   },
   "DocumentSupport": {
     "noticeTitle": "Was indexiert wird",

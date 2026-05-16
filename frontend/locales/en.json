@@ -479,7 +479,9 @@
     "version": "Version",
     "closeTab": "Close tab",
     "closeAll": "Close all",
-    "unsupported": "This file format cannot be previewed. Use Download to open it."
+    "unsupported": "This file format cannot be previewed. Use Download to open it.",
+    "collapse": "Collapse document view",
+    "expand": "Expand document view"
   },
   "DocumentSupport": {
     "noticeTitle": "What gets indexed",

@@ -479,7 +479,9 @@
     "version": "Versión",
     "closeTab": "Cerrar pestaña",
     "closeAll": "Cerrar todo",
-    "unsupported": "Este formato de archivo no se puede previsualizar. Usa Descargar para abrirlo."
+    "unsupported": "Este formato de archivo no se puede previsualizar. Usa Descargar para abrirlo.",
+    "collapse": "Contraer la vista del documento",
+    "expand": "Expandir la vista del documento"
   },
   "DocumentSupport": {
     "noticeTitle": "Qué se indexa",

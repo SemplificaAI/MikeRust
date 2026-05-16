@@ -479,7 +479,9 @@
     "version": "Versão",
     "closeTab": "Fechar separador",
     "closeAll": "Fechar tudo",
-    "unsupported": "Este formato de ficheiro não pode ser pré-visualizado. Use Transferir para o abrir."
+    "unsupported": "Este formato de ficheiro não pode ser pré-visualizado. Use Transferir para o abrir.",
+    "collapse": "Recolher a vista do documento",
+    "expand": "Expandir a vista do documento"
   },
   "DocumentSupport": {
     "noticeTitle": "O que é indexado",

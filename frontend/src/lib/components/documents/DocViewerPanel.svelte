@@ -14,7 +14,7 @@
   import TextView from './TextView.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
-  import { X, Download, Quote } from 'lucide-svelte'
+  import { X, Download, Quote, PanelRightClose, PanelRightOpen } from 'lucide-svelte'
 
   type RendererKind = 'pdf' | 'docx' | 'sheet' | 'md' | 'rtf' | 'text' | 'unsupported'
 
@@ -130,8 +130,22 @@
 {#if docViewer.open}
   <aside
     class="relative shrink-0 h-full flex flex-col border-l border-(--color-surface-200) bg-(--color-surface-0)"
-    style:width="{docViewer.width}px"
+    style:width={docViewer.collapsed ? '38px' : `${docViewer.width}px`}
   >
+    {#if docViewer.collapsed}
+      <!-- collapsed: a thin strip; click to restore the previous width -->
+      <button
+        type="button"
+        onclick={() => docViewer.toggleCollapse()}
+        aria-label={i18n.t('DocViewer.expand')}
+        title={i18n.t('DocViewer.expand')}
+        class="h-full w-full flex items-start justify-center pt-2.5
+               text-(--color-text-secondary) hover:text-(--color-text-primary)
+               hover:bg-(--color-hover-bg)"
+      >
+        <PanelRightOpen size={16} />
+      </button>
+    {:else}
     <!-- resize grip -->
     <div
       role="separator"
@@ -144,6 +158,16 @@
 
     <!-- tab bar -->
     <div class="flex items-stretch shrink-0 border-b border-(--color-surface-200) bg-(--color-surface-50)">
+      <button
+        type="button"
+        onclick={() => docViewer.toggleCollapse()}
+        aria-label={i18n.t('DocViewer.collapse')}
+        title={i18n.t('DocViewer.collapse')}
+        class="shrink-0 w-9 flex items-center justify-center border-r border-(--color-surface-200)
+               text-(--color-text-secondary) hover:text-(--color-text-primary) hover:bg-(--color-hover-bg)"
+      >
+        <PanelRightClose size={15} />
+      </button>
       <div class="flex-1 min-w-0 flex items-stretch overflow-x-auto">
         {#each docViewer.tabs as tab (tab.id)}
           <div
@@ -256,6 +280,7 @@
           {/if}
         {/if}
       </div>
+    {/if}
     {/if}
   </aside>
 {/if}

@@ -479,7 +479,9 @@
     "version": "Version",
     "closeTab": "Fermer l'onglet",
     "closeAll": "Tout fermer",
-    "unsupported": "Ce format de fichier ne peut pas être prévisualisé. Utilisez Télécharger pour l'ouvrir."
+    "unsupported": "Ce format de fichier ne peut pas être prévisualisé. Utilisez Télécharger pour l'ouvrir.",
+    "collapse": "Réduire la vue du document",
+    "expand": "Agrandir la vue du document"
   },
   "DocumentSupport": {
     "noticeTitle": "Ce qui est indexé",

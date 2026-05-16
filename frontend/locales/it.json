@@ -479,7 +479,9 @@
     "version": "Versione",
     "closeTab": "Chiudi scheda",
     "closeAll": "Chiudi tutto",
-    "unsupported": "Questo formato di file non può essere visualizzato. Usa Scarica per aprirlo."
+    "unsupported": "Questo formato di file non può essere visualizzato. Usa Scarica per aprirlo.",
+    "collapse": "Comprimi la vista documento",
+    "expand": "Espandi la vista documento"
   },
   "DocumentSupport": {
     "noticeTitle": "Cosa viene indicizzato",
