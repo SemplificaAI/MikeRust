@@ -229,6 +229,14 @@ const T = {
   'Settings.followSystemPrompt': { en: 'Follow the system prompt to continue.', it: 'Segui la richiesta di sistema per continuare.', fr: "Suivez l'invite du système pour continuer.", de: 'Folgen Sie der Systemaufforderung, um fortzufahren.', es: 'Sigue la indicación del sistema para continuar.', pt: 'Siga a solicitação do sistema para continuar.' },
   'Settings.biometricVerifyAria': { en: 'Biometric verification', it: 'Verifica biometrica', fr: 'Vérification biométrique', de: 'Biometrische Überprüfung', es: 'Verificación biométrica', pt: 'Verificação biométrica' },
 
+  // Keys added with the workflow editor.
+  'Workflows.savedStatus': { en: 'Saved', it: 'Salvato', fr: 'Enregistré', de: 'Gespeichert', es: 'Guardado', pt: 'Guardado' },
+  'Workflows.readOnly': { en: 'Read-only', it: 'Sola lettura', fr: 'Lecture seule', de: 'Schreibgeschützt', es: 'Solo lectura', pt: 'Apenas leitura' },
+  'Workflows.deletedToast': { en: 'Workflow deleted', it: 'Workflow eliminato', fr: 'Workflow supprimé', de: 'Workflow gelöscht', es: 'Flujo de trabajo eliminado', pt: 'Fluxo de trabalho eliminado' },
+  'Workflows.deleteConfirmTitle': { en: 'Delete workflow?', it: 'Eliminare il workflow?', fr: 'Supprimer le workflow ?', de: 'Workflow löschen?', es: '¿Eliminar el flujo de trabajo?', pt: 'Eliminar o fluxo de trabalho?' },
+  'Workflows.deleteConfirmBody': { en: '"{title}" will be permanently deleted.', it: '"{title}" verrà eliminato definitivamente.', fr: '« {title} » sera supprimé définitivement.', de: '„{title}“ wird endgültig gelöscht.', es: '«{title}» se eliminará de forma permanente.', pt: '“{title}” será eliminado definitivamente.' },
+  'Workflows.columnFormat': { en: 'Format', it: 'Formato', fr: 'Format', de: 'Format', es: 'Formato', pt: 'Formato' },
+
   // Keys added with the project detail view.
   'Projects.isolationLabel': { en: 'Retrieval scope', it: 'Ambito di recupero', fr: 'Périmètre de recherche', de: 'Abrufbereich', es: 'Ámbito de recuperación', pt: 'Âmbito de recuperação' },
   'Projects.isolationShared': { en: 'Shared — global + project', it: 'Condiviso — globale + progetto', fr: 'Partagé — global + projet', de: 'Geteilt — global + Projekt', es: 'Compartido — global + proyecto', pt: 'Partilhado — global + projeto' },

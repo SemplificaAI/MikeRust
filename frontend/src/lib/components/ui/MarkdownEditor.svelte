@@ -13,6 +13,8 @@
     placeholder?: string
     minHeight?: string
     class?: string
+    /** Fired on any value change (typing or toolbar insertion). */
+    oninput?: () => void
   }
 
   let {
@@ -20,6 +22,7 @@
     placeholder = '',
     minHeight = '260px',
     class: extraClass = '',
+    oninput,
   }: Props = $props()
 
   let ta: HTMLTextAreaElement | undefined = $state()
@@ -77,7 +80,10 @@
         type="button"
         title={tool.label}
         aria-label={tool.label}
-        onclick={tool.run}
+        onclick={() => {
+          tool.run()
+          oninput?.()
+        }}
         class="inline-flex h-7 w-7 items-center justify-center rounded-(--radius-sm)
                text-(--color-text-secondary) hover:bg-(--color-hover-bg) hover:text-(--color-text-primary)
                focus:outline-none focus-visible:ring-2 focus-visible:ring-(--color-brand-500)"
@@ -90,6 +96,7 @@
   <textarea
     bind:this={ta}
     bind:value
+    oninput={() => oninput?.()}
     {placeholder}
     style:min-height={minHeight}
     class="w-full block resize-y px-3 py-2.5 text-sm leading-relaxed

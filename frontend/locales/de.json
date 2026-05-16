@@ -657,7 +657,13 @@
     "hiddenToast": "„{title}“ ausgeblendet",
     "updateError": "Workflow konnte nicht aktualisiert werden",
     "columnsEmptyHint": "Fügen Sie Spalten hinzu, um festzulegen, was dieser tabellarische Prüf-Workflow aus jedem Dokument extrahiert.",
-    "columnPromptPlaceholder": "Schreiben Sie den Analyse-Prompt — beschreiben Sie, was aus jedem Dokument für diese Spalte extrahiert werden soll…"
+    "columnPromptPlaceholder": "Schreiben Sie den Analyse-Prompt — beschreiben Sie, was aus jedem Dokument für diese Spalte extrahiert werden soll…",
+    "savedStatus": "Gespeichert",
+    "readOnly": "Schreibgeschützt",
+    "deletedToast": "Workflow gelöscht",
+    "deleteConfirmTitle": "Workflow löschen?",
+    "deleteConfirmBody": "„{title}“ wird endgültig gelöscht.",
+    "columnFormat": "Format"
   },
   "TabularReviews": {
     "title": "Tabellarische Auswertungen",

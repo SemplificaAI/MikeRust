@@ -657,7 +657,13 @@
     "hiddenToast": "« {title} » masqué",
     "updateError": "Impossible de mettre à jour le workflow",
     "columnsEmptyHint": "Ajoutez des colonnes pour définir ce que ce workflow de revue tabulaire extrait de chaque document.",
-    "columnPromptPlaceholder": "Rédigez le prompt d'analyse — décrivez ce qui doit être extrait de chaque document pour cette colonne…"
+    "columnPromptPlaceholder": "Rédigez le prompt d'analyse — décrivez ce qui doit être extrait de chaque document pour cette colonne…",
+    "savedStatus": "Enregistré",
+    "readOnly": "Lecture seule",
+    "deletedToast": "Workflow supprimé",
+    "deleteConfirmTitle": "Supprimer le workflow ?",
+    "deleteConfirmBody": "« {title} » sera supprimé définitivement.",
+    "columnFormat": "Format"
   },
   "TabularReviews": {
     "title": "Revues tabulaires",

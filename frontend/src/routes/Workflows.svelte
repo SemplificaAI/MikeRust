@@ -14,6 +14,7 @@
   import IconButton from '$lib/components/ui/IconButton.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import WorkflowModal from '$lib/components/workflow/WorkflowModal.svelte'
+  import WorkflowEditor from '$lib/components/workflow/WorkflowEditor.svelte'
   import { workflowStore } from '$lib/stores/workflows.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -25,6 +26,7 @@
   let activeTab = $state<TabId>('all')
   let domainFilter = $state<string>('')
   let modalOpen = $state(false)
+  let editId = $state<string | null>(null)
 
   $effect(() => {
     void workflowStore.refresh()
@@ -85,6 +87,13 @@
   }
 </script>
 
+{#if editId}
+  <WorkflowEditor
+    id={editId}
+    onback={() => { editId = null; void workflowStore.refresh() }}
+    ondeleted={() => { editId = null; void workflowStore.refresh() }}
+  />
+{:else}
 <div class="max-w-4xl mx-auto p-8 space-y-5">
   <header class="flex items-end justify-between gap-4">
     <div class="space-y-1">
@@ -132,7 +141,7 @@
                  bg-(--color-surface-0) border border-(--color-surface-200)
                  rounded-(--radius-md)"
         >
-          <div class="flex-1 min-w-0">
+          <button type="button" class="flex-1 min-w-0 text-left" onclick={() => (editId = w.id)}>
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium text-(--color-text-primary) truncate">
                 {w.title}
@@ -144,7 +153,7 @@
             {#if w.practice}
               <p class="text-xs text-(--color-text-secondary) truncate">{w.practice}</p>
             {/if}
-          </div>
+          </button>
 
           <Badge tone={w.type === 'assistant' ? 'assistant' : 'tabular'}>
             {w.type === 'assistant' ? t('Workflows.typeAssistant') : t('Workflows.typeTabular')}
@@ -179,5 +188,12 @@
     </ul>
   {/if}
 </div>
+{/if}
 
-<WorkflowModal bind:open={modalOpen} onsuccess={() => workflowStore.refresh()} />
+<WorkflowModal
+  bind:open={modalOpen}
+  onsuccess={(createdId) => {
+    void workflowStore.refresh()
+    if (createdId) editId = createdId
+  }}
+/>

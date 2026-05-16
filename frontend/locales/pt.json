@@ -657,7 +657,13 @@
     "hiddenToast": "“{title}” ocultado",
     "updateError": "Não foi possível atualizar o fluxo de trabalho",
     "columnsEmptyHint": "Adicione colunas para definir o que este fluxo de revisão tabular extrai de cada documento.",
-    "columnPromptPlaceholder": "Escreva o prompt de análise — descreva o que deve ser extraído de cada documento para esta coluna…"
+    "columnPromptPlaceholder": "Escreva o prompt de análise — descreva o que deve ser extraído de cada documento para esta coluna…",
+    "savedStatus": "Guardado",
+    "readOnly": "Apenas leitura",
+    "deletedToast": "Fluxo de trabalho eliminado",
+    "deleteConfirmTitle": "Eliminar o fluxo de trabalho?",
+    "deleteConfirmBody": "“{title}” será eliminado definitivamente.",
+    "columnFormat": "Formato"
   },
   "TabularReviews": {
     "title": "Análises tabulares",

@@ -692,7 +692,13 @@
     "hiddenToast": "\"{title}\" nascosto",
     "updateError": "Impossibile aggiornare il workflow",
     "columnsEmptyHint": "Aggiungi colonne per definire cosa questo workflow di revisione tabellare estrae da ogni documento.",
-    "columnPromptPlaceholder": "Scrivi il prompt di analisi — descrivi cosa estrarre da ogni documento per questa colonna…"
+    "columnPromptPlaceholder": "Scrivi il prompt di analisi — descrivi cosa estrarre da ogni documento per questa colonna…",
+    "savedStatus": "Salvato",
+    "readOnly": "Sola lettura",
+    "deletedToast": "Workflow eliminato",
+    "deleteConfirmTitle": "Eliminare il workflow?",
+    "deleteConfirmBody": "\"{title}\" verrà eliminato definitivamente.",
+    "columnFormat": "Formato"
   },
   "TabularReviews": {
     "title": "Revisioni tabellari",

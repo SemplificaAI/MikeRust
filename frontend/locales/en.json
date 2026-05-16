@@ -692,7 +692,13 @@
     "hiddenToast": "\"{title}\" hidden",
     "updateError": "Could not update workflow",
     "columnsEmptyHint": "Add columns to define what this tabular review workflow extracts from each document.",
-    "columnPromptPlaceholder": "Write the analysis prompt — describe what should be extracted from each document for this column…"
+    "columnPromptPlaceholder": "Write the analysis prompt — describe what should be extracted from each document for this column…",
+    "savedStatus": "Saved",
+    "readOnly": "Read-only",
+    "deletedToast": "Workflow deleted",
+    "deleteConfirmTitle": "Delete workflow?",
+    "deleteConfirmBody": "\"{title}\" will be permanently deleted.",
+    "columnFormat": "Format"
   },
   "TabularReviews": {
     "title": "Tabular reviews",

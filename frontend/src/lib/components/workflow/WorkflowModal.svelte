@@ -30,7 +30,7 @@
 
   interface Props {
     open?: boolean
-    onsuccess: () => void
+    onsuccess: (createdId?: string) => void
   }
 
   let { open = $bindable(false), onsuccess }: Props = $props()
@@ -126,9 +126,9 @@
           })
         )
       }
-      await workflowsApi.create(payload)
+      const created = await workflowsApi.create(payload)
       open = false
-      onsuccess()
+      onsuccess(created?.id)
     } catch (e) {
       formError = e instanceof ApiError ? e.detail : (e as Error).message
     } finally {
