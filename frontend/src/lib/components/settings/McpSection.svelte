@@ -19,6 +19,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
   import { mcpStore } from '$lib/stores/mcp.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
   import { ApiError } from '$lib/types/error'
   import type { McpServer } from '$lib/types/user'
   import type { McpProbeResult } from '$lib/api/user'
@@ -94,7 +95,9 @@
         api_key: fKey.trim() || undefined,
         enabled: fEnabled,
       })
-      toastStore.success(editingName ? 'Server updated' : 'Server added')
+      toastStore.success(
+        editingName ? i18n.t('Settings.serverUpdated') : i18n.t('Settings.serverAdded')
+      )
       formOpen = false
     } catch (e) {
       formError = e instanceof ApiError ? e.detail : (e as Error).message
@@ -113,7 +116,7 @@
         enabled: next,
       })
     } catch (e) {
-      toastStore.danger('Could not update server', { detail: (e as Error).message })
+      toastStore.danger(i18n.t('Settings.serverUpdateError'), { detail: (e as Error).message })
     }
   }
 
@@ -121,9 +124,9 @@
     if (!deleteTarget) return
     try {
       await mcpStore.remove(deleteTarget)
-      toastStore.info('Server removed')
+      toastStore.info(i18n.t('Settings.serverRemoved'))
     } catch (e) {
-      toastStore.danger('Could not remove server', { detail: (e as Error).message })
+      toastStore.danger(i18n.t('Settings.serverRemoveError'), { detail: (e as Error).message })
     } finally {
       // open is passed one-way (open={deleteTarget !== null}); clearing
       // the target here is what actually closes the dialog.
@@ -134,25 +137,27 @@
 
 <Card>
   {#snippet header()}
-    <h3 class="text-sm font-semibold text-(--color-text-primary)">MCP servers</h3>
-    <Button size="sm" onclick={openAdd}>Add server</Button>
+    <h3 class="text-sm font-semibold text-(--color-text-primary)">{i18n.t('Settings.mcpServers')}</h3>
+    <Button size="sm" onclick={openAdd}>{i18n.t('Settings.addServer')}</Button>
   {/snippet}
 
   {#if mcpStore.loading}
     <div class="flex items-center gap-2 text-sm text-(--color-text-secondary) py-6 justify-center">
       <Spinner size="sm" />
-      Loading servers…
+      {i18n.t('Settings.loadingServers')}
     </div>
   {:else if mcpStore.error}
-    <EmptyState title="Could not load MCP servers" description={mcpStore.error}>
+    <EmptyState title={i18n.t('Settings.loadServersError')} description={mcpStore.error}>
       {#snippet action()}
-        <Button size="sm" variant="secondary" onclick={() => mcpStore.refresh()}>Retry</Button>
+        <Button size="sm" variant="secondary" onclick={() => mcpStore.refresh()}>
+          {i18n.t('Common.retry')}
+        </Button>
       {/snippet}
     </EmptyState>
   {:else if mcpStore.servers.length === 0}
     <EmptyState
-      title="No MCP servers"
-      description="Connect a Model Context Protocol server to give the assistant extra tools."
+      title={i18n.t('Settings.noServers')}
+      description={i18n.t('Settings.noServersHint')}
     />
   {:else}
     <ul class="flex flex-col gap-2">
@@ -172,11 +177,11 @@
             checked={s.enabled}
             onchange={(v) => toggleEnabled(s, v)}
           />
-          <IconButton label="Edit server" size="sm" onclick={() => openEdit(s)}>
+          <IconButton label={i18n.t('Settings.editServer')} size="sm" onclick={() => openEdit(s)}>
             <Pencil size={14} />
           </IconButton>
           <IconButton
-            label="Remove server"
+            label={i18n.t('Settings.removeServer')}
             size="sm"
             variant="danger"
             onclick={() => (deleteTarget = s.name)}
@@ -189,17 +194,21 @@
   {/if}
 </Card>
 
-<Modal bind:open={formOpen} title={editingName ? 'Edit MCP server' : 'Add MCP server'} size="md">
+<Modal
+  bind:open={formOpen}
+  title={editingName ? i18n.t('Settings.editServerTitle') : i18n.t('Settings.addServerTitle')}
+  size="md"
+>
   <div class="space-y-3">
-    <Input label="Name" bind:value={fName} disabled={!!editingName} placeholder="my-server" />
-    <Input label="URL" bind:value={fUrl} placeholder="https://example.com/mcp" />
+    <Input label={i18n.t('Common.name')} bind:value={fName} disabled={!!editingName} placeholder="my-server" />
+    <Input label={i18n.t('Settings.url')} bind:value={fUrl} placeholder="https://example.com/mcp" />
     <Input
-      label="API key (optional)"
+      label={i18n.t('Settings.apiKeyOptional')}
       type="password"
       bind:value={fKey}
       autocomplete="off"
     />
-    <Checkbox label="Enabled" bind:checked={fEnabled} />
+    <Checkbox label={i18n.t('Settings.enabled')} bind:checked={fEnabled} />
 
     <div class="flex items-center gap-2 pt-1">
       <Button
@@ -209,10 +218,10 @@
         disabled={fUrl.trim().length === 0 || probing}
         onclick={runProbe}
       >
-        Test connection
+        {i18n.t('Settings.testConnection')}
       </Button>
       <span class="text-xs text-(--color-text-secondary)">
-        Auto-detects the transport (HTTP / SSE).
+        {i18n.t('Settings.transportHint')}
       </span>
     </div>
 
@@ -222,21 +231,24 @@
       <div class="text-xs rounded-(--radius-md) bg-(--color-surface-50) border border-(--color-surface-200) p-3 space-y-1">
         {#if probeResult.ok}
           <p class="text-(--color-success-500) font-medium">
-            Connected · transport: {probeResult.transport_detected}
+            {i18n.t('Settings.probeConnected', { transport: probeResult.transport_detected ?? '' })}
           </p>
           <p class="text-(--color-text-secondary)">
-            {probeResult.tool_count ?? 0} tools ·
-            {probeResult.prompt_count ?? 0} prompts ·
-            {probeResult.resource_count ?? 0} resources
+            {i18n.t('Settings.probeCounts', {
+              tools: probeResult.tool_count ?? 0,
+              prompts: probeResult.prompt_count ?? 0,
+              resources: probeResult.resource_count ?? 0,
+            })}
           </p>
           {#if probeResult.suggested_url}
             <p class="text-(--color-text-secondary)">
-              Discovered path: <span class="font-mono">{probeResult.suggested_url}</span>
+              {i18n.t('Settings.probeDiscoveredPath')}
+              <span class="font-mono">{probeResult.suggested_url}</span>
             </p>
           {/if}
         {:else}
           <p class="text-(--color-warning-500) font-medium">
-            transport: {probeResult.transport_detected}
+            {i18n.t('Settings.probeTransport', { transport: probeResult.transport_detected ?? '' })}
           </p>
           {#if probeResult.hint}<p class="text-(--color-text-secondary)">{probeResult.hint}</p>{/if}
         {/if}
@@ -249,18 +261,18 @@
   </div>
 
   {#snippet footer()}
-    <Button variant="ghost" onclick={() => (formOpen = false)}>Cancel</Button>
+    <Button variant="ghost" onclick={() => (formOpen = false)}>{i18n.t('Common.cancel')}</Button>
     <Button loading={saving} disabled={!canSave} onclick={save}>
-      {editingName ? 'Save' : 'Add server'}
+      {editingName ? i18n.t('Common.save') : i18n.t('Settings.addServer')}
     </Button>
   {/snippet}
 </Modal>
 
 <ConfirmDialog
   open={deleteTarget !== null}
-  title="Remove MCP server?"
-  message={`"${deleteTarget}" will be removed. The assistant loses access to its tools.`}
-  confirmLabel="Remove"
+  title={i18n.t('Settings.removeServerConfirmTitle')}
+  message={i18n.t('Settings.removeServerConfirmBody', { name: deleteTarget ?? '' })}
+  confirmLabel={i18n.t('Settings.remove')}
   danger
   onconfirm={confirmDelete}
   oncancel={() => (deleteTarget = null)}

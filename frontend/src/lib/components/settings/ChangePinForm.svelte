@@ -6,6 +6,7 @@
   import { isValidPinFormat, PIN_MIN_LENGTH, PIN_MAX_LENGTH } from '$lib/types/auth'
   import { ApiError } from '$lib/types/error'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
 
   let currentPin = $state('')
   let newPin = $state('')
@@ -15,12 +16,13 @@
 
   const newPinError = $derived.by(() => {
     if (newPin.length === 0) return undefined
-    if (!isValidPinFormat(newPin)) return `PIN must be ${PIN_MIN_LENGTH}–${PIN_MAX_LENGTH} digits`
+    if (!isValidPinFormat(newPin))
+      return i18n.t('Auth.pinFormat', { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH })
     return undefined
   })
   const confirmError = $derived.by(() => {
     if (confirmPin.length === 0) return undefined
-    if (confirmPin !== newPin) return 'PINs do not match'
+    if (confirmPin !== newPin) return i18n.t('Auth.pinMismatch')
     return undefined
   })
   const canSubmit = $derived(
@@ -37,7 +39,7 @@
     formError = null
     try {
       await authApi.changePin(currentPin, newPin)
-      toastStore.success('PIN changed')
+      toastStore.success(i18n.t('Settings.pinChanged'))
       currentPin = ''
       newPin = ''
       confirmPin = ''
@@ -51,7 +53,7 @@
 
 <form class="space-y-4 max-w-sm" onsubmit={submit}>
   <Input
-    label="Current PIN"
+    label={i18n.t('Account.currentPin')}
     type="password"
     bind:value={currentPin}
     inputmode="numeric"
@@ -59,7 +61,7 @@
     autocomplete="current-password"
   />
   <Input
-    label="New PIN"
+    label={i18n.t('Account.newPin')}
     type="password"
     bind:value={newPin}
     inputmode="numeric"
@@ -68,7 +70,7 @@
     autocomplete="new-password"
   />
   <Input
-    label="Confirm new PIN"
+    label={i18n.t('Account.confirmNewPin')}
     type="password"
     bind:value={confirmPin}
     inputmode="numeric"
@@ -79,5 +81,7 @@
   {#if formError}
     <p class="text-sm text-(--color-danger-500)">{formError}</p>
   {/if}
-  <Button type="submit" loading={submitting} disabled={!canSubmit}>Change PIN</Button>
+  <Button type="submit" loading={submitting} disabled={!canSubmit}>
+    {i18n.t('Account.changePin')}
+  </Button>
 </form>

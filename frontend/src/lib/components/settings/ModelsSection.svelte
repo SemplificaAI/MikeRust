@@ -64,6 +64,7 @@
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import { modelsStore } from '$lib/stores/models.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
 
   let form = $state<LlmForm>(toForm({}))
   let initialized = $state(false)
@@ -87,7 +88,7 @@
   function modelOptions(providerId: string) {
     const p = modelsStore.providerById(providerId)
     return [
-      { value: '', label: '— select a model —' },
+      { value: '', label: i18n.t('Settings.selectModel') },
       ...(p?.models ?? []).map((m) => ({
         value: m.id,
         label: m.preview ? `${m.display_name} (preview)` : m.display_name,
@@ -117,7 +118,7 @@
   // carry the dispatch prefix the backend expects: openai:/mistral: for
   // those providers, bare id for Claude/Gemini.
   const roleOptions = $derived([
-    { value: '', label: '— not set —' },
+    { value: '', label: i18n.t('Settings.notSet') },
     ...modelsStore.allModels
       .filter((m) => configuredProviders.has(m.providerId))
       .map((m) => ({
@@ -131,20 +132,20 @@
       })),
   ])
 
-  const providerChips = [
+  const providerChips = $derived([
     { value: 'anthropic', label: 'Anthropic' },
     { value: 'google', label: 'Google' },
     { value: 'openai', label: 'OpenAI' },
     { value: 'mistral', label: 'Mistral' },
-    { value: 'local', label: 'Local' },
-  ]
+    { value: 'local', label: i18n.t('Settings.providerLocal') },
+  ])
 
   async function save() {
     try {
       await modelsStore.save({ ...form })
-      toastStore.success('LLM settings saved')
+      toastStore.success(i18n.t('Settings.llmSettingsSaved'))
     } catch (e) {
-      toastStore.danger('Could not save LLM settings', { detail: (e as Error).message })
+      toastStore.danger(i18n.t('Settings.llmSettingsError'), { detail: (e as Error).message })
     }
   }
 </script>
@@ -152,17 +153,19 @@
 {#if modelsStore.loading && !initialized}
   <div class="flex items-center gap-2 text-sm text-(--color-text-secondary) py-12 justify-center">
     <Spinner size="sm" />
-    Loading model catalogue…
+    {i18n.t('Settings.loadingCatalogue')}
   </div>
 {:else if modelsStore.error && !initialized}
-  <EmptyState title="Could not load models" description={modelsStore.error}>
+  <EmptyState title={i18n.t('Settings.loadModelsError')} description={modelsStore.error}>
     {#snippet action()}
-      <Button size="sm" variant="secondary" onclick={() => modelsStore.load()}>Retry</Button>
+      <Button size="sm" variant="secondary" onclick={() => modelsStore.load()}>
+        {i18n.t('Common.retry')}
+      </Button>
     {/snippet}
   </EmptyState>
 {:else}
   <div class="space-y-4">
-    <Card title="Active provider" subtitle="Which provider the assistant uses by default">
+    <Card title={i18n.t('Settings.activeProvider')} subtitle={i18n.t('Settings.activeProviderHint')}>
       <ChipGroup
         chips={providerChips}
         selected={form.active_provider}
@@ -174,11 +177,11 @@
       {#snippet header()}
         <div class="flex items-center gap-2">
           <h3 class="text-sm font-semibold text-(--color-text-primary)">Anthropic (Claude)</h3>
-          {#if keySet(form.claude_api_key)}<Badge tone="success" size="xs">key set</Badge>{/if}
+          {#if keySet(form.claude_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
         </div>
       {/snippet}
       <Input
-        label="API key"
+        label={i18n.t('Settings.apiKey')}
         type="password"
         bind:value={form.claude_api_key}
         placeholder="sk-ant-…"
@@ -190,7 +193,7 @@
       {#snippet header()}
         <div class="flex items-center gap-2">
           <h3 class="text-sm font-semibold text-(--color-text-primary)">Google Gemini</h3>
-          {#if keySet(form.gemini_api_key)}<Badge tone="success" size="xs">key set</Badge>{/if}
+          {#if keySet(form.gemini_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
         </div>
       {/snippet}
       <div class="space-y-3">
@@ -202,8 +205,8 @@
           autocomplete="off"
         />
         <div class="grid grid-cols-2 gap-3">
-          <Select label="Model" options={modelOptions('google')} bind:value={form.gemini_model} />
-          <Select label="Region" options={regionOptions} bind:value={form.gemini_region} />
+          <Select label={i18n.t('Settings.model')} options={modelOptions('google')} bind:value={form.gemini_model} />
+          <Select label={i18n.t('Settings.region')} options={regionOptions} bind:value={form.gemini_region} />
         </div>
       </div>
     </Card>
@@ -212,7 +215,7 @@
       {#snippet header()}
         <div class="flex items-center gap-2">
           <h3 class="text-sm font-semibold text-(--color-text-primary)">OpenAI</h3>
-          {#if keySet(form.openai_api_key)}<Badge tone="success" size="xs">key set</Badge>{/if}
+          {#if keySet(form.openai_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
         </div>
       {/snippet}
       <div class="space-y-3">
@@ -223,7 +226,7 @@
           placeholder="sk-…"
           autocomplete="off"
         />
-        <Select label="Model" options={modelOptions('openai')} bind:value={form.openai_model} />
+        <Select label={i18n.t('Settings.model')} options={modelOptions('openai')} bind:value={form.openai_model} />
       </div>
     </Card>
 
@@ -231,7 +234,7 @@
       {#snippet header()}
         <div class="flex items-center gap-2">
           <h3 class="text-sm font-semibold text-(--color-text-primary)">Mistral AI</h3>
-          {#if keySet(form.mistral_api_key)}<Badge tone="success" size="xs">key set</Badge>{/if}
+          {#if keySet(form.mistral_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
         </div>
       {/snippet}
       <div class="space-y-3">
@@ -241,22 +244,22 @@
           bind:value={form.mistral_api_key}
           autocomplete="off"
         />
-        <Select label="Model" options={modelOptions('mistral')} bind:value={form.mistral_model} />
+        <Select label={i18n.t('Settings.model')} options={modelOptions('mistral')} bind:value={form.mistral_model} />
       </div>
     </Card>
 
-    <Card title="Local (OpenAI-compatible)">
+    <Card title={i18n.t('Settings.localProvider')}>
       <div class="space-y-3">
         <Input
-          label="Base URL"
+          label={i18n.t('Settings.baseUrl')}
           bind:value={form.local_base_url}
           placeholder="http://127.0.0.1:11434/v1"
           autocomplete="off"
         />
         <div class="grid grid-cols-2 gap-3">
-          <Input label="Model" bind:value={form.local_model} placeholder="e.g. llama3.1" />
+          <Input label={i18n.t('Settings.model')} bind:value={form.local_model} placeholder={i18n.t('Settings.modelPlaceholder')} />
           <Input
-            label="API key (optional)"
+            label={i18n.t('Settings.apiKeyOptional')}
             type="password"
             bind:value={form.local_api_key}
             autocomplete="off"
@@ -265,17 +268,17 @@
       </div>
     </Card>
 
-    <Card title="Model roles" subtitle="Which model handles each task">
+    <Card title={i18n.t('Settings.modelRoles')} subtitle={i18n.t('Settings.modelRolesHint')}>
       <div class="grid grid-cols-3 gap-3">
-        <Select label="Main" options={roleOptions} bind:value={form.main_model} />
-        <Select label="Chat titles" options={roleOptions} bind:value={form.title_model} />
-        <Select label="Tabular review" options={roleOptions} bind:value={form.tabular_model} />
+        <Select label={i18n.t('Settings.roleMain')} options={roleOptions} bind:value={form.main_model} />
+        <Select label={i18n.t('Settings.roleTitles')} options={roleOptions} bind:value={form.title_model} />
+        <Select label={i18n.t('Settings.roleTabular')} options={roleOptions} bind:value={form.tabular_model} />
       </div>
     </Card>
 
     <div class="flex justify-end">
       <Button disabled={!dirty} loading={modelsStore.saving} onclick={save}>
-        Save changes
+        {i18n.t('Settings.saveChanges')}
       </Button>
     </div>
   </div>

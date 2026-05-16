@@ -6,6 +6,7 @@
   import Button from '$lib/components/ui/Button.svelte'
   import { userStore } from '$lib/stores/user.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel } from '$lib/types/domain'
   import { LOCALES, type Locale } from '$lib/types/user'
   import type { Domain } from '$lib/types/domain'
@@ -33,9 +34,9 @@
     savingName = true
     try {
       await userStore.setDisplayName(displayName.trim() || null)
-      toastStore.success('Display name updated')
+      toastStore.success(i18n.t('Settings.displayNameSaved'))
     } catch (e) {
-      toastStore.danger('Could not update name', { detail: (e as Error).message })
+      toastStore.danger(i18n.t('Settings.displayNameError'), { detail: (e as Error).message })
     } finally {
       savingName = false
     }
@@ -44,27 +45,27 @@
   async function changeLocale(next: Locale) {
     try {
       await userStore.setLocale(next)
-      toastStore.success('Language updated')
+      toastStore.success(i18n.t('Account.savedLanguage'))
     } catch (e) {
-      toastStore.danger('Could not update language', { detail: (e as Error).message })
+      toastStore.danger(i18n.t('Settings.languageError'), { detail: (e as Error).message })
     }
   }
 
   async function changeDomain(next: Domain) {
     try {
       await userStore.setDefaultDomain(next)
-      toastStore.success('Default domain updated')
+      toastStore.success(i18n.t('Settings.domainSaved'))
     } catch (e) {
-      toastStore.danger('Could not update domain', { detail: (e as Error).message })
+      toastStore.danger(i18n.t('Settings.domainError'), { detail: (e as Error).message })
     }
   }
 </script>
 
 <div class="space-y-4">
-  <Card title="Profile">
+  <Card title={i18n.t('Account.profile')}>
     <div class="space-y-4">
       <div class="grid grid-cols-[140px_1fr] items-center gap-3">
-        <span class="text-sm text-(--color-text-secondary)">Username</span>
+        <span class="text-sm text-(--color-text-secondary)">{i18n.t('Account.username')}</span>
         <span class="text-sm font-mono text-(--color-text-primary)">
           {userStore.profile?.username ?? '—'}
         </span>
@@ -72,19 +73,19 @@
 
       <div class="flex items-end gap-2">
         <Input
-          label="Display name"
+          label={i18n.t('Account.displayName')}
           bind:value={displayName}
-          placeholder="Shown in the greeting"
+          placeholder={i18n.t('Account.displayNamePlaceholder')}
           class="flex-1"
         />
         <Button size="md" disabled={!nameDirty} loading={savingName} onclick={saveName}>
-          Save
+          {i18n.t('Common.save')}
         </Button>
       </div>
 
       {#if userStore.profile?.created_at}
         <div class="grid grid-cols-[140px_1fr] items-center gap-3">
-          <span class="text-sm text-(--color-text-secondary)">Created</span>
+          <span class="text-sm text-(--color-text-secondary)">{i18n.t('Settings.createdLabel')}</span>
           <span class="text-sm text-(--color-text-primary)">
             {new Date(userStore.profile.created_at).toLocaleDateString()}
           </span>
@@ -93,24 +94,23 @@
     </div>
   </Card>
 
-  <Card title="Preferences">
+  <Card title={i18n.t('Settings.preferences')}>
     <div class="grid grid-cols-2 gap-4">
       <Select
-        label="Language"
+        label={i18n.t('Account.language')}
         options={localeOptions}
         value={userStore.locale}
         onchange={(e) => changeLocale((e.currentTarget as HTMLSelectElement).value as Locale)}
       />
       <Select
-        label="Default domain"
+        label={i18n.t('Settings.defaultDomain')}
         options={domainOptions}
         value={userStore.defaultDomain}
         onchange={(e) => changeDomain((e.currentTarget as HTMLSelectElement).value as Domain)}
       />
     </div>
     <p class="text-xs text-(--color-text-secondary) mt-3">
-      The default domain pre-selects the professional vertical in the create
-      dialogs for workflows, projects and reviews.
+      {i18n.t('Settings.defaultDomainHint')}
     </p>
   </Card>
 </div>

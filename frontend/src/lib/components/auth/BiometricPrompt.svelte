@@ -7,13 +7,15 @@
 -->
 <script lang="ts">
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
 
   interface Props {
     open: boolean
     reason?: string
   }
 
-  let { open, reason = 'Verifying your identity…' }: Props = $props()
+  let { open, reason }: Props = $props()
+  const displayReason = $derived(reason ?? i18n.t('Settings.verifyingIdentity'))
 </script>
 
 {#if open}
@@ -21,7 +23,7 @@
     class="fixed inset-0 z-[70] flex items-center justify-center
            bg-black/50 backdrop-blur-sm"
     role="alertdialog"
-    aria-label="Biometric verification"
+    aria-label={i18n.t('Settings.biometricVerifyAria')}
     aria-busy="true"
   >
     <div
@@ -40,13 +42,13 @@
         </svg>
       </div>
       <p class="text-sm font-medium text-(--color-text-primary) text-center max-w-xs">
-        {reason}
+        {displayReason}
       </p>
       <div class="text-(--color-brand-500)">
         <Spinner size="sm" />
       </div>
       <p class="text-xs text-(--color-text-secondary) text-center">
-        Follow the system prompt to continue.
+        {i18n.t('Settings.followSystemPrompt')}
       </p>
     </div>
   </div>

@@ -8,6 +8,7 @@
   import { authApi } from '$lib/api/auth'
   import { authStore } from '$lib/stores/auth.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { i18n } from '$lib/stores/i18n.svelte'
   import { ApiError } from '$lib/types/error'
 
   let probing = $state(true)
@@ -37,17 +38,17 @@
         await authApi.biometricEnable()
         enabled = true
         authStore.setBiometricEnrolled(true)
-        toastStore.success('Biometric unlock enabled')
+        toastStore.success(i18n.t('Settings.biometricEnabled'))
       } else {
         await authApi.biometricDisable()
         enabled = false
         authStore.setBiometricEnrolled(false)
-        toastStore.info('Biometric unlock disabled')
+        toastStore.info(i18n.t('Settings.biometricDisabled'))
       }
     } catch (err) {
       // revert the optimistic toggle
       enabled = !next
-      toastStore.danger('Biometric change failed', {
+      toastStore.danger(i18n.t('Settings.biometricChangeError'), {
         detail: err instanceof ApiError ? err.detail : (err as Error).message,
       })
     } finally {
@@ -57,30 +58,30 @@
 </script>
 
 <div class="space-y-4">
-  <Card title="PIN">
+  <Card title={i18n.t('Settings.pin')}>
     <ChangePinForm />
   </Card>
 
-  <Card title="Biometric unlock">
+  <Card title={i18n.t('Settings.biometricUnlock')}>
     {#if probing}
       <div class="flex items-center gap-2 text-sm text-(--color-text-secondary)">
         <Spinner size="sm" />
-        Checking device support…
+        {i18n.t('Settings.checkingDevice')}
       </div>
     {:else if !available}
       <p class="text-sm text-(--color-text-secondary)">
-        No biometric hardware detected on this device (Windows Hello / Touch ID).
+        {i18n.t('Settings.noBiometricHw')}
       </p>
     {:else}
       <Toggle
         checked={enabled}
         disabled={busy}
-        label="Unlock with biometric"
-        description="Use Windows Hello instead of typing your PIN."
+        label={i18n.t('Settings.unlockWithBiometric')}
+        description={i18n.t('Settings.unlockWithBiometricHint')}
         onchange={onToggle}
       />
     {/if}
   </Card>
 </div>
 
-<BiometricPrompt open={busy} reason="Verify to update biometric settings" />
+<BiometricPrompt open={busy} reason={i18n.t('Settings.biometricVerifyReason')} />
