@@ -34,10 +34,13 @@ coverage/
 /frontend/dist
 /frontend/build
 /frontend/.cache
-/frontendMike/out
-/frontendMike/dist
-/frontendMike/build
-/frontendMike/.cache
+
+# ─── Legacy React frontend — no longer part of the repository ───────
+# frontendMike/ (the original Next.js/React frontend, derived from
+# upstream willchen96/mike) has been fully replaced by the clean-room
+# Svelte rewrite in frontend/. It is untracked and ignored; if a copy
+# is still on disk it is for local reference only.
+/frontendMike/
 # Test-runner output (Vitest / Playwright).
 **/playwright-report/
 **/test-results/

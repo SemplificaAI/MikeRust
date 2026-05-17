@@ -41,8 +41,13 @@ tabular reviews, corpora) but rebuilds both halves:
     Tailwind CSS v4**, replacing the original Next.js / React frontend —
     see *Frontend* below.
 
-The legacy React frontend is still in the tree under `frontendMike/` as
-a reference while the Svelte rewrite (`frontend/`) reaches full parity.
+Both halves have now been rebuilt and the repository contains **no
+source code from the original Mike project**. The Rust backend was
+original from the start; the legacy React frontend — the only
+Mike-derived code — has been **removed from the repository** and
+replaced by the clean-room Svelte rewrite in `frontend/`. MikeRust
+remains a fork of an AGPL-3.0 project and ships under AGPL-3.0 (see
+*License*), but no Mike source survives in the tree.
 
 For the original cloud-native upstream, see
 [github.com/willchen96/mike][upstream]. For a different sister fork
@@ -124,20 +129,22 @@ vDOM layer and far less shipped JavaScript.
 
 ### Code independence
 
-`frontend/` (Svelte) and the legacy `frontendMike/` (React, kept in-tree
-only as a behavioural reference) share **no source code**:
+The Rust backend was original from the start — Mike's backend is an
+Express / TypeScript stack, so nothing was carried over. The React
+frontend was the only Mike-derived code in the project, and it has now
+been **removed from the repository**. The Svelte `frontend/` that
+replaced it was verified independent before that removal:
 
-- **Disjoint file formats** — `frontendMike/src` is 106 `.tsx` React
-  components; `frontend/src` is 68 `.svelte` components. A `.tsx` file
-  cannot *be* a `.svelte` file — nothing was copied across.
-- **No identical files** — a SHA-256 comparison of every source file in
-  both trees finds **zero** byte-identical files.
-- **Authorship** — every commit that touches `frontend/` is authored by
-  **Dario Finardi**; the Svelte frontend is entirely his added/modified
-  code.
-- **Dependencies** — the two `package.json` trees overlap only on
-  standard third-party libraries (Tauri API, `pdfjs-dist`, `marked`,
-  Tailwind, TypeScript); no Mike-derived package is reused.
+- it shared **no byte-identical file** with the old React tree — a
+  SHA-256 comparison of every source file in both trees found zero
+  matches;
+- the formats were disjoint — 106 `.tsx` React components versus 68
+  `.svelte` components — so nothing could have been copied across;
+- every commit that touches `frontend/` is authored by **Dario Finardi**.
+
+The repository therefore now holds **no source code from the original
+Mike project** — only original Rust (`src/`, `src-tauri/`) and the
+original, blind-rewritten Svelte frontend (`frontend/`).
 
 ## Quick start
 
