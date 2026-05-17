@@ -467,6 +467,7 @@ async fn translate_prompt(
     let params = StreamParams {
         model: model.clone(),
         system_prompt: system,
+        system_volatile: String::new(),
         messages: vec![Message::user(text.to_string())],
         tools: vec![],
         max_iterations: 1,

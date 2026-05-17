@@ -1917,12 +1917,14 @@ async fn stream_chat_root(
     let mcp_prompt = build_mcp_system_prompt(&mcp_servers);
     let docs_prompt = build_doc_system_prompt(&attached_docs);
     let kb_prompt = build_kb_system_prompt(&kb_chunks);
+    // Stable prefix — identical across the turns of a chat. Sent as a
+    // cacheable block (see StreamParams::system_prompt). The per-query
+    // KB retrieval is deliberately NOT joined here: it changes every
+    // turn and would invalidate the cache, so it travels separately as
+    // the volatile tail.
     let mut sections: Vec<String> = vec![MRUST_SYSTEM_PROMPT.trim().to_string()];
     if !inventory_prompt.is_empty() {
         sections.push(inventory_prompt);
-    }
-    if !kb_prompt.is_empty() {
-        sections.push(kb_prompt);
     }
     if !docs_prompt.is_empty() {
         sections.push(docs_prompt);
@@ -1931,6 +1933,8 @@ async fn stream_chat_root(
         sections.push(mcp_prompt);
     }
     let system_prompt = sections.join("\n\n---\n\n");
+    // Volatile tail — knowledge-base hits for *this* query.
+    let system_volatile = kb_prompt;
     let images = if vision_ok { collect_images(&attached_docs) } else { Vec::new() };
 
     let mut messages = messages;
@@ -1944,12 +1948,13 @@ async fn stream_chat_root(
     }
 
     tracing::info!(
-        "[chat] stream_chat_root: chat_id={chat_id}, model={raw_model}, vision_ok={vision_ok}, local_config_present={}, docs={}, mcp_servers={}, kb_chunks={} (sys_prompt={} chars, images={})",
+        "[chat] stream_chat_root: chat_id={chat_id}, model={raw_model}, vision_ok={vision_ok}, local_config_present={}, docs={}, mcp_servers={}, kb_chunks={} (sys_prompt={} chars cacheable + {} volatile, images={})",
         local_config.is_some(),
         attached_docs.len(),
         mcp_servers.len(),
         kb_chunks.len(),
         system_prompt.len(),
+        system_volatile.len(),
         images.len()
     );
 
@@ -2102,6 +2107,7 @@ async fn stream_chat_root(
             let params = StreamParams {
                 model: raw_model.clone(),
                 system_prompt: system_prompt.clone(),
+                system_volatile: system_volatile.clone(),
                 messages: current_messages.clone(),
                 tools: if tools_supported { all_tools.clone() } else { vec![] },
                 max_iterations: 1,
@@ -3342,6 +3348,7 @@ async fn post_message(
     let params = StreamParams {
         model: model.clone(),
         system_prompt,
+        system_volatile: String::new(),
         messages,
         tools: vec![],
         max_iterations: 1,
@@ -3566,6 +3573,7 @@ async fn generate_title(
     let params = StreamParams {
         model: title_model.clone(),
         system_prompt: String::new(),
+        system_volatile: String::new(),
         messages: vec![Message::user(prompt)],
         tools: vec![],
         max_iterations: 1,

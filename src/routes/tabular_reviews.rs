@@ -426,6 +426,7 @@ async fn extract_cell(
     let params = StreamParams {
         model: model.to_string(),
         system_prompt: system,
+        system_volatile: String::new(),
         messages: vec![Message::user(truncated)],
         tools: vec![],
         max_iterations: 1,

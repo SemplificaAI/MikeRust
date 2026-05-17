@@ -146,7 +146,15 @@ pub struct LocalConfig {
 
 pub struct StreamParams {
     pub model: String,
+    /// Stable system-prompt prefix — identical across the turns of a chat
+    /// (model instructions, attached-document text, tool descriptions).
+    /// Sent as a cacheable block so providers that support prompt caching
+    /// (Anthropic explicit, Gemini implicit) don't re-bill it every turn.
     pub system_prompt: String,
+    /// Volatile system-prompt tail — content that changes per turn (today:
+    /// per-query knowledge-base retrieval). Kept out of the cached prefix
+    /// so it never invalidates the cache. Empty for non-chat callers.
+    pub system_volatile: String,
     pub messages: Vec<Message>,
     pub tools: Vec<ToolSchema>,
     pub max_iterations: u32,
@@ -158,4 +166,18 @@ pub struct StreamParams {
     /// Gemini API calls. None or "global" → public endpoint. Preview models
     /// always force global; the `gemini::base_url` builder enforces this.
     pub gemini_region: Option<String>,
+}
+
+impl StreamParams {
+    /// The full system prompt — stable prefix plus volatile tail — for
+    /// providers that send it as one opaque string (Gemini, local).
+    pub fn full_system(&self) -> String {
+        if self.system_volatile.is_empty() {
+            self.system_prompt.clone()
+        } else if self.system_prompt.is_empty() {
+            self.system_volatile.clone()
+        } else {
+            format!("{}\n\n---\n\n{}", self.system_prompt, self.system_volatile)
+        }
+    }
 }

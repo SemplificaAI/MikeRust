@@ -104,9 +104,14 @@ fn to_wire_contents(messages: &[Message]) -> Vec<Value> {
 
 fn build_body(params: &StreamParams) -> Value {
     let mut body = json!({ "contents": to_wire_contents(&params.messages) });
-    if !params.system_prompt.is_empty() {
+    // Stable prefix first, volatile tail last: Gemini 2.5 implicit caching
+    // matches the longest common prefix of the request automatically, so
+    // keeping the per-query KB part at the end lets the stable prefix hit
+    // the cache on follow-up turns without any explicit cache handle.
+    let system = params.full_system();
+    if !system.is_empty() {
         body["systemInstruction"] = json!({
-            "parts": [{ "text": params.system_prompt }]
+            "parts": [{ "text": system }]
         });
     }
     if !params.tools.is_empty() {

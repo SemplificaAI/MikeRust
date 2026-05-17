@@ -162,7 +162,7 @@ pub async fn stream(
     tracing::info!("[llm/local] stream → base={base}, model={model}, key_present={}", !api_key.is_empty() && api_key != "local");
     let client = reqwest::Client::new();
 
-    let messages = to_wire_messages(&params.system_prompt, &params.messages);
+    let messages = to_wire_messages(&params.full_system(), &params.messages);
     let tools = if params.tools.is_empty() {
         None
     } else {
@@ -280,7 +280,7 @@ pub async fn complete(params: StreamParams) -> Result<String> {
     tracing::info!("[llm/local] complete → base={base}, model={model}, key_present={}", !api_key.is_empty() && api_key != "local");
     let client = reqwest::Client::new();
 
-    let messages = to_wire_messages(&params.system_prompt, &params.messages);
+    let messages = to_wire_messages(&params.full_system(), &params.messages);
     let body = json!({
         "model": model,
         "messages": messages,

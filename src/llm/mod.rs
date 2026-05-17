@@ -125,6 +125,7 @@ pub async fn complete_text(model: &str, system: Option<&str>, user: &str) -> Res
     let params = StreamParams {
         model: model.to_string(),
         system_prompt: system.unwrap_or("").to_string(),
+        system_volatile: String::new(),
         messages: vec![Message::user(user.to_string())],
         tools: vec![],
         max_iterations: 1,

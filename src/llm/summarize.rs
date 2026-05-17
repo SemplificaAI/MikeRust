@@ -192,6 +192,7 @@ pub async fn summarize_old_turns(
         system_prompt:
             "You are a concise legal-meeting note-taker. Output only the requested summary."
                 .to_string(),
+        system_volatile: String::new(),
         messages: vec![Message::user(prompt)],
         tools: vec![],
         max_iterations: 1,

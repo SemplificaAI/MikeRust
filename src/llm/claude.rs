@@ -42,8 +42,26 @@ pub async fn stream(params: StreamParams) -> Result<BoxStream> {
         "stream": true,
         "messages": wire_messages,
     });
+    // Send `system` as content blocks so the stable prefix can carry a
+    // `cache_control` breakpoint. Anthropic then caches that prefix for
+    // ~5 min; follow-up turns of the same chat re-use it at ~10% of the
+    // input-token cost and with a faster time-to-first-token. The
+    // volatile tail (per-query KB retrieval) follows uncached so it
+    // never invalidates the cached prefix. All Claude 3+ models support
+    // this; below the cache minimum Anthropic just skips caching, no error.
+    let mut system_blocks: Vec<Value> = Vec::new();
     if !params.system_prompt.is_empty() {
-        body["system"] = json!(params.system_prompt);
+        system_blocks.push(json!({
+            "type": "text",
+            "text": params.system_prompt,
+            "cache_control": { "type": "ephemeral" },
+        }));
+    }
+    if !params.system_volatile.is_empty() {
+        system_blocks.push(json!({ "type": "text", "text": params.system_volatile }));
+    }
+    if !system_blocks.is_empty() {
+        body["system"] = json!(system_blocks);
     }
 
     let resp = client
@@ -112,6 +130,32 @@ fn parse_claude_sse_opt(line: &str) -> Option<StreamEvent> {
             }
             None
         }
+        "message_start" => {
+            // Surface prompt-cache effectiveness: `cache_read` > 0 means a
+            // follow-up turn re-used the cached system prefix instead of
+            // re-billing it. Logged only when caching actually engaged.
+            if let Some(usage) = v.get("message").and_then(|m| m.get("usage")) {
+                let read = usage
+                    .get("cache_read_input_tokens")
+                    .and_then(|x| x.as_u64())
+                    .unwrap_or(0);
+                let written = usage
+                    .get("cache_creation_input_tokens")
+                    .and_then(|x| x.as_u64())
+                    .unwrap_or(0);
+                if read > 0 || written > 0 {
+                    let fresh = usage
+                        .get("input_tokens")
+                        .and_then(|x| x.as_u64())
+                        .unwrap_or(0);
+                    tracing::info!(
+                        "[claude] prompt cache: {read} tokens read from cache, \
+                         {written} written, {fresh} fresh input tokens"
+                    );
+                }
+            }
+            None
+        }
         "message_stop" => Some(StreamEvent::Done),
         _ => None,
     }
@@ -127,8 +171,9 @@ pub async fn complete(params: StreamParams) -> Result<String> {
         "max_tokens": 512,
         "messages": wire_messages,
     });
-    if !params.system_prompt.is_empty() {
-        body["system"] = json!(params.system_prompt);
+    let full_system = params.full_system();
+    if !full_system.is_empty() {
+        body["system"] = json!(full_system);
     }
 
     let resp = client
