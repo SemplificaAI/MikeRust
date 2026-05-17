@@ -5,7 +5,12 @@
 //! and forward only that + the most recent turns. The user's UI still
 //! shows every message; only the payload to the LLM is compressed.
 //!
-//! Trigger: `tokens(history) > 0.7 × model_window`.
+//! Trigger: the *whole* prompt — system prefix (instructions + attached
+//! documents) + volatile KB block + conversation history + reply
+//! headroom — exceeds `0.8 × model_window`. Measuring only the history
+//! would miss the dominant cost in a document-heavy chat, where the
+//! attached-document text in the system prompt is far larger than the
+//! turns.
 //! Strategy: keep the last `KEEP_RECENT_TURNS` turns verbatim, compress
 //! everything older with one LLM call, replace those turns with a
 //! `Role::System`-style message tagged "EARLIER CONVERSATION SUMMARY".
@@ -20,10 +25,16 @@ use super::types::{Message, Role};
 /// X?"); going lower starts to hurt coherence.
 pub const KEEP_RECENT_TURNS: usize = 4;
 
-/// Conservative ratio of the model's context window we're willing to
-/// fill with history before triggering compression. Leaves headroom
-/// for the system prompt, RAG block, attached docs, and the reply.
-pub const TRIGGER_RATIO: f32 = 0.7;
+/// Ratio of the model's context window we allow the whole prompt to
+/// fill before compressing older turns. The estimate already includes
+/// the system prefix, the volatile KB block and a reply reserve, so 0.8
+/// is a real "80% full" line, not a history-only heuristic.
+pub const TRIGGER_RATIO: f32 = 0.8;
+
+/// Tokens kept free for the model's own reply. The window has to hold
+/// the whole prompt *and* the answer; reserving this keeps a long answer
+/// from overflowing a window the prompt already nearly filled.
+pub const REPLY_RESERVE_TOKENS: usize = 4096;
 
 /// Rough characters-per-token for European languages with Mike's
 /// typical legal text. e5/Llama-3 tokenizers land around 3.8–4.2 chars
@@ -103,10 +114,15 @@ pub fn context_window_tokens(model: &str) -> usize {
     8_192
 }
 
-/// Should we summarize given the running history and target model?
-pub fn should_summarize(messages: &[Message], model: &str) -> bool {
+/// Should we summarize, given the running history, the target model,
+/// and `system_overhead_tokens` — the estimated size of everything that
+/// is NOT the message history (system prefix + volatile KB block). The
+/// caller measures that because it owns those strings; here we add the
+/// history and a reply reserve and compare against `0.8 × window`.
+pub fn should_summarize(messages: &[Message], model: &str, system_overhead_tokens: usize) -> bool {
     let window = context_window_tokens(model);
-    let used = estimate_messages_tokens(messages);
+    let used =
+        system_overhead_tokens + estimate_messages_tokens(messages) + REPLY_RESERVE_TOKENS;
     let trigger = (window as f32 * TRIGGER_RATIO) as usize;
     used > trigger && messages.len() > KEEP_RECENT_TURNS * 2 + 2
 }
@@ -178,9 +194,12 @@ pub async fn summarize_old_turns(
     let prompt = format!(
         "Riassumi in italiano il dialogo qui sotto in 1–3 paragrafi compatti, \
          preservando: nomi, date, decisioni prese, fatti accertati, e domande \
-         lasciate aperte. NON includere il testo dei documenti citati né le \
-         sezioni di tool-call. Scrivi in modo che chi legge il riassunto possa \
-         continuare la conversazione coerentemente.\n\n\
+         lasciate aperte. Indica esplicitamente QUALI documenti e quali \
+         sezioni/clausole (per nome o numero) sono stati discussi, così che \
+         si possano ri-consultare se servono dettagli — ma NON includere il \
+         testo dei documenti né le sezioni di tool-call. Scrivi in modo che \
+         chi legge il riassunto possa continuare la conversazione \
+         coerentemente.\n\n\
          === Dialogo ===\n{transcript}=== Fine dialogo ===",
     );
 
@@ -210,7 +229,11 @@ pub async fn summarize_old_turns(
     };
 
     Ok(Message::system(format!(
-        "EARLIER CONVERSATION SUMMARY (compressed to fit context window):\n\n{}",
+        "EARLIER CONVERSATION SUMMARY (compressed to fit context window):\n\n{}\n\n\
+         This is a lossy summary of earlier turns. If the user asks for exact \
+         wording, figures, dates or clauses that are not stated above, do NOT \
+         answer from this summary — call `read_document` or `find_in_document` \
+         on the relevant `doc-N` to re-read the source, then answer from it.",
         summary.trim()
     )))
 }
@@ -225,8 +248,9 @@ pub async fn maybe_compress_history(
     messages: Vec<Message>,
     target_model: &str,
     creds: &SummarizerCreds,
+    system_overhead_tokens: usize,
 ) -> Vec<Message> {
-    if !should_summarize(&messages, target_model) {
+    if !should_summarize(&messages, target_model, system_overhead_tokens) {
         return messages;
     }
     let (older, newer) = split_at_recent_window(&messages);
@@ -270,7 +294,7 @@ mod tests {
             Message::user("Ciao"),
             Message::assistant("Salve"),
         ];
-        assert!(!should_summarize(&msgs, "gemini-2.5-flash"));
+        assert!(!should_summarize(&msgs, "gemini-2.5-flash", 0));
     }
 
     #[test]
@@ -282,7 +306,22 @@ mod tests {
             msgs.push(Message::assistant("ok"));
         }
         // gpt-4 → 8k window → should trigger
-        assert!(should_summarize(&msgs, "gpt-4"));
+        assert!(should_summarize(&msgs, "gpt-4", 0));
+    }
+
+    #[test]
+    fn system_overhead_triggers_even_with_short_history() {
+        // A short conversation but a huge attached-document system prompt:
+        // history-only measurement would never fire, the overhead-aware
+        // one must. 12 short turns clear the message-count floor; the
+        // overhead (≈180k tokens) blows past 0.8 × 200k.
+        let mut msgs = vec![];
+        for i in 0..6 {
+            msgs.push(Message::user(format!("domanda {i}")));
+            msgs.push(Message::assistant(format!("risposta {i}")));
+        }
+        assert!(!should_summarize(&msgs, "claude-3-5-sonnet", 0));
+        assert!(should_summarize(&msgs, "claude-3-5-sonnet", 180_000));
     }
 
     #[test]
@@ -391,7 +430,7 @@ mod tests {
         // Even with a tiny window, a 2-message conversation must not trigger.
         let big = "x".repeat(100_000);
         let msgs = vec![Message::user(big), Message::assistant("ok")];
-        assert!(!should_summarize(&msgs, "gpt-4"));
+        assert!(!should_summarize(&msgs, "gpt-4", 0));
     }
 
     #[test]
@@ -410,6 +449,7 @@ mod tests {
             msgs.clone(),
             "gemini-2.5-flash",
             &creds,
+            0,
         ));
         assert_eq!(out.len(), msgs.len());
     }

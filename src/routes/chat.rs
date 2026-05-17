@@ -2028,19 +2028,28 @@ async fn stream_chat_root(
     let gemini_key = user_settings.as_ref().and_then(|s| s.gemini_api_key.clone());
     let gemini_region = user_settings.as_ref().and_then(|s| s.gemini_region.clone());
 
-    // Compress older turns when the running history starts to crowd the
-    // model's context window. The threshold (70%) leaves room for the
-    // system prompt + RAG block + attached docs + reply. Failing-open:
-    // if the summarizer LLM call errors, the original messages are
-    // returned and the dispatch continues unchanged.
+    // Compress older turns once the whole prompt — system prefix
+    // (instructions + attached-document text), the volatile KB block and
+    // the conversation history — fills past 80% of the model's context
+    // window. The system prefix is measured here and passed in, because
+    // in a document-heavy chat it dwarfs the turns and a history-only
+    // trigger would never fire. Failing-open: if the summarizer LLM call
+    // errors, the original messages are returned unchanged.
     let summarizer_creds = llm::summarize::SummarizerCreds {
         local_config: local_config.clone(),
         claude_api_key: claude_key.clone(),
         gemini_api_key: gemini_key.clone(),
         gemini_region: gemini_region.clone(),
     };
-    let messages =
-        llm::summarize::maybe_compress_history(messages, &raw_model, &summarizer_creds).await;
+    let system_overhead = llm::summarize::estimate_tokens(&system_prompt)
+        + llm::summarize::estimate_tokens(&system_volatile);
+    let messages = llm::summarize::maybe_compress_history(
+        messages,
+        &raw_model,
+        &summarizer_creds,
+        system_overhead,
+    )
+    .await;
 
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(64);
     let state_clone = state.clone();
