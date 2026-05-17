@@ -5,8 +5,12 @@
     id: string
     label: string
     sublabel?: string
-    /** Optional filter key (e.g. domain) matched against the filter select. */
+    /** Optional filter key (e.g. primary domain) matched against the filter select. */
     tag?: string
+    /** Extra filter keys — the item matches the filter if `tag` OR any of
+     *  these equals the selected value (e.g. a template's also-applicable
+     *  domains). */
+    tags?: string[]
   }
 </script>
 
@@ -62,7 +66,8 @@
   const filtered = $derived(
     items.filter((i) => {
       if (!i.label.toLowerCase().includes(query.trim().toLowerCase())) return false
-      if (filterValue && i.tag !== filterValue) return false
+      if (filterValue && i.tag !== filterValue && !(i.tags ?? []).includes(filterValue))
+        return false
       return true
     })
   )

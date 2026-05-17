@@ -59,10 +59,11 @@
   let pickerOpen = $state(false)
   let pickerItems = $state<PickerItem[]>([])
   let pickerLoading = $state(false)
-  // Workflow picker domain filter — resets to the user's default on open.
+  // Domain filter for the workflow and template pickers — resets to the
+  // user's default domain on open.
   let pickerDomain = $state('')
   const pickerFilterOptions = $derived(
-    pickerKind === 'workflow'
+    pickerKind === 'workflow' || pickerKind === 'template'
       ? [
           { value: '', label: t('Domains.filterPlaceholder') },
           ...DOMAINS.map((d) => ({ value: d, label: domainLabel(d) })),
@@ -112,8 +113,9 @@
     pickerItems = []
     pickerLoading = true
     pickerOpen = true
-    // The workflow picker defaults to the user's domain; resets each open.
-    pickerDomain = kind === 'workflow' ? userStore.defaultDomain : ''
+    // The workflow and template pickers default to the user's domain;
+    // resets each open.
+    pickerDomain = kind === 'workflow' || kind === 'template' ? userStore.defaultDomain : ''
     try {
       if (kind === 'doc') {
         const r = await documentsApi.list()
@@ -139,6 +141,10 @@
           id: tpl.id,
           label: templateDisplayName(tpl, i18n.locale),
           sublabel: tpl.id,
+          tag: tpl.domain,
+          // A template surfaces under its primary domain and any of its
+          // also-applicable ones, matching the Templates screen filter.
+          tags: [tpl.domain, ...tpl.also_applicable_to],
         }))
       }
     } catch {
