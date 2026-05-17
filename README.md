@@ -4,7 +4,7 @@
 
 # MikeRust
 
-Sovereign local AI document assistant — Rust+axum backend, SQLite, local filesystem storage, ONNX-based embeddings, Tauri shell, Next.js frontend (forked from [`willchen96/mike`][upstream] upstream).
+Sovereign local AI document assistant — Rust+axum backend, SQLite, local filesystem storage, ONNX-based embeddings, Tauri shell, clean-room Svelte 5 frontend (forked from [`willchen96/mike`][upstream] upstream).
 
 Designed to run entirely on the user's machine: no cloud database, no external auth provider, no S3 bucket. Optional LLM API keys are stored locally and never leave the box except to call the model provider the user explicitly configured.
 
@@ -26,17 +26,24 @@ if a public thread is the wrong place.
 
 MikeRust derives from the open-source **Mike** project by Will Chen
 ([`willchen96/mike`][upstream]) — an AGPL-3.0 AI legal assistant with
-a TypeScript / Express / Supabase / S3 / LibreOffice stack. We keep
-the frontend largely intact (UI, chat panel, citations, document
-viewer) and replace the backend with a Rust+axum implementation that:
+a TypeScript / Express / Supabase / S3 / LibreOffice stack. MikeRust
+keeps the *product* (chat with citations, document viewer, workflows,
+tabular reviews, corpora) but rebuilds both halves:
 
-  * uses SQLite (via [`sqlite-vec`](https://github.com/asg017/sqlite-vec))
-    instead of Supabase + pgvector;
-  * embeds locally with ONNX (INT8-quantized multilingual-e5-base
-    via fastembed + optional DirectML / QNN execution providers);
-  * extracts PDF / DOCX / RTF / XLSX in pure Rust — no LibreOffice
-    process spawn;
-  * ships as a Tauri desktop app with no server-side dependency.
+  * the **backend** becomes a Rust+axum implementation that uses SQLite
+    (via [`sqlite-vec`](https://github.com/asg017/sqlite-vec)) instead of
+    Supabase + pgvector, embeds locally with ONNX (INT8-quantized
+    multilingual-e5-base via fastembed + optional DirectML / QNN execution
+    providers), extracts PDF / DOCX / RTF / XLSX in pure Rust — no
+    LibreOffice process spawn — and ships as a Tauri desktop app with no
+    server-side dependency;
+  * the **frontend** is a clean-room rewrite in **Svelte 5 + Vite +
+    Tailwind CSS v4** (the original was Next.js / React). The rewrite is
+    roughly **2.6× smaller** in source lines and ships a far lighter
+    dependency tree — see *Frontend rewrite* below.
+
+The legacy React frontend is still in the tree under `frontendMike/` as
+a reference while the Svelte rewrite (`frontend/`) reaches full parity.
 
 For the original cloud-native upstream, see
 [github.com/willchen96/mike][upstream]. For a different sister fork
@@ -47,7 +54,7 @@ specialised on Danish law, see
 
 ## Interface
 
-A desktop window (Tauri) wrapping the Next.js frontend; the embedded axum
+A desktop window (Tauri) wrapping the Svelte frontend; the embedded axum
 backend runs in the same process. Two views to set expectations:
 
 ### Chat with citations and inline document viewer
@@ -73,32 +80,56 @@ Corpus panel.
 
 ### Internationalisation
 
-The UI is fully wired for i18n via
-[`next-intl`](https://next-intl.dev/) — every user-facing string lives in
-[`frontend/messages/`](frontend/messages/). Currently shipped: **Italian
+Every user-facing string goes through a small runes-based i18n store
+([`frontend/src/lib/stores/i18n.svelte.ts`](frontend/src/lib/stores/i18n.svelte.ts));
+the catalogues live as plain JSON in
+[`frontend/locales/`](frontend/locales/). Currently shipped: **Italian
 (`it.json`), English (`en.json`), French (`fr.json`), German (`de.json`),
-Spanish (`es.json`), Portuguese (`pt.json`)** — six locales, full
-coverage on each (same key tree as `en.json`, no missing strings). The
-locale picker in Account → Generali is a Radix dropdown with hand-rolled
-inline SVG flags (emoji flags don't render on Windows). Adding a locale
-is one translation file plus an entry in the `locales` array of
-[`src/i18n/config.ts`](frontend/src/i18n/config.ts).
+Spanish (`es.json`), Portuguese (`pt.json`)** — six locales, identical
+key tree on each (no missing strings). All six dictionaries are bundled
+statically; English is the canonical locale and the fallback for any key
+absent from another catalogue, so a new key is safe to ship before its
+translations land.
 
-> **English fallback.** [`src/i18n/request.ts`](frontend/src/i18n/request.ts)
-> deep-merges the active locale onto `en.json` before passing it to
-> next-intl, so any key missing from a non-English catalogue silently
-> falls back to English instead of rendering as a raw path
-> (`Models.previewGlobalOnly`). This makes future catalogue additions
-> safe — drop a new key into `en.json`, ship it, translations catch up
-> later without breaking the UI in the meantime.
+> **Key parity tool.** [`frontend/scripts/fill-i18n.mjs`](frontend/scripts/fill-i18n.mjs)
+> carries a `T` table of translations and *adds* any key a locale is
+> missing, then asserts all six catalogues hold the identical key set.
+> Adding UI strings: put the new keys in the `T` table with all six
+> languages and run `node scripts/fill-i18n.mjs`.
 
 > ⚠️ Development and screenshots use the UI in **Italian** — that's the
-> source-of-truth surface for visual review and copy iteration. The
-> other five locales are kept current but typically lag by one or two
-> iterations on brand-new strings. Contributors adding UI: add the IT
-> key first, then EN (so the fallback works), then DE/ES/FR/PT. **Never
-> hardcode user-facing strings**, always go through a `useTranslations`
-> namespace key.
+> source-of-truth surface for visual review and copy iteration. **Never
+> hardcode user-facing strings**, always resolve them through an
+> `i18n.t('Namespace.key')` call.
+
+## Frontend rewrite
+
+The frontend was rebuilt clean-room in Svelte 5 to shed the Next.js /
+React runtime weight while keeping the product surface. Measured against
+the legacy React tree still kept at `frontendMike/`:
+
+| | React (`frontendMike/`) | Svelte (`frontend/`) |
+|---|---|---|
+| Framework | Next.js / React | Svelte 5 + Vite + Tailwind v4 |
+| Source files (`src/`) | 141 | 123 |
+| Source lines (`.ts/.tsx/.svelte/.css`) | 36,687 | 14,179 — **−61%** |
+| Runtime dependencies (`package.json`) | 38 | 13 |
+| Dev dependencies | 15 | 18 |
+| `node_modules` on disk | 695 MB | 293 MB — **−58%** |
+| Production bundle | — | `dist/` 7.3 MB total · 1.5 MB app JS |
+
+The runtime-dependency count is the sharpest drop — 38 → 13 — because
+Svelte is a compiler: there is no framework runtime, no `react` /
+`react-dom` / `next` and no Radix UI primitive packages on the wire. UI
+components (modals, selects, toggles, tabs) are hand-rolled in
+`frontend/src/lib/components/ui/`. The dev-dependency count is slightly
+higher only because test/lint tooling (`vitest`, `svelte-check`,
+`eslint-plugin-svelte`) is now explicit.
+
+> The React `.next/` dev cache (~200 MB) is a build artefact, not a
+> shipped output — it is not comparable to the Svelte `dist/`. The React
+> app's static export isn't built in this tree, so its shipped bundle
+> size is not listed.
 
 ## Quick start
 
@@ -120,16 +151,15 @@ cp .env.example .env
 # Edit .env: set JWT_SECRET. STORAGE_PATH, DATABASE_URL etc. have sensible defaults.
 
 # 4. Install frontend deps + Tauri CLI (one-shot)
-cd frontend && npm install && cd ..
+# The Svelte frontend uses pnpm.
+cd frontend && pnpm install && cd ..
 
-# 5. Run dev (Tauri shell + axum backend + Next.js frontend)
-# Use the Tauri CLI binary that npm placed under frontend/node_modules/ —
+# 5. Run dev (Tauri shell + axum backend + Svelte/Vite frontend)
+# Use the Tauri CLI binary pnpm placed under frontend/node_modules/ —
 # no global `cargo install` required, and the version stays pinned to
-# what package.json declares.
-./frontend/node_modules/.bin/tauri dev --config src-tauri/tauri.conf.json
-
-# Alternative if you've globally installed `cargo install tauri-cli@^2`:
-#   cd src-tauri && cargo tauri dev
+# what package.json declares. The Svelte frontend has its own Tauri
+# config.
+./frontend/node_modules/.bin/tauri dev --config src-tauri/tauri.svelte.conf.json
 
 # Or backend only (axum on 127.0.0.1:$PORT, no Tauri shell):
 cargo run --features rag
@@ -143,7 +173,7 @@ The first run will:
 ## Architecture
 
 ```
-Browser / Tauri webview (Next.js :3000)
+Browser / Tauri webview (Svelte + Vite :5173)
        │  HTTP + SSE
        ▼
 axum backend (127.0.0.1:<random>)   ← OS-assigned high port; the Tauri
@@ -216,7 +246,7 @@ See [docs/CACHE.md](docs/CACHE.md) for the storage contract and migration histor
 
 ### Citations
 Assistant responses inline numeric markers (`[1]`, `[2]`) plus a trailing `<CITATIONS>` JSON block. The frontend parses both:
-- **Per-marker pills** — `AssistantMessage.tsx::preprocessCitations` maps each `[n]` to the matching annotation by `ref` (numeric) or `doc_id` (alphanumeric `[g1]`/`[p1]` from KB hits).
+- **Per-marker pills** — `renderMessageHtml` in [`frontend/src/lib/utils/citations.ts`](frontend/src/lib/utils/citations.ts) maps each `[n]` to the matching annotation by `ref` (numeric) or `doc_id` (alphanumeric `[g1]`/`[p1]` from KB hits).
 - **DocPanel jump** — clicking a pill opens the cited doc in the in-app viewer, scrolling to the cited page (PDFs) or section (DOCX).
 
 Annotations are persisted on `messages.annotations` (migration 0012) so re-opening a chat re-renders all pills correctly. Page-marker contamination (`[Page N]` leaking into citation quotes) is sanitised on both write and read paths so PDF.js text-layer highlights work.
@@ -330,7 +360,7 @@ See `.env.example` for the full reference.
 | Area | Status |
 |---|---|
 | Auth (PIN/Argon2id + Windows Hello biometric + opaque sessions) | ✅ |
-| SQLite + migrations (0001 → 0014) | ✅ |
+| SQLite + migrations (0001 → 0024) | ✅ |
 | Local storage (filesystem) + S3 trait | ✅ filesystem ; 🔲 S3 |
 | PDF extraction (pdfium) + scanned-PDF detection | ✅ |
 | DOCX extraction with redline detection | ✅ |
@@ -372,8 +402,8 @@ See `.env.example` for the full reference.
 | **LLM model catalogue** (`config/model.json` + `GET /models`) | ✅ 4 providers (Anthropic, Google Gemini, OpenAI, Mistral), Gemini 30-region matrix, `preview`/`legacy` flags drive auto-snap to global + UI dimming |
 | Settings → Modelli LLM: catalogue-driven combos | ✅ model and region dropdowns populated from `/models`; "Provider attivo" buttons gated to providers with a saved API key (lock icon + tooltip for the rest) |
 | Chat model picker filters out unconfigured providers | ✅ ModelToggle hides Anthropic / OpenAI / Gemini until their API key is saved, matching the Settings page gating |
-| **Six UI locales** (`it` / `en` / `fr` / `de` / `es` / `pt`) | ✅ full catalogues, identical key tree, English fallback for any missing key via deep-merge in `src/i18n/request.ts` |
-| Language picker with inline SVG flags | ✅ Radix dropdown; hand-rolled SVGs because Windows doesn't render emoji flags |
+| **Six UI locales** (`it` / `en` / `fr` / `de` / `es` / `pt`) | ✅ full catalogues, identical key tree, English fallback for any missing key via the i18n store |
+| Language picker | ✅ in Settings → Profile |
 
 ### Note: MCP client — async multi-step flows
 
@@ -398,7 +428,7 @@ text" as separate tool invocations within the same conversational turn —
 is not driven correctly by the dispatcher yet. The user has to nudge the
 chat to perform each subsequent step manually.
 
-Tracked as work-in-progress; do **not** modify `MIKE_SYSTEM_PROMPT` or
+Tracked as work-in-progress; do **not** modify `MRUST_SYSTEM_PROMPT` or
 `build_mcp_system_prompt` when fixing this — the prompt structure is
 preserved, only the dispatcher mechanics are in scope. See
 [`src/routes/chat.rs`](src/routes/chat.rs) `dispatch_mcp_tool_with_async_chain`.
@@ -419,7 +449,7 @@ preserved, only the dispatcher mechanics are in scope. See
 
 ## License
 
-Inherits AGPL-3.0 from the upstream [`willchen96/mike`][upstream] frontend. Backend (`src/`, `src-tauri/`) is original Rust and ships under the same license for consistency. See `LICENSE`.
+MikeRust is a fork of the AGPL-3.0 [`willchen96/mike`][upstream] project and ships under **AGPL-3.0**. The backend (`src/`, `src-tauri/`) is original Rust and the `frontend/` is an original clean-room Svelte rewrite; both ship under the same license for consistency. See `LICENSE`.
 
 **Brand assets are not AGPL.** The wordmark **Semplifica**, the corporate
 name **Semplifica s.r.l.**, and the Semplifica logo shipped under

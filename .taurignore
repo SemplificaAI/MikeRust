@@ -29,6 +29,12 @@ data/
 storage/
 mikerust-logs/
 
+# config/ — preset JSON (workflows, columns, docx-templates, model.json)
+# and user templates saved through the in-app editor. All read from disk
+# at startup, never compiled into the binary, so editing a preset or
+# saving a template must NOT recompile the backend or bounce the dev app.
+config/
+
 # fastembed model cache — ~280MB of `.part` blobs streamed from
 # HuggingFace on first run. The watcher would see every chunk write
 # and bounce the dev server mid-download. Belt-and-suspenders: we also
@@ -63,6 +69,7 @@ src-tauri/gen/
 # Frontend source — HMR handles these, no Rust rebuild needed
 frontend/src/
 frontend/messages/
+frontend/locales/
 frontend/public/
 frontend/components.json
 frontend/eslint.config.mjs

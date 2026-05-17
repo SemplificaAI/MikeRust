@@ -413,7 +413,12 @@
     "attachWorkflow": "Allega un workflow",
     "attachTemplate": "Allega un template",
     "jumpToLatest": "Vai all'ultimo",
-    "gatheringSources": "Raccolgo le fonti…"
+    "gatheringSources": "Raccolgo le fonti…",
+    "responding": "Generazione risposta in corso…",
+    "interruptTitle": "Interrompere la risposta?",
+    "interruptBody": "La chat attuale sta ancora ricevendo una risposta da {model}. Se procedi, la comunicazione verrà interrotta.",
+    "interruptConfirm": "Interrompi e continua",
+    "genericModel": "l'assistente"
   },
   "People": {
     "addByEmail": "Aggiungi via email…",
@@ -1116,6 +1121,7 @@
     "description": "Scegli la lingua in cui tradurre il testo.",
     "language": "Lingua di destinazione",
     "done": "Traduzione completata",
-    "error": "Traduzione non riuscita"
+    "error": "Traduzione non riuscita",
+    "progress": "Traduzione… {done}/{total}"
   }
 }

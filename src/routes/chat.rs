@@ -1775,6 +1775,29 @@ async fn stream_chat_root(
         }
     }
 
+    // Also pull in every document already linked to this chat from an
+    // earlier turn. On a reopened chat the frontend no longer carries the
+    // attachment in the message payload, so without this a follow-up turn
+    // would drop the document from context and — worse — its `[N]`
+    // citations would resolve to no `document_id`, leaving the viewer with
+    // a "document not found" on a document that was never actually lost.
+    // Appended after the payload ids so existing `doc-N` indices stay
+    // stable when the payload does still carry the files.
+    if let Ok(rows) = sqlx::query_as::<_, (String,)>(
+        "SELECT id FROM documents WHERE chat_id = ? AND user_id = ? ORDER BY created_at ASC",
+    )
+    .bind(&chat_id)
+    .bind(&auth.user_id)
+    .fetch_all(&state.db)
+    .await
+    {
+        for (id,) in rows {
+            if !doc_ids.iter().any(|x| x == &id) {
+                doc_ids.push(id);
+            }
+        }
+    }
+
     // Persist the *last* user message. We store:
     //   - the ORIGINAL content (raw user-typed text), not the
     //     marker-augmented form that goes to the LLM — markers like
@@ -3102,6 +3125,58 @@ async fn delete_chat(
 // ---------------------------------------------------------------------------
 // GET /chat/:id/messages
 // ---------------------------------------------------------------------------
+/// Back-fill `document_id`/`filename` on citation annotations whose
+/// `doc_id` is a chat-local `doc-N` label but whose real document link
+/// was never resolved at write time. This happens on follow-up turns of
+/// a reopened chat: the frontend no longer carries the attachment in the
+/// payload, so the live citation enrichment had no label→UUID map and
+/// persisted `document_id: null`. The document itself is never lost —
+/// it stays linked to the chat via `documents.chat_id` — so resolving it
+/// on read makes the viewer work again. `chat_docs` is the chat's
+/// attached documents ordered as `doc-0`, `doc-1`, ….
+fn enrich_doc_citations(mut value: Value, chat_docs: &[(String, String)]) -> Value {
+    if chat_docs.is_empty() {
+        return value;
+    }
+    // Annotations are persisted either as a bare array of citation
+    // objects or as an object with a `citations` array — handle both.
+    let cits = if value.is_array() {
+        value.as_array_mut()
+    } else {
+        value.get_mut("citations").and_then(|v| v.as_array_mut())
+    };
+    let Some(cits) = cits else {
+        return value;
+    };
+    for c in cits.iter_mut() {
+        let Some(obj) = c.as_object_mut() else { continue };
+        let resolved = obj
+            .get("document_id")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| !s.is_empty());
+        if resolved {
+            continue;
+        }
+        let idx = obj
+            .get("doc_id")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.strip_prefix("doc-"))
+            .and_then(|n| n.parse::<usize>().ok());
+        let Some((doc_id, filename)) = idx.and_then(|i| chat_docs.get(i)) else {
+            continue;
+        };
+        obj.insert("document_id".to_string(), Value::String(doc_id.clone()));
+        let has_name = obj
+            .get("filename")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| !s.is_empty());
+        if !has_name {
+            obj.insert("filename".to_string(), Value::String(filename.clone()));
+        }
+    }
+    value
+}
+
 async fn get_messages(
     State(state): State<Arc<AppState>>,
     auth: AuthUser,
@@ -3116,6 +3191,19 @@ async fn get_messages(
             .await
             .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     exists.ok_or_else(|| err(StatusCode::NOT_FOUND, "Chat not found"))?;
+
+    // Documents attached to this chat, ordered as doc-0, doc-1, … so a
+    // `doc-N` label maps back to a real document even on turns whose
+    // citation links were never resolved at write time.
+    let chat_docs: Vec<(String, String)> = sqlx::query_as(
+        "SELECT id, filename FROM documents WHERE chat_id = ? AND user_id = ? \
+         ORDER BY created_at ASC",
+    )
+    .bind(&id)
+    .bind(&auth.user_id)
+    .fetch_all(&state.db)
+    .await
+    .unwrap_or_default();
 
     let rows: Vec<(String, String, Option<String>, String, Option<String>)> = sqlx::query_as(
         "SELECT id, role, content, created_at, annotations FROM messages \
@@ -3147,6 +3235,7 @@ async fn get_messages(
             let annotations_value = annotations
                 .as_deref()
                 .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                .map(|v| enrich_doc_citations(v, &chat_docs))
                 .unwrap_or_else(|| Value::Array(Vec::new()));
             json!({
                 "id": id,
@@ -3515,7 +3604,10 @@ async fn generate_title(
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_citations_block, sanitise_annotations_quotes, strip_page_markers};
+    use super::{
+        enrich_doc_citations, extract_citations_block, sanitise_annotations_quotes,
+        strip_page_markers,
+    };
     use serde_json::{json, Value};
 
     #[test]
@@ -3642,5 +3734,65 @@ mod tests {
         let text = "<CITATIONS>[1]</CITATIONS> ... <CITATIONS>[2]</CITATIONS>";
         let v = extract_citations_block(text).unwrap();
         assert_eq!(v, json!([2]));
+    }
+
+    // ── enrich_doc_citations ────────────────────────────────────────
+
+    #[test]
+    fn enrich_backfills_missing_document_id_from_chat_docs() {
+        let docs = vec![
+            ("uuid-a".to_string(), "first.pdf".to_string()),
+            ("uuid-b".to_string(), "second.pdf".to_string()),
+        ];
+        let input = json!({
+            "citations": [
+                { "ref": 1, "doc_id": "doc-0", "document_id": null, "source": "attached" },
+                { "ref": 2, "doc_id": "doc-1", "filename": "kept.pdf" },
+            ]
+        });
+        let out = enrich_doc_citations(input, &docs);
+        let cits = out["citations"].as_array().unwrap();
+        assert_eq!(cits[0]["document_id"], "uuid-a");
+        assert_eq!(cits[0]["filename"], "first.pdf");
+        // An already-present filename is not overwritten.
+        assert_eq!(cits[1]["document_id"], "uuid-b");
+        assert_eq!(cits[1]["filename"], "kept.pdf");
+    }
+
+    #[test]
+    fn enrich_leaves_resolved_citations_untouched() {
+        let docs = vec![("uuid-a".to_string(), "first.pdf".to_string())];
+        let input = json!({
+            "citations": [
+                { "ref": 1, "doc_id": "doc-0", "document_id": "real-uuid" },
+            ]
+        });
+        let out = enrich_doc_citations(input.clone(), &docs);
+        assert_eq!(out["citations"][0]["document_id"], "real-uuid");
+    }
+
+    #[test]
+    fn enrich_handles_bare_array_annotations() {
+        // Annotations are persisted as a bare array, not a wrapper object.
+        let docs = vec![("uuid-a".to_string(), "first.pdf".to_string())];
+        let input = json!([{ "ref": 1, "doc_id": "doc-0", "page": 4 }]);
+        let out = enrich_doc_citations(input, &docs);
+        assert_eq!(out[0]["document_id"], "uuid-a");
+        assert_eq!(out[0]["filename"], "first.pdf");
+    }
+
+    #[test]
+    fn enrich_is_a_noop_without_chat_docs() {
+        let empty: Vec<(String, String)> = vec![];
+        let v = json!([{ "doc_id": "doc-0" }]);
+        assert_eq!(enrich_doc_citations(v.clone(), &empty), v);
+    }
+
+    #[test]
+    fn enrich_skips_doc_label_out_of_range() {
+        let docs = vec![("uuid-a".to_string(), "first.pdf".to_string())];
+        let input = json!({ "citations": [{ "doc_id": "doc-5" }] });
+        let out = enrich_doc_citations(input, &docs);
+        assert!(out["citations"][0].get("document_id").is_none());
     }
 }

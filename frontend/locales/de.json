@@ -413,7 +413,12 @@
     "attachWorkflow": "Workflow anhängen",
     "attachTemplate": "Vorlage anhängen",
     "jumpToLatest": "Zum Neuesten springen",
-    "gatheringSources": "Quellen werden gesammelt…"
+    "gatheringSources": "Quellen werden gesammelt…",
+    "responding": "Antwort wird erstellt…",
+    "interruptTitle": "Antwort abbrechen?",
+    "interruptBody": "Der aktuelle Chat empfängt noch eine Antwort von {model}. Wenn Sie fortfahren, wird diese Kommunikation abgebrochen.",
+    "interruptConfirm": "Abbrechen und fortfahren",
+    "genericModel": "dem Assistenten"
   },
   "People": {
     "addByEmail": "Per E-Mail hinzufügen…",
@@ -1116,6 +1121,7 @@
     "description": "Wählen Sie die Sprache, in die der Text übersetzt werden soll.",
     "language": "Zielsprache",
     "done": "Übersetzung abgeschlossen",
-    "error": "Übersetzung fehlgeschlagen"
+    "error": "Übersetzung fehlgeschlagen",
+    "progress": "Übersetzung… {done}/{total}"
   }
 }

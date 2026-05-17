@@ -17,6 +17,7 @@
   import TranslateModal from '$lib/components/ui/TranslateModal.svelte'
   import MarkdownEditor from '$lib/components/ui/MarkdownEditor.svelte'
   import { renderMarkdown } from '$lib/utils/markdown'
+  import { translateAll, type TranslateJob } from '$lib/utils/translate'
   import { workflowsApi } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -65,6 +66,8 @@
   let promptMode = $state<'edit' | 'preview'>('edit')
   let duplicating = $state(false)
   let translateOpen = $state(false)
+  let translateDone = $state(0)
+  let translateTotal = $state(0)
 
   const readOnly = $derived(wf?.is_system ?? true)
 
@@ -160,25 +163,19 @@
   /** Translate the prompt(s) into the language chosen in the modal. */
   async function translateTo(locale: Locale) {
     if (readOnly) return
-    try {
-      if (wf?.type === 'assistant') {
-        if (promptMd.trim()) {
-          const r = await workflowsApi.translate(promptMd, locale)
-          promptMd = r.text
-        }
-      } else {
-        for (const col of columns) {
-          if (col.prompt.trim()) {
-            const r = await workflowsApi.translate(col.prompt, locale)
-            col.prompt = r.text
-          }
-        }
-      }
-      scheduleSave()
-      toastStore.success(t('Translate.done'))
-    } catch (e) {
-      toastStore.danger(t('Translate.error'), { detail: (e as Error).message })
+    const jobs: TranslateJob[] = []
+    if (wf?.type === 'assistant') {
+      jobs.push({ text: promptMd, apply: (v) => (promptMd = v) })
+    } else {
+      for (const col of columns) jobs.push({ text: col.prompt, apply: (v) => (col.prompt = v) })
     }
+    const err = await translateAll(jobs, locale, (d, total) => {
+      translateDone = d
+      translateTotal = total
+    })
+    scheduleSave()
+    if (err) toastStore.danger(t('Translate.error'), { detail: err.message })
+    else toastStore.success(t('Translate.done'))
   }
 
   function addColumn() {
@@ -392,4 +389,9 @@
   onconfirm={confirmDelete}
 />
 
-<TranslateModal bind:open={translateOpen} onconfirm={translateTo} />
+<TranslateModal
+  bind:open={translateOpen}
+  onconfirm={translateTo}
+  done={translateDone}
+  total={translateTotal}
+/>

@@ -87,13 +87,34 @@
     void chatStore.refreshChats()
   })
 
+  // Creating or opening a chat while a reply is still streaming would cut
+  // that reply off — guard both actions behind a confirmation modal.
+  let pendingNav = $state<(() => void) | null>(null)
+
+  function guardedNav(action: () => void) {
+    if (chatStore.streaming) pendingNav = action
+    else action()
+  }
+  function confirmInterrupt() {
+    const action = pendingNav
+    pendingNav = null
+    if (action) {
+      chatStore.abort()
+      action()
+    }
+  }
+
   function newChat() {
-    chatStore.newChat()
-    router.go('assistant')
+    guardedNav(() => {
+      chatStore.newChat()
+      router.go('assistant')
+    })
   }
   function openChat(id: string) {
-    void chatStore.selectChat(id)
-    router.go('assistant')
+    guardedNav(() => {
+      void chatStore.selectChat(id)
+      router.go('assistant')
+    })
   }
 
   async function logout() {
@@ -213,7 +234,18 @@
       {#snippet actions()}
         <ThemeToggle />
         {#if greetingName}
-          <span class="text-xs text-(--color-text-secondary)">{greetingName}</span>
+          <span class="inline-flex items-center gap-1.5 text-xs text-(--color-text-secondary)">
+            {#if chatStore.streaming}
+              <!-- Orange bullet: an assistant reply is still streaming,
+                   even while the user is on another route. -->
+              <span
+                class="h-2 w-2 shrink-0 rounded-full bg-(--color-brand-500) animate-pulse"
+                title={i18n.t('Assistant.responding')}
+                aria-label={i18n.t('Assistant.responding')}
+              ></span>
+            {/if}
+            {greetingName}
+          </span>
         {/if}
         <Button size="sm" variant="ghost" onclick={logout}>{i18n.t('Common.logout')}</Button>
       {/snippet}
@@ -252,4 +284,16 @@
   danger
   onconfirm={confirmDeleteChat}
   oncancel={() => (deleteChatTarget = null)}
+/>
+
+<ConfirmDialog
+  open={pendingNav !== null}
+  title={i18n.t('Assistant.interruptTitle')}
+  message={i18n.t('Assistant.interruptBody', {
+    model: chatStore.streamingModel ?? i18n.t('Assistant.genericModel'),
+  })}
+  confirmLabel={i18n.t('Assistant.interruptConfirm')}
+  danger
+  onconfirm={confirmInterrupt}
+  oncancel={() => (pendingNav = null)}
 />

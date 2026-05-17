@@ -18,7 +18,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
   import TranslateModal from '$lib/components/ui/TranslateModal.svelte'
   import { templatesApi } from '$lib/api/templates'
-  import { workflowsApi } from '$lib/api/workflows'
+  import { translateAll, type TranslateJob } from '$lib/utils/translate'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel, type Domain } from '$lib/types/domain'
@@ -70,6 +70,8 @@
   let saving = $state(false)
   let deleteOpen = $state(false)
   let translateOpen = $state(false)
+  let translateDone = $state(0)
+  let translateTotal = $state(0)
 
   // Optional-block toggles.
   let usoBolloOn = $state(!!seed?.uso_bollo)
@@ -194,23 +196,29 @@
     toastStore.info(t('DocxTemplates.edDuplicateHint'))
   }
 
-  /** Translate the free-text authoring fields into the chosen language. */
+  /**
+   * Translate the free-text authoring fields into the chosen language.
+   * Runs through the concurrency pool so a 25-field template finishes in
+   * seconds instead of grinding one request at a time.
+   */
   async function translateTo(locale: Locale) {
     if (readOnly) return
-    const tr = async (text: string) => (await workflowsApi.translate(text, locale)).text
-    try {
-      for (const p of fieldPromptPairs) if (p.v.trim()) p.v = await tr(p.v)
-      for (const s of skeleton) {
-        if (s.title?.trim()) s.title = await tr(s.title)
-        if (s.guidance?.trim()) s.guidance = await tr(s.guidance)
-      }
-      if (tpl.prompt_md_extra?.trim()) tpl.prompt_md_extra = await tr(tpl.prompt_md_extra)
-      if (tpl.header_block?.trim()) tpl.header_block = await tr(tpl.header_block)
-      if (tpl.footer_block?.trim()) tpl.footer_block = await tr(tpl.footer_block)
-      toastStore.success(t('Translate.done'))
-    } catch (e) {
-      toastStore.danger(t('Translate.error'), { detail: (e as Error).message })
+    const jobs: TranslateJob[] = []
+    for (const p of fieldPromptPairs) jobs.push({ text: p.v, apply: (v) => (p.v = v) })
+    for (const s of skeleton) {
+      jobs.push({ text: s.title ?? '', apply: (v) => (s.title = v) })
+      jobs.push({ text: s.guidance ?? '', apply: (v) => (s.guidance = v) })
     }
+    jobs.push({ text: tpl.prompt_md_extra ?? '', apply: (v) => (tpl.prompt_md_extra = v) })
+    jobs.push({ text: tpl.header_block ?? '', apply: (v) => (tpl.header_block = v) })
+    jobs.push({ text: tpl.footer_block ?? '', apply: (v) => (tpl.footer_block = v) })
+
+    const err = await translateAll(jobs, locale, (d, total) => {
+      translateDone = d
+      translateTotal = total
+    })
+    if (err) toastStore.danger(t('Translate.error'), { detail: err.message })
+    else toastStore.success(t('Translate.done'))
   }
 
   function buildPayload(): DocxTemplate | null {
@@ -836,4 +844,9 @@
   onconfirm={confirmDelete}
 />
 
-<TranslateModal bind:open={translateOpen} onconfirm={translateTo} />
+<TranslateModal
+  bind:open={translateOpen}
+  onconfirm={translateTo}
+  done={translateDone}
+  total={translateTotal}
+/>

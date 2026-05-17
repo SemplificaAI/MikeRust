@@ -388,6 +388,16 @@ const T = {
   'Translate.language': { en: "Target language", it: "Lingua di destinazione", fr: "Langue cible", de: "Zielsprache", es: "Idioma de destino", pt: "Idioma de destino" },
   'Translate.done': { en: "Translation complete", it: "Traduzione completata", fr: "Traduction terminée", de: "Übersetzung abgeschlossen", es: "Traducción completada", pt: "Tradução concluída" },
   'Translate.error': { en: "Translation failed", it: "Traduzione non riuscita", fr: "Échec de la traduction", de: "Übersetzung fehlgeschlagen", es: "Error de traducción", pt: "Falha na tradução" },
+  'Translate.progress': { en: "Translating… {done}/{total}", it: "Traduzione… {done}/{total}", fr: "Traduction… {done}/{total}", de: "Übersetzung… {done}/{total}", es: "Traduciendo… {done}/{total}", pt: "A traduzir… {done}/{total}" },
+
+  // Streaming indicator next to the username in the top bar.
+  'Assistant.responding': { en: "Generating response…", it: "Generazione risposta in corso…", fr: "Génération de la réponse…", de: "Antwort wird erstellt…", es: "Generando respuesta…", pt: "A gerar resposta…" },
+
+  // Warning shown when a new/old chat is opened mid-stream.
+  'Assistant.interruptTitle': { en: "Interrupt the response?", it: "Interrompere la risposta?", fr: "Interrompre la réponse ?", de: "Antwort abbrechen?", es: "¿Interrumpir la respuesta?", pt: "Interromper a resposta?" },
+  'Assistant.interruptBody': { en: "The current chat is still receiving a response from {model}. If you continue, that communication will be interrupted.", it: "La chat attuale sta ancora ricevendo una risposta da {model}. Se procedi, la comunicazione verrà interrotta.", fr: "Le chat actuel reçoit encore une réponse de {model}. Si vous continuez, cette communication sera interrompue.", de: "Der aktuelle Chat empfängt noch eine Antwort von {model}. Wenn Sie fortfahren, wird diese Kommunikation abgebrochen.", es: "El chat actual todavía está recibiendo una respuesta de {model}. Si continúas, esa comunicación se interrumpirá.", pt: "O chat atual ainda está a receber uma resposta de {model}. Se continuar, essa comunicação será interrompida." },
+  'Assistant.interruptConfirm': { en: "Interrupt and continue", it: "Interrompi e continua", fr: "Interrompre et continuer", de: "Abbrechen und fortfahren", es: "Interrumpir y continuar", pt: "Interromper e continuar" },
+  'Assistant.genericModel': { en: "the assistant", it: "l'assistente", fr: "l'assistant", de: "dem Assistenten", es: "el asistente", pt: "o assistente" },
 }
 
 function flat(o, p = '') {

@@ -16,9 +16,12 @@
     /** Awaited; the modal shows a spinner until it resolves, then closes. */
     onconfirm: (locale: Locale) => void | Promise<void>
     oncancel?: () => void
+    /** Optional live progress shown while translating. */
+    done?: number
+    total?: number
   }
 
-  let { open = $bindable(false), onconfirm, oncancel }: Props = $props()
+  let { open = $bindable(false), onconfirm, oncancel, done = 0, total = 0 }: Props = $props()
 
   // Default the picker to the current UI language — the common case.
   /* svelte-ignore state_referenced_locally */
@@ -60,6 +63,11 @@
       bind:value={target}
       disabled={busy}
     />
+    {#if busy && total > 0}
+      <p class="text-xs text-(--color-text-secondary)">
+        {i18n.t('Translate.progress', { done, total })}
+      </p>
+    {/if}
   </div>
   {#snippet footer()}
     <Button variant="ghost" onclick={cancel} disabled={busy}>{i18n.t('Common.cancel')}</Button>

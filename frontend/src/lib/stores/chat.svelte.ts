@@ -38,6 +38,8 @@ function createChatStore() {
   let activeId = $state<string | null>(null)
   let messages = $state<ChatMessage[]>([])
   let streaming = $state<boolean>(false)
+  /** Model id of the reply currently streaming, for the interrupt warning. */
+  let streamingModel = $state<string | null>(null)
   let loadingChats = $state<boolean>(false)
   let loadingMessages = $state<boolean>(false)
   let error = $state<string | null>(null)
@@ -67,6 +69,9 @@ function createChatStore() {
     },
     get streaming() {
       return streaming
+    },
+    get streamingModel() {
+      return streamingModel
     },
     get loadingChats() {
       return loadingChats
@@ -160,6 +165,7 @@ function createChatStore() {
       }
 
       const model = modelsStore.settings.main_model
+      streamingModel = model ?? null
       abortCtrl = streamChat(
         {
           messages: outgoing,
@@ -215,6 +221,7 @@ function createChatStore() {
           },
           onDone: () => {
             streaming = false
+            streamingModel = null
             abortCtrl = null
             const m = assistant()
             if (m) {
@@ -241,6 +248,7 @@ function createChatStore() {
       abortCtrl?.abort()
       abortCtrl = null
       streaming = false
+      streamingModel = null
       const last = messages[messages.length - 1]
       if (last && last.role === 'assistant') last.streaming = false
     },

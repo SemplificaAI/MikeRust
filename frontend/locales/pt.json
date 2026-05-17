@@ -413,7 +413,12 @@
     "attachWorkflow": "Anexar um fluxo de trabalho",
     "attachTemplate": "Anexar um modelo",
     "jumpToLatest": "Ir para o mais recente",
-    "gatheringSources": "A reunir as fontes…"
+    "gatheringSources": "A reunir as fontes…",
+    "responding": "A gerar resposta…",
+    "interruptTitle": "Interromper a resposta?",
+    "interruptBody": "O chat atual ainda está a receber uma resposta de {model}. Se continuar, essa comunicação será interrompida.",
+    "interruptConfirm": "Interromper e continuar",
+    "genericModel": "o assistente"
   },
   "People": {
     "addByEmail": "Adicionar por e-mail…",
@@ -1116,6 +1121,7 @@
     "description": "Escolha o idioma para o qual traduzir o texto.",
     "language": "Idioma de destino",
     "done": "Tradução concluída",
-    "error": "Falha na tradução"
+    "error": "Falha na tradução",
+    "progress": "A traduzir… {done}/{total}"
   }
 }

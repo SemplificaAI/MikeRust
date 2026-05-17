@@ -413,7 +413,12 @@
     "attachWorkflow": "Joindre un workflow",
     "attachTemplate": "Joindre un modèle",
     "jumpToLatest": "Aller au plus récent",
-    "gatheringSources": "Collecte des sources…"
+    "gatheringSources": "Collecte des sources…",
+    "responding": "Génération de la réponse…",
+    "interruptTitle": "Interrompre la réponse ?",
+    "interruptBody": "Le chat actuel reçoit encore une réponse de {model}. Si vous continuez, cette communication sera interrompue.",
+    "interruptConfirm": "Interrompre et continuer",
+    "genericModel": "l'assistant"
   },
   "People": {
     "addByEmail": "Ajouter par e-mail…",
@@ -1116,6 +1121,7 @@
     "description": "Choisissez la langue dans laquelle traduire le texte.",
     "language": "Langue cible",
     "done": "Traduction terminée",
-    "error": "Échec de la traduction"
+    "error": "Échec de la traduction",
+    "progress": "Traduction… {done}/{total}"
   }
 }

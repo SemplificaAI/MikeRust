@@ -413,7 +413,12 @@
     "attachWorkflow": "Attach a workflow",
     "attachTemplate": "Attach a template",
     "jumpToLatest": "Jump to latest",
-    "gatheringSources": "Gathering sources…"
+    "gatheringSources": "Gathering sources…",
+    "responding": "Generating response…",
+    "interruptTitle": "Interrupt the response?",
+    "interruptBody": "The current chat is still receiving a response from {model}. If you continue, that communication will be interrupted.",
+    "interruptConfirm": "Interrupt and continue",
+    "genericModel": "the assistant"
   },
   "People": {
     "addByEmail": "Add by email…",
@@ -1116,6 +1121,7 @@
     "description": "Choose the language to translate the text into.",
     "language": "Target language",
     "done": "Translation complete",
-    "error": "Translation failed"
+    "error": "Translation failed",
+    "progress": "Translating… {done}/{total}"
   }
 }
