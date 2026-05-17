@@ -345,8 +345,12 @@ fn build_table_xml(state: &TableState) -> String {
     let cols = state.alignments.len().max(1);
     let grid: String = (0..cols).map(|_| r#"<w:gridCol w:w="0"/>"#).collect();
     let rows: String = state.rows.join("");
+    // `<w:tblCellMar>` — internal cell padding. Without it cell text sits
+    // flush against the borders (visible especially in LibreOffice / the
+    // in-app docx-preview). Values in twips (dxa): 108 ≈ 0.075" sides,
+    // 60 ≈ 0.04" top/bottom — Word's conventional table padding.
     format!(
-        r#"<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblLayout w:type="autofit"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders></w:tblPr><w:tblGrid>{grid}</w:tblGrid>{rows}</w:tbl>"#
+        r#"<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblLayout w:type="autofit"/><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:left w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:right w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/></w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>{grid}</w:tblGrid>{rows}</w:tbl>"#
     )
 }
 
@@ -453,6 +457,8 @@ mod tests {
         assert_eq!(xml.matches("<w:gridCol").count(), 3);
         // Borders required for portability across LibreOffice / docx-preview.
         assert!(xml.contains("<w:tblBorders>"));
+        // Cell padding so text doesn't sit flush against the borders.
+        assert!(xml.contains("<w:tblCellMar>"), "table cell margins missing");
         // Three rows total (one header + two body).
         assert_eq!(xml.matches("<w:tr>").count(), 3);
         // Header row must repeat on page break.
