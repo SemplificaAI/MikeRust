@@ -13,6 +13,13 @@
     "identifier_label": "DOF note id",
     "identifier_example": "08-05-2026:12345",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "mx",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "date-window",
+        "fetch_format": "html"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

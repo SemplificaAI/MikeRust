@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use crate::{
     auth::middleware::AuthUser,
-    corpora::plugin::{Capabilities, CorpusPlugin, CorpusSource},
+    corpora::plugin::{Capabilities, CorpusDiscovery, CorpusPlugin, CorpusSource},
     storage::make_storage,
     AppState,
 };
@@ -45,6 +45,10 @@ pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(list_corpora))
         .route("/{id}", get(get_corpus))
+        // Per-user enable/disable (+ language) for any corpus, stored
+        // in the shared `corpus_settings` table. Every corpus is
+        // deactivatable — the route is not gated on a capability.
+        .route("/{id}/config", get(generic_get_config).put(generic_put_config))
         // Generic operations dispatched by corpus id. Each handler
         // looks the corpus up in `state.corpus_plugins`, validates
         // the capability is enabled, then delegates to the adapter
@@ -89,6 +93,7 @@ struct CorpusItem {
     runnable: bool,
     capabilities: Capabilities,
     sources: Vec<CorpusSource>,
+    discovery: Option<CorpusDiscovery>,
 }
 
 fn project(p: &crate::corpora::plugin::CorpusPlugin) -> CorpusItem {
@@ -107,6 +112,7 @@ fn project(p: &crate::corpora::plugin::CorpusPlugin) -> CorpusItem {
         runnable: p.is_runnable(),
         capabilities: p.capabilities.clone(),
         sources: p.sources.clone(),
+        discovery: p.discovery.clone(),
     }
 }
 
@@ -114,8 +120,13 @@ async fn list_corpora(
     State(state): State<Arc<AppState>>,
     _auth: AuthUser,
 ) -> ApiResult {
-    let items: Vec<CorpusItem> =
-        state.corpus_plugins.iter().map(project).collect();
+    let items: Vec<CorpusItem> = state
+        .corpus_plugins
+        .read()
+        .unwrap()
+        .iter()
+        .map(project)
+        .collect();
     Ok(Json(json!({ "corpora": items })))
 }
 
@@ -125,20 +136,112 @@ async fn get_corpus(
     Path(id): Path<String>,
 ) -> ApiResult {
     let plugin = lookup_plugin(&state, &id)?;
-    Ok(Json(serde_json::to_value(project(plugin)).unwrap()))
+    Ok(Json(serde_json::to_value(project(&plugin)).unwrap()))
 }
 
-/// Find a corpus plugin by id or 404. Shared helper so the generic
-/// handlers all surface the same not-found message.
-fn lookup_plugin<'a>(
-    state: &'a AppState,
+/// Find a corpus plugin by id or 404, returning an owned clone. The
+/// registry lives behind a `RwLock` (hot-reloadable in dev), so a
+/// borrow can't outlive the read guard — handlers get their own copy.
+fn lookup_plugin(
+    state: &AppState,
     id: &str,
-) -> Result<&'a CorpusPlugin, (StatusCode, Json<Value>)> {
+) -> Result<CorpusPlugin, (StatusCode, Json<Value>)> {
     state
         .corpus_plugins
+        .read()
+        .unwrap()
         .iter()
         .find(|p| p.id == id)
+        .cloned()
         .ok_or_else(|| err(StatusCode::NOT_FOUND, &format!("corpus {id:?} not found")))
+}
+
+// ---------------------------------------------------------------------------
+// GET|PUT /corpora/:id/config — per-user enable/disable + language
+// ---------------------------------------------------------------------------
+//
+// Shares the `corpus_settings` table with EUR-Lex (`/eurlex/config`).
+// When no row exists yet the response reflects the manifest defaults
+// (`enabled_by_default`, `default_language`).
+
+#[derive(Deserialize)]
+struct CorpusConfigPayload {
+    enabled: bool,
+    language: Option<String>,
+    fallback_en: Option<bool>,
+}
+
+async fn generic_get_config(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+) -> ApiResult {
+    let plugin = lookup_plugin(&state, &id)?;
+    let row: Option<(i64, Option<String>, i64)> = sqlx::query_as(
+        "SELECT enabled, language, fallback_en FROM corpus_settings \
+         WHERE user_id = ? AND corpus_id = ?",
+    )
+    .bind(&auth.user_id)
+    .bind(&id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let (enabled, language, fallback_en) = match row {
+        Some((e, l, f)) => (e != 0, l, f != 0),
+        None => (
+            plugin.enabled_by_default,
+            Some(plugin.default_language.clone()),
+            plugin.supports_language_fallback,
+        ),
+    };
+    Ok(Json(json!({
+        "enabled": enabled,
+        "language": language.unwrap_or_else(|| plugin.default_language.clone()),
+        "fallback_en": fallback_en,
+    })))
+}
+
+async fn generic_put_config(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<CorpusConfigPayload>,
+) -> ApiResult {
+    let plugin = lookup_plugin(&state, &id)?;
+    let language = body
+        .language
+        .as_deref()
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_else(|| plugin.default_language.clone());
+    let fallback_en = body
+        .fallback_en
+        .unwrap_or(plugin.supports_language_fallback);
+
+    sqlx::query(
+        "INSERT INTO corpus_settings \
+           (user_id, corpus_id, enabled, language, fallback_en, updated_at) \
+         VALUES (?, ?, ?, ?, ?, datetime('now')) \
+         ON CONFLICT(user_id, corpus_id) DO UPDATE SET \
+           enabled = excluded.enabled, \
+           language = excluded.language, \
+           fallback_en = excluded.fallback_en, \
+           updated_at = excluded.updated_at",
+    )
+    .bind(&auth.user_id)
+    .bind(&id)
+    .bind(body.enabled as i64)
+    .bind(&language)
+    .bind(fallback_en as i64)
+    .execute(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    Ok(Json(json!({
+        "enabled": body.enabled,
+        "language": language,
+        "fallback_en": fallback_en,
+    })))
 }
 
 fn de_gesetze_slug_for_code(code: &str) -> Option<&'static str> {
@@ -294,7 +397,9 @@ async fn generic_search(
     }
 
     // Remaining strategies need a runtime adapter in the registry.
-    let Some(adapter) = state.corpus_adapters.get(&id) else {
+    // Clone the Arc out of the lock so no guard is held across await.
+    let adapter = state.corpus_adapters.read().unwrap().get(&id).cloned();
+    let Some(adapter) = adapter else {
         return Err(err(
             StatusCode::NOT_IMPLEMENTED,
             &format!(
@@ -313,17 +418,12 @@ async fn generic_search(
     // tried to fetch a URL templated with the human ref, which 404'd
     // because the canonical identifier is the opaque CNILTEXT id).
 
-    let has_keyword = state
-        .corpus_plugins
-        .iter()
-        .find(|p| p.id == id)
-        .and_then(|p| match &p.strategy {
-            crate::corpora::plugin::CorpusStrategy::HttpFetchPerId(spec) => {
-                Some(spec.search_by_keyword.is_some())
-            }
-            _ => None,
-        })
-        .unwrap_or(false);
+    let has_keyword = match &plugin.strategy {
+        crate::corpora::plugin::CorpusStrategy::HttpFetchPerId(spec) => {
+            spec.search_by_keyword.is_some()
+        }
+        _ => false,
+    };
     let hits = if id == "de-gesetze" {
         if let Some(identifier) = parse_de_gesetze_identifier(q) {
             let direct = adapter
@@ -352,10 +452,21 @@ async fn generic_search(
                 .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?
         }
     } else if has_keyword {
-        adapter
+        // Flexible single-box search: run the keyword search first;
+        // if it yields nothing, the query may be a corpus-native
+        // identifier the user pasted verbatim — probe it by id so
+        // one input accepts both free text and identifiers. An
+        // id-probe failure here is non-fatal: keep the (empty)
+        // keyword result rather than surfacing a gateway error.
+        let kw = adapter
             .search_by_keyword(q, lang, limit)
             .await
-            .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?
+            .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+        if kw.is_empty() {
+            adapter.search_by_id(q, lang).await.unwrap_or_default()
+        } else {
+            kw
+        }
     } else {
         adapter
             .search_by_id(q, lang)
@@ -433,7 +544,8 @@ async fn generic_fetch(
             }
         }
     } else {
-        let Some(adapter) = state.corpus_adapters.get(&id) else {
+        let adapter = state.corpus_adapters.read().unwrap().get(&id).cloned();
+        let Some(adapter) = adapter else {
             return Err(err(
                 StatusCode::NOT_IMPLEMENTED,
                 &format!(

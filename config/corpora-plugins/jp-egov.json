@@ -13,6 +13,13 @@
     "identifier_label": "LawId",
     "identifier_example": "417AC0000000086",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "jp",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "xml"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {
@@ -20,6 +27,14 @@
             "shape": "rest-html",
             "title_path": "LawTitle",
             "body_path": "LawFullText"
+        },
+        "search_by_keyword": {
+            "url_template": "https://laws.e-gov.go.jp/api/2/keyword?keyword={query}&limit={limit}",
+            "shape": "rest-json",
+            "hits_path": "items",
+            "identifier_at": "law_info.law_id",
+            "title_at": "revision_info.law_title",
+            "date_at": "revision_info.updated"
         }
     },
     "capabilities": {

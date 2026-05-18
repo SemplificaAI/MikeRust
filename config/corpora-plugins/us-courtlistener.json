@@ -13,6 +13,13 @@
     "identifier_label": "Opinion ID",
     "identifier_example": "1234567",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "us",
+        "doc_types": ["case_law"],
+        "auth": "optional-token",
+        "search_mode": "free-text",
+        "fetch_format": "json"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {
@@ -24,6 +31,7 @@
         },
         "search_by_keyword": {
             "url_template": "https://www.courtlistener.com/api/rest/v4/search/?type=o&q={query}",
+            "url_template_year": "https://www.courtlistener.com/api/rest/v4/search/?type=o&q={query}&filed_after={year}-01-01&filed_before={year}-12-31",
             "shape": "rest-json",
             "hits_path": "$.results",
             "identifier_at": "$.id",

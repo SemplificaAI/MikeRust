@@ -276,7 +276,49 @@
       "importAction": "Importar agora"
     },
     "sourcesAvailable": "Disponível agora",
-    "sourcesComingSoon": "Em breve"
+    "sourcesComingSoon": "Em breve",
+    "filters": {
+      "titlePlaceholder": "Filtrar fontes por nome…",
+      "jurisdiction": "Jurisdição",
+      "allJurisdictions": "Todas as jurisdições",
+      "type": "Tipo",
+      "allTypes": "Todos os tipos"
+    },
+    "docType": {
+      "legislation": "Legislação",
+      "caseLaw": "Jurisprudência"
+    },
+    "badge": {
+      "authPublic": "Pública",
+      "authApiKey": "Chave API",
+      "authOauth2": "OAuth2",
+      "authOptionalToken": "Token opcional",
+      "searchFreeText": "Texto livre",
+      "searchCitationOnly": "Apenas citação",
+      "searchDateWindow": "Por data",
+      "searchSparql": "SPARQL"
+    },
+    "hint": {
+      "citationOnly": "Esta fonte resolve os documentos por citação legal — cole uma referência completa.",
+      "dateWindow": "Esta fonte pesquisa dentro de uma janela de datas — inclua uma data na sua consulta."
+    },
+    "queued": "Em fila",
+    "retry": "Tentar novamente",
+    "jurisdiction": {
+      "eu": "Europeia",
+      "it": "Italiana",
+      "fr": "Francesa",
+      "at": "Austríaca",
+      "au": "Australiana",
+      "de": "Alemã",
+      "es": "Espanhola",
+      "ie": "Irlandesa",
+      "jp": "Japonesa",
+      "nl": "Neerlandesa",
+      "uk": "Britânica",
+      "us": "Norte-americana"
+    },
+    "sourceEnabled": "Fonte ativada"
   },
   "Eurlex": {
     "title": "EUR-Lex",

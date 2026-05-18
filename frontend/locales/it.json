@@ -264,6 +264,48 @@
     "indexedHeader": "Documenti indicizzati ({count})",
     "statusReady": "indicizzato",
     "statusInterrupted": "interrotto",
+    "sourceEnabled": "Fonte attiva",
+    "queued": "In coda",
+    "retry": "Riprova",
+    "jurisdiction": {
+      "eu": "Europea",
+      "it": "Italiana",
+      "fr": "Francese",
+      "at": "Austriaca",
+      "au": "Australiana",
+      "de": "Tedesca",
+      "es": "Spagnola",
+      "ie": "Irlandese",
+      "jp": "Giapponese",
+      "nl": "Olandese",
+      "uk": "Britannica",
+      "us": "Statunitense"
+    },
+    "filters": {
+      "titlePlaceholder": "Filtra le fonti per nome…",
+      "jurisdiction": "Giurisdizione",
+      "allJurisdictions": "Tutte le giurisdizioni",
+      "type": "Tipo",
+      "allTypes": "Tutti i tipi"
+    },
+    "docType": {
+      "legislation": "Normativa",
+      "caseLaw": "Giurisprudenza"
+    },
+    "badge": {
+      "authPublic": "Pubblica",
+      "authApiKey": "Chiave API",
+      "authOauth2": "OAuth2",
+      "authOptionalToken": "Token opzionale",
+      "searchFreeText": "Testo libero",
+      "searchCitationOnly": "Solo citazione",
+      "searchDateWindow": "Per data",
+      "searchSparql": "SPARQL"
+    },
+    "hint": {
+      "citationOnly": "Questa fonte risolve i documenti per citazione legale — incolla un riferimento completo.",
+      "dateWindow": "Questa fonte cerca entro una finestra temporale — includi una data nella query."
+    },
     "bulk": {
       "snapshotImported": "Snapshot importato",
       "snapshotImport": "Importa l'indice del corpus",

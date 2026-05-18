@@ -13,6 +13,13 @@
     "identifier_label": "InfoLEG ID",
     "identifier_example": "123456",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "ar",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

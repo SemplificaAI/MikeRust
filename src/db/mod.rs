@@ -123,7 +123,11 @@ pub struct AppState {
     /// library-inventory builder. Empty when no manifest directory
     /// exists — the hardcoded EUR-Lex / Italian routes still work,
     /// the registry is purely metadata for discovery and UI.
-    pub corpus_plugins: Arc<Vec<crate::corpora::plugin::CorpusPlugin>>,
+    /// Behind a `RwLock` so the dev manifest hot-reloader can swap the
+    /// registry in-process when a `config/corpora-plugins/*.json` file
+    /// changes — no restart needed.
+    pub corpus_plugins:
+        Arc<std::sync::RwLock<Vec<crate::corpora::plugin::CorpusPlugin>>>,
 
     /// Per-corpus runtime adapter for declarative corpora
     /// (`strategy.kind == "http-fetch-per-id"`). Keyed by corpus id.
@@ -136,7 +140,7 @@ pub struct AppState {
     /// `/italian-legal/*` routes call their adapters directly. They
     /// migrate here when we converge on generic routes.
     pub corpus_adapters:
-        Arc<crate::corpora::manifest_adapter::AdapterRegistry>,
+        Arc<std::sync::RwLock<crate::corpora::manifest_adapter::AdapterRegistry>>,
 
     /// Live progress for in-flight bulk imports, keyed by corpus id.
     /// Spawned by POST `/corpora/:id/import`, polled by GET
@@ -263,6 +267,20 @@ impl AppState {
             "[corpus-adapters] {} declarative adapter(s) registered",
             corpus_adapters.len()
         );
+        let corpus_plugins =
+            Arc::new(std::sync::RwLock::new(corpus_plugins));
+        let corpus_adapters =
+            Arc::new(std::sync::RwLock::new(corpus_adapters));
+        // Dev convenience: watch config/corpora-plugins/ and hot-reload
+        // manifests in-process so connector edits don't need a restart.
+        // Debug builds only — a packaged app ships frozen manifests.
+        if cfg!(debug_assertions) {
+            crate::corpora::manifest_adapter::spawn_manifest_reloader(
+                plugins_dir.clone(),
+                corpus_plugins.clone(),
+                corpus_adapters.clone(),
+            );
+        }
 
         // Workflow + column preset registries. Same fail-soft policy as
         // corpus plugins: a broken JSON or missing directory logs a
@@ -361,8 +379,8 @@ impl AppState {
             embeddings,
             #[cfg(feature = "rag")]
             scans: Arc::new(RwLock::new(HashMap::new())),
-            corpus_plugins: Arc::new(corpus_plugins),
-            corpus_adapters: Arc::new(corpus_adapters),
+            corpus_plugins,
+            corpus_adapters,
             corpus_import_progress: Arc::new(RwLock::new(HashMap::new())),
             workflow_presets: Arc::new(workflow_presets),
             column_presets: Arc::new(column_presets),

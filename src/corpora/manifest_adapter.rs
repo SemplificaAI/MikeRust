@@ -163,12 +163,22 @@ impl LegalCorpusAdapter for ManifestAdapter {
             .unwrap_or(&self.plugin.default_language)
             .to_string();
         let limit_s = limit.to_string();
+        // Unified search box: pull a 4-digit year out of the query so a
+        // manifest can route to a date-filtered endpoint via
+        // `url_template_year`. Falls back to the plain template when no
+        // year is present or the manifest declares no year template.
+        let year = extract_query_year(query);
+        let template = match (&year, &spec.url_template_year) {
+            (Some(_), Some(yt)) => yt.as_str(),
+            _ => spec.url_template.as_str(),
+        };
         let url = substitute_url(
-            &spec.url_template,
+            template,
             &[
                 ("query", query),
                 ("lang", lang.as_str()),
                 ("limit", limit_s.as_str()),
+                ("year", year.as_deref().unwrap_or("")),
             ],
         )?;
         let body = self.fetch_text(&url).await?;
@@ -364,6 +374,23 @@ fn percent_encode_query(s: &str) -> String {
     out
 }
 
+/// Pull the first plausible 4-digit year (1700–2099) appearing as a
+/// standalone digit run in `query`. Powers the unified search box:
+/// when a year is present the adapter can route to a date-filtered
+/// endpoint. Returns None when the query carries no year.
+pub(crate) fn extract_query_year(query: &str) -> Option<String> {
+    for tok in query.split(|c: char| !c.is_ascii_digit()) {
+        if tok.len() == 4 {
+            if let Ok(y) = tok.parse::<u32>() {
+                if (1700..=2099).contains(&y) {
+                    return Some(tok.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
 // ---------------------------------------------------------------------------
 // Extraction
 // ---------------------------------------------------------------------------
@@ -456,10 +483,13 @@ fn extract_each_html(
 fn extract_from_json(body: &str, jsonpath: &str) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(body).ok()?;
     let traversed = walk_jsonpath_first(&v, jsonpath)?;
-    Some(match traversed {
-        serde_json::Value::String(s) => s.clone(),
-        other => other.to_string(),
-    })
+    match traversed {
+        // A JSON `null` is "field absent", not the literal text "null"
+        // — returning None keeps it out of identifiers/titles/dates.
+        serde_json::Value::Null => None,
+        serde_json::Value::String(s) => Some(s.clone()),
+        other => Some(other.to_string()),
+    }
 }
 
 fn walk_jsonpath_first<'a>(
@@ -629,10 +659,12 @@ fn extract_from_json_value(root: &serde_json::Value, path: &str) -> Option<Strin
         format!("$.{}", path)
     };
     let v = walk_jsonpath_first(root, &normalized)?;
-    Some(match v {
-        serde_json::Value::String(s) => s.clone(),
-        other => other.to_string(),
-    })
+    match v {
+        // JSON `null` → field absent (no literal "null" leaking out).
+        serde_json::Value::Null => None,
+        serde_json::Value::String(s) => Some(s.clone()),
+        other => Some(other.to_string()),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -754,6 +786,79 @@ pub fn build_adapter_registry(plugins: &[CorpusPlugin]) -> AdapterRegistry {
     out
 }
 
+// ---------------------------------------------------------------------------
+// Dev hot-reload — watch the manifest dir and swap the registry in-process
+// ---------------------------------------------------------------------------
+
+/// Spawn a background thread that polls the corpus-plugin directory
+/// every 2 s and, when a `*.json` manifest is added/removed/edited,
+/// re-parses the lot and swaps both the plugin list and the adapter
+/// registry in place. Debug-build only (see caller) — it lets a
+/// connector manifest edit take effect without restarting the backend.
+pub fn spawn_manifest_reloader(
+    dir: std::path::PathBuf,
+    plugins: Arc<std::sync::RwLock<Vec<CorpusPlugin>>>,
+    adapters: Arc<std::sync::RwLock<AdapterRegistry>>,
+) {
+    std::thread::spawn(move || {
+        let mut last = dir_fingerprint(&dir);
+        loop {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let now = dir_fingerprint(&dir);
+            if now == last {
+                continue;
+            }
+            last = now;
+            match crate::corpora::plugin::load_plugins(&dir) {
+                Ok(p) => {
+                    let reg = build_adapter_registry(&p);
+                    tracing::info!(
+                        "[corpus-plugins] hot-reload: {} manifest(s), {} adapter(s)",
+                        p.len(),
+                        reg.len()
+                    );
+                    if let Ok(mut g) = plugins.write() {
+                        *g = p;
+                    }
+                    if let Ok(mut g) = adapters.write() {
+                        *g = reg;
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("[corpus-plugins] hot-reload failed: {:#}", e);
+                }
+            }
+        }
+    });
+}
+
+/// Cheap directory fingerprint: `(filename, mtime, len)` for every
+/// `*.json`, sorted. Changes whenever a manifest is added, removed,
+/// or written — that's the hot-reload trigger.
+fn dir_fingerprint(
+    dir: &std::path::Path,
+) -> Vec<(String, std::time::SystemTime, u64)> {
+    let mut out = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for e in entries.flatten() {
+            let path = e.path();
+            if path.extension().and_then(|x| x.to_str()) != Some("json") {
+                continue;
+            }
+            if let Ok(meta) = e.metadata() {
+                let mtime = meta.modified().unwrap_or(std::time::UNIX_EPOCH);
+                out.push((
+                    e.file_name().to_string_lossy().into_owned(),
+                    mtime,
+                    meta.len(),
+                ));
+            }
+        }
+    }
+    out.sort();
+    out
+}
+
 // Keep unused-field warnings quiet — `HttpFetchByIdSpec` fields are
 // used at runtime by the extraction functions.
 #[allow(dead_code)]
@@ -872,6 +977,7 @@ mod tests {
             identifier_at: "h3.title a@href:strip-prefix=/fr/deliberation/".to_string(),
             title_at: "h3.title a".to_string(),
             date_at: None,
+            url_template_year: None,
         };
         let hits = extract_hits(body, &spec, 10, "fr");
         assert_eq!(hits.len(), 2);
@@ -895,6 +1001,7 @@ mod tests {
             identifier_at: ":self@href:strip-prefix=/".to_string(),
             title_at: ":self".to_string(),
             date_at: None,
+            url_template_year: None,
         };
         let hits = extract_hits(body, &spec, 10, "de");
         assert_eq!(hits.len(), 2);

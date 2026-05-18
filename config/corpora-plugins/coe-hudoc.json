@@ -13,6 +13,13 @@
     "identifier_label": "HUDOC itemid",
     "identifier_example": "001-233001",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "coe",
+        "doc_types": ["case_law"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

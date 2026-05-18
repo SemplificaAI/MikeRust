@@ -1,10 +1,10 @@
 {
     "id": "cnil",
-    "display_name": "CNIL",
+    "display_name": "FR / CNIL",
     "display_name_locale": {
-        "fr": "CNIL",
-        "it": "CNIL — Garante francese",
-        "en": "CNIL (France)"
+        "fr": "France — CNIL",
+        "it": "Francia — CNIL",
+        "en": "France — CNIL"
     },
     "description": "Délibérations CNIL (sanctions, mises en demeure, recommandations, avis) servies depuis les archives OPENDATA DILA. Téléchargement et indexation locale : aucune dépendance à Légifrance ni à un client OAuth, pas de challenge anti-bot. Snapshot complet ~18 MB ; mises à jour incrémentales (quelques KB / semaine).",
     "homepage": "https://echanges.dila.gouv.fr/OPENDATA/CNIL/",
@@ -14,6 +14,13 @@
     "identifier_label": "CNILTEXT",
     "identifier_example": "CNILTEXT000054047151",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "fr",
+        "doc_types": ["case_law"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "xml"
+    },
     "strategy": {
         "kind": "dila-bulk-xml",
         "fonds": "CNIL",

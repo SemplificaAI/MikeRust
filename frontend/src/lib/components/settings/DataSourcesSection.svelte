@@ -10,29 +10,65 @@
   import EurlexSection from './EurlexSection.svelte'
   import CorpusSection from './CorpusSection.svelte'
   import Input from '$lib/components/ui/Input.svelte'
+  import Select from '$lib/components/ui/Select.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import { corporaApi, type CorpusItem } from '$lib/api/data-sources'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { ChevronLeft, ChevronRight } from 'lucide-svelte'
-
-  const EXCLUDED_SOURCE_IDS = new Set(['cnil', 'eurlex', 'italian-legal'])
 
   let corpora = $state<CorpusItem[]>([])
   let loading = $state(true)
   /** 'sync' or a corpus id. */
   let active = $state<string>('sync')
   let titleFilter = $state('')
+  let jurisdictionFilter = $state('')
+  let typeFilter = $state('')
 
+  /** Localized jurisdiction name for the filter dropdown. Falls back
+   *  to the upper-cased code if the locale lacks an entry. */
+  function jurLabel(code: string): string {
+    const key = `Corpora.jurisdiction.${code}`
+    const label = i18n.t(key)
+    return label === key ? code.toUpperCase() : label
+  }
+
+  // Every runnable corpus gets a tab. EUR-Lex renders its dedicated
+  // EurlexSection (via the active === 'eurlex' branch below); CNIL,
+  // Italian-Legal and every declarative plugin render CorpusSection.
   const allCorpora = $derived.by(() => {
     return corpora
-      .filter((c) => c.runnable && !EXCLUDED_SOURCE_IDS.has(c.id))
+      .filter((c) => c.runnable)
       .sort((a, b) => a.display_name.localeCompare(b.display_name))
   })
 
+  /** Jurisdiction dropdown options, derived from the visible corpora. */
+  const jurisdictionOptions = $derived.by(() => {
+    const set = new Set<string>()
+    for (const c of allCorpora) {
+      if (c.discovery?.jurisdiction) set.add(c.discovery.jurisdiction)
+    }
+    return [
+      { value: '', label: i18n.t('Corpora.filters.allJurisdictions') },
+      ...[...set].sort().map((j) => ({ value: j, label: jurLabel(j) })),
+    ]
+  })
+
+  const typeOptions = $derived([
+    { value: '', label: i18n.t('Corpora.filters.allTypes') },
+    { value: 'legislation', label: i18n.t('Corpora.docType.legislation') },
+    { value: 'case_law', label: i18n.t('Corpora.docType.caseLaw') },
+  ])
+
   const visibleCorpora = $derived.by(() => {
     const q = titleFilter.trim().toLowerCase()
-    if (!q) return allCorpora
-    return allCorpora.filter((c) => c.display_name.toLowerCase().includes(q))
+    return allCorpora.filter((c) => {
+      if (q && !c.display_name.toLowerCase().includes(q)) return false
+      if (jurisdictionFilter && c.discovery?.jurisdiction !== jurisdictionFilter)
+        return false
+      if (typeFilter && !(c.discovery?.doc_types ?? []).includes(typeFilter))
+        return false
+      return true
+    })
   })
 
   $effect(() => {
@@ -72,10 +108,25 @@
 </script>
 
 <div class="space-y-4">
-  <div class="max-w-sm">
+  <div class="flex flex-wrap items-end gap-2">
     <Input
       bind:value={titleFilter}
-      placeholder="Filtra fonti per titolo..."
+      placeholder={i18n.t('Corpora.filters.titlePlaceholder')}
+      class="min-w-48 flex-1 max-w-xs"
+    />
+    <Select
+      bind:value={jurisdictionFilter}
+      options={jurisdictionOptions}
+      label={i18n.t('Corpora.filters.jurisdiction')}
+      size="md"
+      class="w-44"
+    />
+    <Select
+      bind:value={typeFilter}
+      options={typeOptions}
+      label={i18n.t('Corpora.filters.type')}
+      size="md"
+      class="w-44"
     />
   </div>
 

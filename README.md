@@ -323,9 +323,15 @@ Today three strategies are supported:
   `corpus_documents` insert → FTS5 index. **Proof of concept: CNIL**,
   ~26 000 délibérations indexed locally from an ~18 MB tar.gz, Etalab 2.0
   license, zero anti-bot exposure.
-- `http-fetch-per-id` — scaffolded for single-document fetch with URL
-  templates + CSS/JSONPath extraction (not yet exercised; first target
-  was CNIL via Légifrance, abandoned because of Cloudflare).
+- `http-fetch-per-id` — fully declarative keyword search + single-
+  document fetch driven by URL templates and CSS/JSONPath extraction.
+  Carries per-source discovery metadata (jurisdiction, doc type, auth
+  mode, search mode, fetch format) and an optional year-filtered search
+  endpoint. This is the live engine behind the international connectors
+  (e-Gov, eCFR, CourtListener, OpenLegalData, BOE, …). Sources behind a
+  JS anti-bot challenge (Cloudflare/WAF) are detected and fail loudly —
+  for those the connector must target the source's JSON API, never its
+  website.
 
 **Alternative under evaluation — MCP-driven backend.** A second design
 is on the table: instead of (or alongside) the JSON-plugin path, expose
@@ -424,7 +430,7 @@ See `.env.example` for the full reference.
 | Italia legale V1 (Normattiva + Corte Cost via HF dataset) | ✅ |
 | Italia legale V2 (OpenGA opt-in, Cassazione, live Normattiva) | 🔲 see [CORPORA.md](docs/CORPORA.md) |
 | Italia legale V3 (regional laws, GU, ministerial decrees) | 🔲 |
-| **JSON-manifest plugin system** (`config/corpora-plugins/*.json`) | ✅ schema + loader + adapter registry + generic /corpora routes |
+| **JSON-manifest plugin system** (`config/corpora-plugins/*.json`) | ✅ schema + loader + adapter registry + generic /corpora routes + discovery metadata, per-corpus enable/disable, unified year-filter search, dev hot-reload |
 | **`dila-bulk-xml` strategy** (download tar.gz → walk XML → FTS5) | ✅ end-to-end test + live import |
 | CNIL via DILA OPENDATA (declarative plugin) | ✅ — first proof-of-concept consumer of the plugin system |
 | Other DILA fondi (LEGI, JORF, CASS, KALI) as plugins | 🔲 — same strategy, one manifest each |

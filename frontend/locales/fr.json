@@ -276,7 +276,49 @@
       "importAction": "Importer maintenant"
     },
     "sourcesAvailable": "Disponibles maintenant",
-    "sourcesComingSoon": "En préparation"
+    "sourcesComingSoon": "En préparation",
+    "filters": {
+      "titlePlaceholder": "Filtrer les sources par nom…",
+      "jurisdiction": "Juridiction",
+      "allJurisdictions": "Toutes les juridictions",
+      "type": "Type",
+      "allTypes": "Tous les types"
+    },
+    "docType": {
+      "legislation": "Législation",
+      "caseLaw": "Jurisprudence"
+    },
+    "badge": {
+      "authPublic": "Publique",
+      "authApiKey": "Clé API",
+      "authOauth2": "OAuth2",
+      "authOptionalToken": "Jeton facultatif",
+      "searchFreeText": "Texte libre",
+      "searchCitationOnly": "Citation uniquement",
+      "searchDateWindow": "Par date",
+      "searchSparql": "SPARQL"
+    },
+    "hint": {
+      "citationOnly": "Cette source résout les documents par citation légale — collez une référence complète.",
+      "dateWindow": "Cette source recherche dans une fenêtre de dates — incluez une date dans votre requête."
+    },
+    "queued": "En file",
+    "retry": "Réessayer",
+    "jurisdiction": {
+      "eu": "Européenne",
+      "it": "Italienne",
+      "fr": "Française",
+      "at": "Autrichienne",
+      "au": "Australienne",
+      "de": "Allemande",
+      "es": "Espagnole",
+      "ie": "Irlandaise",
+      "jp": "Japonaise",
+      "nl": "Néerlandaise",
+      "uk": "Britannique",
+      "us": "Américaine"
+    },
+    "sourceEnabled": "Source activée"
   },
   "Eurlex": {
     "title": "EUR-Lex",

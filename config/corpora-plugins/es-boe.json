@@ -13,6 +13,13 @@
     "identifier_label": "BOE ID",
     "identifier_example": "BOE-A-2024-12345",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "es",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {

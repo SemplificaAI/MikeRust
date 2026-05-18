@@ -11,8 +11,15 @@
     "default_language": "de",
     "supports_language_fallback": false,
     "identifier_label": "Case ID",
-    "identifier_example": "case:12345",
+    "identifier_example": "279301",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "de",
+        "doc_types": ["case_law"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "json"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {

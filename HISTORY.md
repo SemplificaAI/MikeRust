@@ -12,6 +12,74 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-19 — Declarative legal-corpus connectors + data-sources UX overhaul
+
+Brought the JSON-manifest corpus system from scaffold to a working
+declarative connector engine, reworked the Settings → Data sources
+panel, and cleared a long tail of QA findings on the corpus workflow.
+
+### Added
+
+- **Corpus discovery metadata** — `jurisdiction`, `doc_types`, `auth`,
+  `search_mode`, `fetch_format` added to the manifest schema and to all
+  28 manifests; surfaced through `GET /corpora`.
+- **Data-sources filters** — Jurisdiction and Type dropdowns over the
+  source tabs, per-source badges (document type, auth, search mode,
+  fetch format), and a search-mode hint under the search box.
+- **Per-corpus enable/disable** — generic `GET|PUT /corpora/:id/config`
+  (shares the existing `corpus_settings` table, no migration), with an
+  enable toggle on every source panel — not just EUR-Lex.
+- **Unified search box — year filter** — the engine extracts a 4-digit
+  year from the query and routes to a date-filtered endpoint via the
+  new optional `url_template_year` manifest field (wired for US/eCFR
+  and US/CourtListener; available to any manifest).
+- **Manifest hot-reload (dev)** — a background watcher re-reads
+  `config/corpora-plugins/` and swaps the plugin + adapter registry
+  in-process, so connector edits no longer need a restart. Debug builds
+  only; a packaged app ships frozen manifests.
+- **Per-hit indexing queue** — multiple "Index" clicks now queue up,
+  each hit showing its own state (queued → running → done/error) with
+  a retry, instead of only the last click showing a progress bar.
+- `PLAN_FONTI_INTERNAZIONALI.md` — a matrix of the 28 SuzieLaw-derived
+  international legal sources (download mode, auth, format, doc_id).
+
+### Changed
+
+- The `http-fetch-per-id` `ManifestAdapter` is now the live engine for
+  the declarative corpora (search + fetch via URL templates and
+  CSS/JSONPath extraction) — previously scaffold-only.
+- CNIL, EUR-Lex and Italian-Legal are no longer hidden from the Data
+  sources panel — an over-broad exclusion list left EUR-Lex's dedicated
+  panel unreachable.
+- Display-name cleanups: `CNIL` → `FR / CNIL`,
+  `Italian Legal Corpus` → `IT / Italian-Legal`; the jurisdiction
+  filter shows localized names ("Italiana", "Tedesca", …) in all six
+  locales.
+- `http-fetch-per-id` search: a keyword search that returns nothing now
+  falls back to an identifier probe — one box accepts free text and
+  corpus-native identifiers.
+- Connector manifests corrected against the live APIs: **DE/OpenLegalData**
+  (search + fetch through the JSON API by numeric id — the website
+  pages are Cloudflare-gated, the API is not), **JP/e-Gov** (keyword
+  search added via the v2 API), **US/eCFR** (section-level result
+  headings), **US/CourtListener** (year filter).
+- **IT/Normattiva** set to citation-only: the portal is a JS app with
+  no search API — free-text Italian search lives in IT/Italian-Legal
+  (local FTS index).
+- Indexed-document rows now show the stored `.txt` size.
+
+### Fixed
+
+- JSON `null` no longer leaks into search results as the literal text
+  `"null"` — a `null` field is treated as absent.
+- "Import already in progress" is now an informational toast, not a red
+  error; the import progress bar tracks the real `downloading` /
+  `importing` job states (it previously watched a `running` string the
+  backend never emits) and resumes polling when the panel is reopened
+  mid-import.
+
+---
+
 ## 2026-05-18 — KB citations open in viewer + formal verification trace
 
 Implemented the frontend wiring needed to open/download knowledge-base

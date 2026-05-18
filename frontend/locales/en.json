@@ -264,6 +264,48 @@
     "indexedHeader": "Indexed documents ({count})",
     "statusReady": "indexed",
     "statusInterrupted": "interrupted",
+    "sourceEnabled": "Source enabled",
+    "queued": "Queued",
+    "retry": "Retry",
+    "jurisdiction": {
+      "eu": "European",
+      "it": "Italian",
+      "fr": "French",
+      "at": "Austrian",
+      "au": "Australian",
+      "de": "German",
+      "es": "Spanish",
+      "ie": "Irish",
+      "jp": "Japanese",
+      "nl": "Dutch",
+      "uk": "British",
+      "us": "United States"
+    },
+    "filters": {
+      "titlePlaceholder": "Filter sources by name…",
+      "jurisdiction": "Jurisdiction",
+      "allJurisdictions": "All jurisdictions",
+      "type": "Type",
+      "allTypes": "All types"
+    },
+    "docType": {
+      "legislation": "Legislation",
+      "caseLaw": "Case law"
+    },
+    "badge": {
+      "authPublic": "Public",
+      "authApiKey": "API key",
+      "authOauth2": "OAuth2",
+      "authOptionalToken": "Optional token",
+      "searchFreeText": "Free-text",
+      "searchCitationOnly": "Citation only",
+      "searchDateWindow": "Date-window",
+      "searchSparql": "SPARQL"
+    },
+    "hint": {
+      "citationOnly": "This source resolves documents by legal citation — paste a full reference.",
+      "dateWindow": "This source searches within a date window — include a date in your query."
+    },
     "bulk": {
       "snapshotImported": "Snapshot imported",
       "snapshotImport": "Import the corpus index",

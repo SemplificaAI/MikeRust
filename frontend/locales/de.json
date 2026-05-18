@@ -276,7 +276,49 @@
       "importAction": "Jetzt importieren"
     },
     "sourcesAvailable": "Jetzt verfügbar",
-    "sourcesComingSoon": "Demnächst verfügbar"
+    "sourcesComingSoon": "Demnächst verfügbar",
+    "filters": {
+      "titlePlaceholder": "Quellen nach Name filtern…",
+      "jurisdiction": "Jurisdiktion",
+      "allJurisdictions": "Alle Jurisdiktionen",
+      "type": "Typ",
+      "allTypes": "Alle Typen"
+    },
+    "docType": {
+      "legislation": "Gesetzgebung",
+      "caseLaw": "Rechtsprechung"
+    },
+    "badge": {
+      "authPublic": "Öffentlich",
+      "authApiKey": "API-Schlüssel",
+      "authOauth2": "OAuth2",
+      "authOptionalToken": "Optionales Token",
+      "searchFreeText": "Freitext",
+      "searchCitationOnly": "Nur Fundstelle",
+      "searchDateWindow": "Nach Datum",
+      "searchSparql": "SPARQL"
+    },
+    "hint": {
+      "citationOnly": "Diese Quelle löst Dokumente über die Fundstelle auf — fügen Sie eine vollständige Referenz ein.",
+      "dateWindow": "Diese Quelle sucht innerhalb eines Datumsfensters — geben Sie ein Datum in Ihrer Anfrage an."
+    },
+    "queued": "In Warteschlange",
+    "retry": "Erneut versuchen",
+    "jurisdiction": {
+      "eu": "Europäisch",
+      "it": "Italienisch",
+      "fr": "Französisch",
+      "at": "Österreichisch",
+      "au": "Australisch",
+      "de": "Deutsch",
+      "es": "Spanisch",
+      "ie": "Irisch",
+      "jp": "Japanisch",
+      "nl": "Niederländisch",
+      "uk": "Britisch",
+      "us": "US-amerikanisch"
+    },
+    "sourceEnabled": "Quelle aktiviert"
   },
   "Eurlex": {
     "title": "EUR-Lex",

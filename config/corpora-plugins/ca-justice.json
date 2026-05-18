@@ -13,6 +13,13 @@
     "identifier_label": "UniqueId",
     "identifier_example": "P-21",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "ca",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "xml"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

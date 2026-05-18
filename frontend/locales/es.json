@@ -276,7 +276,49 @@
       "importAction": "Importar ahora"
     },
     "sourcesAvailable": "Disponibles ahora",
-    "sourcesComingSoon": "Próximamente"
+    "sourcesComingSoon": "Próximamente",
+    "filters": {
+      "titlePlaceholder": "Filtrar fuentes por nombre…",
+      "jurisdiction": "Jurisdicción",
+      "allJurisdictions": "Todas las jurisdicciones",
+      "type": "Tipo",
+      "allTypes": "Todos los tipos"
+    },
+    "docType": {
+      "legislation": "Legislación",
+      "caseLaw": "Jurisprudencia"
+    },
+    "badge": {
+      "authPublic": "Pública",
+      "authApiKey": "Clave API",
+      "authOauth2": "OAuth2",
+      "authOptionalToken": "Token opcional",
+      "searchFreeText": "Texto libre",
+      "searchCitationOnly": "Solo cita",
+      "searchDateWindow": "Por fecha",
+      "searchSparql": "SPARQL"
+    },
+    "hint": {
+      "citationOnly": "Esta fuente resuelve los documentos por cita legal — pega una referencia completa.",
+      "dateWindow": "Esta fuente busca dentro de una ventana de fechas — incluye una fecha en tu consulta."
+    },
+    "queued": "En cola",
+    "retry": "Reintentar",
+    "jurisdiction": {
+      "eu": "Europea",
+      "it": "Italiana",
+      "fr": "Francesa",
+      "at": "Austriaca",
+      "au": "Australiana",
+      "de": "Alemana",
+      "es": "Española",
+      "ie": "Irlandesa",
+      "jp": "Japonesa",
+      "nl": "Neerlandesa",
+      "uk": "Británica",
+      "us": "Estadounidense"
+    },
+    "sourceEnabled": "Fuente activada"
   },
   "Eurlex": {
     "title": "EUR-Lex",

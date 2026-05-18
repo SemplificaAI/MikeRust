@@ -13,6 +13,13 @@
     "identifier_label": "tid",
     "identifier_example": "123456789",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "in",
+        "doc_types": ["legislation", "case_law"],
+        "auth": "api-key",
+        "search_mode": "free-text",
+        "fetch_format": "json"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

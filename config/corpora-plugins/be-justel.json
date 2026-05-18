@@ -13,6 +13,13 @@
     "identifier_label": "ELI / Numac",
     "identifier_example": "2019/01/01/123",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "be",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "date-window",
+        "fetch_format": "html"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

@@ -13,6 +13,13 @@
     "identifier_label": "Case URI",
     "identifier_example": "ewhc/ch/2026/694",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "uk",
+        "doc_types": ["case_law"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {

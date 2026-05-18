@@ -165,3 +165,9 @@ config/docx-templates/user/
 # author convenience but NOT shipped in this repo: those docs talk
 # about a different stack and a different toolchain than MikeRust.
 docs/mike-upstream/
+
+# SuzieLaw reference checkout — a local clone of the SuzieLaw project
+# used only to study its legal-source providers when porting corpus
+# connectors. Third-party code; kept on disk for reference, never
+# committed into this repo.
+new_analysis/

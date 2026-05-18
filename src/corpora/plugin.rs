@@ -138,6 +138,35 @@ pub struct CorpusPlugin {
     /// data the user redistributes (via `.mikeprj` export, etc.).
     #[serde(default)]
     pub license: Option<CorpusLicense>,
+
+    /// Discovery metadata for the Settings → Data sources filter UI:
+    /// jurisdiction + document kinds + access/format badges. Optional
+    /// for forward-compat — manifests predating this block still load.
+    #[serde(default)]
+    pub discovery: Option<CorpusDiscovery>,
+}
+
+/// Discovery metadata surfaced to the corpus-picker UI. Every field is
+/// a free-form lowercase token (deliberately NOT validated here) so a
+/// new manifest can introduce a value without breaking older builds:
+///   - `jurisdiction`: short region code for the filter dropdown
+///     (`eu`, `de`, `fr`, `coe`, `us`, ...).
+///   - `doc_types`: `legislation` / `case_law` — a corpus may serve both.
+///   - `auth`: `public` / `api-key` / `oauth2` / `optional-token`.
+///   - `search_mode`: `free-text` / `citation-only` / `date-window` / `sparql`.
+///   - `fetch_format`: `html` / `xml` / `json` / `sparql` / `zip-epub`.
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct CorpusDiscovery {
+    #[serde(default)]
+    pub jurisdiction: Option<String>,
+    #[serde(default)]
+    pub doc_types: Vec<String>,
+    #[serde(default)]
+    pub auth: Option<String>,
+    #[serde(default)]
+    pub search_mode: Option<String>,
+    #[serde(default)]
+    pub fetch_format: Option<String>,
 }
 
 /// Upstream license info for a corpus. The producer's attribution
@@ -380,6 +409,15 @@ pub struct HttpSearchKeywordSpec {
     /// Optional date selector inside the hit.
     #[serde(default)]
     pub date_at: Option<String>,
+
+    /// Optional alternate URL template used when the engine detects a
+    /// 4-digit year in the query. Receives `{query}`, `{lang}`,
+    /// `{limit}` and `{year}`. When absent — or no year is detected —
+    /// `url_template` is used. This lets a manifest add an API
+    /// date-filter parameter without leaving a dangling empty
+    /// `&date=` in the no-year case.
+    #[serde(default)]
+    pub url_template_year: Option<String>,
 }
 
 /// Response shape understood by the declarative engine. `rest-html`

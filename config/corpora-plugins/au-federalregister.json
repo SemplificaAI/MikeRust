@@ -13,6 +13,13 @@
     "identifier_label": "Register ID",
     "identifier_example": "C2004A00594",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "au",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "zip-epub"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {

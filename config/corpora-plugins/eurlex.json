@@ -18,6 +18,13 @@
     "identifier_label": "CELEX",
     "identifier_example": "32016R0679",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "eu",
+        "doc_types": ["legislation", "case_law"],
+        "auth": "public",
+        "search_mode": "sparql",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "builtin",
         "builtin_id": "eurlex"

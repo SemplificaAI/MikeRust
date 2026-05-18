@@ -13,6 +13,13 @@
     "identifier_label": "Decision ID",
     "identifier_example": "JURI000000000000",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "fr",
+        "doc_types": ["case_law"],
+        "auth": "api-key",
+        "search_mode": "free-text",
+        "fetch_format": "json"
+    },
     "strategy": { "kind": "hf-dataset-bulk" },
     "capabilities": {
         "search": false,

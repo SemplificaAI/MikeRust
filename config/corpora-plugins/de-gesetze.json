@@ -13,6 +13,13 @@
     "identifier_label": "Percorso documento",
     "identifier_example": "bgb/__535.html",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "de",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {

@@ -13,6 +13,13 @@
     "identifier_label": "Legislation path",
     "identifier_example": "ukpga/1998/29",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "uk",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {

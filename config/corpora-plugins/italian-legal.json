@@ -1,9 +1,9 @@
 {
     "id": "italian-legal",
-    "display_name": "Italian Legal Corpus",
+    "display_name": "IT / Italian-Legal",
     "display_name_locale": {
-        "it": "Italia legale",
-        "en": "Italian Legal Corpus"
+        "it": "Italia — Italian-Legal",
+        "en": "Italy — Italian-Legal"
     },
     "description": "Indice di norme italiane (Normattiva) e sentenze (Corte Costituzionale) dal dataset CC-BY-4.0 dossier-legal/italian-legal-corpus su HuggingFace. Snapshot del 2026-03-01. Solo i metadati vengono scaricati localmente; il testo completo arriva on-demand quando indicizzi un documento.",
     "homepage": "https://huggingface.co/datasets/dossier-legal/italian-legal-corpus",
@@ -13,6 +13,13 @@
     "identifier_label": "URN",
     "identifier_example": "urn:nir:stato:legge:2023-12-29;213",
     "enabled_by_default": false,
+    "discovery": {
+        "jurisdiction": "it",
+        "doc_types": ["legislation", "case_law"],
+        "auth": "public",
+        "search_mode": "free-text",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "builtin",
         "builtin_id": "italian-legal-hf"

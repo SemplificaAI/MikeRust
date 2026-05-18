@@ -154,6 +154,15 @@ export interface CorpusSourceItem {
   status_label?: string | null
 }
 
+/** Discovery metadata for the data-sources filter UI and badges. */
+export interface CorpusDiscovery {
+  jurisdiction?: string | null
+  doc_types: string[]
+  auth?: string | null
+  search_mode?: string | null
+  fetch_format?: string | null
+}
+
 export interface CorpusItem {
   id: string
   display_name: string
@@ -167,6 +176,14 @@ export interface CorpusItem {
   runnable: boolean
   capabilities: CorpusCapabilities
   sources: CorpusSourceItem[]
+  discovery?: CorpusDiscovery | null
+}
+
+/** Per-user enable/disable (+ language) for any corpus. */
+export interface CorpusConfig {
+  enabled: boolean
+  language?: string
+  fallback_en?: boolean
 }
 
 export const corporaApi = {
@@ -267,5 +284,8 @@ export function genericCorpusApi(id: string) {
       }),
     startImport: () => api<{ started?: boolean }>(`${base}/import`, { method: 'POST' }),
     importStatus: () => api<ImportStatus>(`${base}/import-status`),
+    getConfig: () => api<CorpusConfig>(`${base}/config`),
+    setConfig: (body: CorpusConfig) =>
+      api<CorpusConfig>(`${base}/config`, { method: 'PUT', body }),
   }
 }

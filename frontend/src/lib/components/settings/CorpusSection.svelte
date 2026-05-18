@@ -15,12 +15,14 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import Progress from '$lib/components/ui/Progress.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
+  import Toggle from '$lib/components/ui/Toggle.svelte'
   import {
     italianLegalApi,
     genericCorpusApi,
     type CorpusItem,
     type CorpusDocument,
     type ImportStatus,
+    type ItalianLegalConfig,
   } from '$lib/api/data-sources'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -58,6 +60,43 @@
     `Nessun documento ${corpus.display_name} ancora indicizzato. Cerca un atto qui sopra per aggiungerlo.`
   )
 
+  // ── Discovery badges + dynamic search hint ───────────────────────
+  const disc = $derived(corpus.discovery)
+
+  function authLabel(a: string): string {
+    return (
+      {
+        public: t('Corpora.badge.authPublic'),
+        'api-key': t('Corpora.badge.authApiKey'),
+        oauth2: t('Corpora.badge.authOauth2'),
+        'optional-token': t('Corpora.badge.authOptionalToken'),
+      } as Record<string, string>
+    )[a] ?? a
+  }
+  function searchModeLabel(s: string): string {
+    return (
+      {
+        'free-text': t('Corpora.badge.searchFreeText'),
+        'citation-only': t('Corpora.badge.searchCitationOnly'),
+        'date-window': t('Corpora.badge.searchDateWindow'),
+        sparql: t('Corpora.badge.searchSparql'),
+      } as Record<string, string>
+    )[s] ?? s
+  }
+  function docTypeLabel(dt: string): string {
+    return dt === 'case_law'
+      ? t('Corpora.docType.caseLaw')
+      : t('Corpora.docType.legislation')
+  }
+
+  /** Search-mode-specific guidance shown under the search box. */
+  const searchHint = $derived.by(() => {
+    const s = corpus.discovery?.search_mode
+    if (s === 'citation-only') return t('Corpora.hint.citationOnly')
+    if (s === 'date-window') return t('Corpora.hint.dateWindow')
+    return null
+  })
+
   interface Hit {
     id: string
     title: string
@@ -68,8 +107,20 @@
   let query = $state('')
   let hits = $state<Hit[]>([])
   let searching = $state(false)
-  let indexingId = $state<string | null>(null)
-  let indexingController = $state<AbortController | null>(null)
+
+  // Per-hit indexing queue: each clicked hit gets its own job and the
+  // worker drains them one at a time, so multiple "Index" clicks each
+  // show their own state (queued → running → done/error) instead of
+  // only the last click showing a progress bar.
+  type IndexState = 'queued' | 'running' | 'done' | 'error'
+  interface IndexJob {
+    state: IndexState
+    controller?: AbortController
+    error?: string
+  }
+  let indexJobs = $state<Record<string, IndexJob>>({})
+  let indexQueue: string[] = []
+  let queueWorking = false
 
   let docs = $state<CorpusDocument[]>([])
   let docsLoading = $state(true)
@@ -77,6 +128,25 @@
   let importStatus = $state<ImportStatus | null>(null)
   let importing = $state(false)
   let pollTimer: ReturnType<typeof setInterval> | undefined
+
+  // Job-state strings that mean "an import is in flight". italian-legal
+  // reports `downloading`/`importing`; the generic DILA importer
+  // reports phase names; `running` is our optimistic post-start value.
+  const IMPORT_RUNNING = new Set([
+    'running', 'downloading', 'importing',
+    'discovering', 'extracting', 'inserting',
+  ])
+  const isImporting = $derived(
+    !!importStatus && IMPORT_RUNNING.has(importStatus.job_state)
+  )
+
+  /** Human-readable byte size for the indexed-document list. */
+  function formatBytes(n: number): string {
+    if (!n || n < 0) return '0 B'
+    if (n < 1024) return `${n} B`
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+    return `${(n / 1024 / 1024).toFixed(1)} MB`
+  }
 
   async function loadDocs() {
     if (!corpus.runnable) {
@@ -111,10 +181,51 @@
     }
   }
 
+  // ── Enable/disable toggle (per-user, persisted in corpus_settings) ─
+  let corpusEnabled = $state(true)
+  let italianConfig = $state<ItalianLegalConfig | null>(null)
+
+  async function loadConfig() {
+    if (!corpus.runnable) return
+    try {
+      if (isItalian) {
+        italianConfig = await italianLegalApi.getConfig()
+        corpusEnabled = italianConfig.enabled
+      } else {
+        corpusEnabled = (await genericCorpusApi(corpus.id).getConfig()).enabled
+      }
+    } catch {
+      /* keep the optimistic default */
+    }
+  }
+
+  async function toggleEnabled(next: boolean) {
+    const prev = !next
+    corpusEnabled = next
+    try {
+      if (isItalian) {
+        const base = italianConfig ?? { enabled: prev, sources: [] }
+        italianConfig = await italianLegalApi.putConfig({ ...base, enabled: next })
+      } else {
+        await genericCorpusApi(corpus.id).setConfig({ enabled: next })
+      }
+    } catch (e) {
+      corpusEnabled = prev // rollback on failure
+      toastStore.danger(t('Errors.somethingWrong'), { detail: (e as Error).message })
+    }
+  }
+
   $effect(() => {
     void corpus.id
     void loadDocs()
-    if (corpus.capabilities.bulk_import) void loadImportStatus()
+    void loadConfig()
+    if (corpus.capabilities.bulk_import) {
+      void loadImportStatus().then(() => {
+        // An import may already be running when the panel opens —
+        // pick the polling back up so the bar isn't frozen.
+        if (isImporting) startPolling()
+      })
+    }
     return () => clearInterval(pollTimer)
   })
 
@@ -122,7 +233,7 @@
     clearInterval(pollTimer)
     pollTimer = setInterval(async () => {
       await loadImportStatus()
-      if (importStatus?.job_state !== 'running') {
+      if (!isImporting) {
         clearInterval(pollTimer)
         importing = false
         void loadDocs()
@@ -140,7 +251,16 @@
       startPolling()
     } catch (e) {
       importing = false
-      toastStore.danger(t('Errors.somethingWrong'), { detail: (e as Error).message })
+      const msg = (e as Error).message ?? ''
+      // "Import already in progress" is an expected state, not a
+      // failure — surface it calmly and resume tracking the job.
+      if (/in corso|in progress|already/i.test(msg)) {
+        toastStore.info(msg)
+        await loadImportStatus()
+        if (isImporting) startPolling()
+      } else {
+        toastStore.danger(t('Errors.somethingWrong'), { detail: msg })
+      }
     }
   }
 
@@ -178,13 +298,19 @@
     return docs.find((d) => d.corpus_identifier === hit.id)
   }
 
-  function indexButtonLabel(hit: Hit): string {
-    if (indexingId === hit.id) return 'Stop'
-    return findIndexedDoc(hit) ? 'Re-indicizza' : t('Corpora.indexHit')
+  function indexBtnLabel(hit: Hit): string {
+    const st = indexJobs[hit.id]?.state
+    if (st === 'queued') return t('Corpora.queued')
+    if (st === 'running') return t('Common.cancel')
+    if (st === 'error') return t('Corpora.retry')
+    return findIndexedDoc(hit) || st === 'done'
+      ? t('Corpora.reindexHit')
+      : t('Corpora.indexHit')
   }
 
-  function indexButtonVariant(hit: Hit): 'secondary' | 'danger' {
-    return indexingId === hit.id ? 'danger' : 'secondary'
+  function indexBtnVariant(hit: Hit): 'secondary' | 'danger' {
+    const st = indexJobs[hit.id]?.state
+    return st === 'queued' || st === 'running' ? 'danger' : 'secondary'
   }
 
   function indexedDocDate(doc: CorpusDocument): string | null {
@@ -194,38 +320,63 @@
     return null
   }
 
-  async function indexHit(hit: Hit) {
+  /** Enqueue a hit for indexing — or cancel it if still queued/running. */
+  function indexHit(hit: Hit) {
     if (!corpus.runnable) return
-    if (indexingId === hit.id) {
-      indexingController?.abort()
-      indexingController = null
-      indexingId = null
+    const job = indexJobs[hit.id]
+    if (job && (job.state === 'queued' || job.state === 'running')) {
+      job.controller?.abort()
+      indexQueue = indexQueue.filter((id) => id !== hit.id)
+      delete indexJobs[hit.id]
+      indexJobs = { ...indexJobs }
       return
     }
+    indexJobs[hit.id] = { state: 'queued' }
+    indexQueue.push(hit.id)
+    void runIndexQueue()
+  }
 
-    const controller = new AbortController()
-    indexingController = controller
-    indexingId = hit.id
+  /** Sequential worker — drains the queue one hit at a time so every
+   *  clicked hit shows its own queued → running → done/error state. */
+  async function runIndexQueue() {
+    if (queueWorking) return
+    queueWorking = true
     try {
-      const indexedDoc = findIndexedDoc(hit)
-      if (indexedDoc && corpus.capabilities.documents_resync) {
-        if (isItalian) await italianLegalApi.resyncDocument(indexedDoc.id, { signal: controller.signal })
-        else await genericCorpusApi(corpus.id).resyncDocument(indexedDoc.id, { signal: controller.signal })
-      } else {
-        if (isItalian) await italianLegalApi.fetchRow(hit.id, { signal: controller.signal })
-        else await genericCorpusApi(corpus.id).fetch(hit.id, { signal: controller.signal, date: hit.date })
+      while (indexQueue.length > 0) {
+        const id = indexQueue.shift()!
+        const hit = hits.find((h) => h.id === id)
+        const job = indexJobs[id]
+        if (!hit || !job) continue // cancelled before it started
+        const controller = new AbortController()
+        job.controller = controller
+        job.state = 'running'
+        try {
+          const indexedDoc = findIndexedDoc(hit)
+          if (indexedDoc && corpus.capabilities.documents_resync) {
+            if (isItalian)
+              await italianLegalApi.resyncDocument(indexedDoc.id, { signal: controller.signal })
+            else
+              await genericCorpusApi(corpus.id).resyncDocument(indexedDoc.id, { signal: controller.signal })
+          } else {
+            if (isItalian)
+              await italianLegalApi.fetchRow(hit.id, { signal: controller.signal })
+            else
+              await genericCorpusApi(corpus.id).fetch(hit.id, { signal: controller.signal, date: hit.date })
+          }
+          if (indexJobs[id]) indexJobs[id].state = 'done'
+          await loadDocs()
+        } catch (e) {
+          if ((e as Error).name === 'AbortError') {
+            delete indexJobs[id]
+            indexJobs = { ...indexJobs }
+          } else if (indexJobs[id]) {
+            indexJobs[id].state = 'error'
+            indexJobs[id].error = (e as Error).message
+          }
+        }
       }
-      toastStore.success(t('Corpora.statusReady'))
-      await loadDocs()
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') {
-        toastStore.info('Indicizzazione interrotta')
-        return
-      }
-      toastStore.danger(t('Errors.somethingWrong'), { detail: (e as Error).message })
     } finally {
-      indexingController = null
-      indexingId = null
+      queueWorking = false
     }
   }
 
@@ -244,6 +395,12 @@
 <div class="space-y-4">
   <Card title={corpus.display_name} subtitle={corpus.description}>
     <div class="space-y-1.5">
+      <Toggle
+        checked={corpusEnabled}
+        label={t('Corpora.sourceEnabled')}
+        size="sm"
+        onchange={toggleEnabled}
+      />
       {#if corpus.homepage}
         <button
           type="button"
@@ -252,6 +409,24 @@
         >
           <ExternalLink size={12} />{corpus.homepage}
         </button>
+      {/if}
+      {#if disc}
+        <div class="flex flex-wrap gap-1.5 pt-0.5">
+          {#each disc.doc_types as dt (dt)}
+            <Badge tone="brand" size="xs">{docTypeLabel(dt)}</Badge>
+          {/each}
+          {#if disc.auth}
+            <Badge tone={disc.auth === 'public' ? 'success' : 'warning'} size="xs">
+              {authLabel(disc.auth)}
+            </Badge>
+          {/if}
+          {#if disc.search_mode}
+            <Badge tone="info" size="xs">{searchModeLabel(disc.search_mode)}</Badge>
+          {/if}
+          {#if disc.fetch_format}
+            <Badge tone="neutral" size="xs">{disc.fetch_format.toUpperCase()}</Badge>
+          {/if}
+        </div>
       {/if}
       <p class="text-xs text-(--color-text-secondary)">{corpusDisclaimer}</p>
       <button
@@ -296,14 +471,14 @@
   {#if corpus.runnable && corpus.capabilities.bulk_import}
     <Card title={t('Corpora.bulk.snapshotImport')}>
       <div class="space-y-2">
-        {#if importStatus && importStatus.job_state === 'running'}
-          <Progress value={importStatus.percent != null ? importStatus.percent / 100 : null} />
+        {#if isImporting}
+          <Progress value={importStatus?.percent != null ? importStatus.percent / 100 : null} />
           <p class="text-xs text-(--color-text-secondary)">
             {t('Corpora.bulk.importing')}
-            {#if importStatus.current_shard != null && importStatus.total_shards}
-              · {importStatus.current_shard}/{importStatus.total_shards}
+            {#if importStatus?.current_shard != null && importStatus?.total_shards}
+              · {importStatus?.current_shard}/{importStatus?.total_shards}
             {/if}
-            {#if importStatus.rows_imported != null}· {importStatus.rows_imported}{/if}
+            {#if importStatus?.rows_imported != null}· {importStatus?.rows_imported}{/if}
           </p>
         {:else}
           <div class="flex items-center justify-between gap-3">
@@ -344,6 +519,9 @@
             {t('Corpora.searchButton')}
           </Button>
         </div>
+        {#if searchHint}
+          <p class="text-xs text-(--color-text-secondary)">{searchHint}</p>
+        {/if}
         {#if hits.length}
           <ul class="flex flex-col gap-2">
             {#each hits as hit (hit.id)}
@@ -351,18 +529,22 @@
                 <div class="flex-1 min-w-0">
                   <p class="text-sm text-(--color-text-primary) truncate">{hit.title}</p>
                   <p class="text-xs text-(--color-text-secondary) font-mono truncate">{hit.sub}</p>
-                  {#if indexingId === hit.id}
+                  {#if indexJobs[hit.id]?.state === 'running'}
                     <div class="mt-2">
                       <Progress value={null} size="sm" />
                     </div>
+                  {:else if indexJobs[hit.id]?.state === 'queued'}
+                    <p class="mt-1 text-xs text-(--color-text-secondary)">{t('Corpora.queued')}</p>
+                  {:else if indexJobs[hit.id]?.state === 'error'}
+                    <p class="mt-1 text-xs text-(--color-danger-500)">{indexJobs[hit.id].error}</p>
                   {/if}
                 </div>
                 <Button
                   size="sm"
-                  variant={indexButtonVariant(hit)}
+                  variant={indexBtnVariant(hit)}
                   onclick={() => indexHit(hit)}
                 >
-                  {indexButtonLabel(hit)}
+                  {indexBtnLabel(hit)}
                 </Button>
               </li>
             {/each}
@@ -388,13 +570,11 @@
             <li class="flex items-center gap-3 px-3 py-2 border border-(--color-surface-200) rounded-(--radius-md)">
               <div class="flex-1 min-w-0">
                 <p class="text-sm text-(--color-text-primary) truncate">{doc.filename}</p>
-                {#if doc.corpus_identifier || indexedDocDate(doc)}
-                  <p class="text-xs text-(--color-text-secondary) font-mono">
-                    {#if doc.corpus_identifier}{doc.corpus_identifier}{/if}
-                    {#if doc.corpus_identifier && indexedDocDate(doc)} · {/if}
-                    {#if indexedDocDate(doc)}{indexedDocDate(doc)}{/if}
-                  </p>
-                {/if}
+                <p class="text-xs text-(--color-text-secondary) font-mono">
+                  {#if doc.corpus_identifier}{doc.corpus_identifier} · {/if}
+                  {#if indexedDocDate(doc)}{indexedDocDate(doc)} · {/if}
+                  {formatBytes(doc.size_bytes)}
+                </p>
               </div>
               <Badge tone={doc.status === 'ready' ? 'success' : 'neutral'} size="xs">{doc.status}</Badge>
               <IconButton label={t('Corpora.removeDoc')} size="sm" variant="danger"

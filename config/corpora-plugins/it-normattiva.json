@@ -5,7 +5,7 @@
         "it": "Italia — Normattiva",
         "en": "Italy — Normattiva"
     },
-    "description": "Normativa italiana via portale Normattiva (fonte distinta dal corpus HF). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "description": "Normativa italiana dal portale Normattiva. Recupero per percorso ELI: il portale è un'app JavaScript senza API di ricerca, quindi la ricerca a testo libero non è possibile qui — per quella usa IT / Italian-Legal (indice FTS locale).",
     "homepage": "https://www.normattiva.it/",
     "languages": ["it"],
     "default_language": "it",
@@ -13,6 +13,13 @@
     "identifier_label": "ELI path",
     "identifier_example": "/eli/id/2024/01/01/legge/1/sg",
     "enabled_by_default": true,
+    "discovery": {
+        "jurisdiction": "it",
+        "doc_types": ["legislation"],
+        "auth": "public",
+        "search_mode": "citation-only",
+        "fetch_format": "html"
+    },
     "strategy": {
         "kind": "http-fetch-per-id",
         "search_by_id": {
@@ -20,13 +27,6 @@
             "shape": "rest-html",
             "title_path": "title",
             "body_path": "body"
-        },
-        "search_by_keyword": {
-            "url_template": "https://www.normattiva.it/ricerca/semplice?formType=ricercaSemplice&stem=true&searchTerms={query}&pagina=1",
-            "shape": "rest-html",
-            "hits_path": "a[href*='/eli/id/']",
-            "identifier_at": "a@href:strip-prefix=/eli/id/:strip-suffix=/sg",
-            "title_at": "a"
         }
     },
     "capabilities": {
