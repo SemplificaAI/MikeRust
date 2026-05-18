@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::corpora::plugin::{
-    CorpusPlugin, CorpusStrategy, HttpFetchByIdSpec, HttpFetchPerIdSpec,
+    CorpusPlugin, CorpusStrategy, HttpFetchPerIdSpec,
     HttpSearchKeywordSpec, ResponseShape,
 };
 use crate::corpora::{CorpusDocument, CorpusHit, LegalCorpusAdapter};
@@ -117,7 +117,16 @@ impl LegalCorpusAdapter for ManifestAdapter {
             &self.spec.search_by_id.url_template,
             &[("identifier", identifier), ("lang", lang.as_str())],
         )?;
-        let body = self.fetch_text(&url).await?;
+        let body = match self.fetch_text(&url).await {
+            Ok(body) => body,
+            Err(err) => {
+                let msg = format!("{err:#}");
+                if msg.contains("HTTP 404 from") {
+                    return Ok(vec![]);
+                }
+                return Err(err);
+            }
+        };
         let title = extract_one(
             &body,
             self.spec.search_by_id.shape,
@@ -192,6 +201,11 @@ impl LegalCorpusAdapter for ManifestAdapter {
             self.spec.search_by_id.title_path.as_deref(),
         )
         .unwrap_or_else(|| identifier.to_string());
+        let date = extract_one(
+            &body,
+            self.spec.search_by_id.shape,
+            self.spec.search_by_id.date_path.as_deref(),
+        );
         let text = extract_one(
             &body,
             self.spec.search_by_id.shape,
@@ -208,6 +222,7 @@ impl LegalCorpusAdapter for ManifestAdapter {
         Ok(CorpusDocument {
             identifier: identifier.to_string(),
             title,
+            date,
             language: lang,
             fetched_with_fallback: false,
             bytes: text.into_bytes(),
@@ -332,7 +347,15 @@ fn percent_encode_query(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 8);
     for b in s.bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'~'
+            | b'/'
+            | b':' => {
                 out.push(b as char);
             }
             _ => out.push_str(&format!("%{:02X}", b)),
@@ -387,22 +410,37 @@ fn extract_each_html(
         return Vec::new();
     };
     let (inner_sel_str, inner_attr) = split_attr(inner_selector);
-    let Ok(inner) = scraper::Selector::parse(inner_sel_str) else {
-        return Vec::new();
+    let use_self = inner_sel_str == ":self" || inner_sel_str == "self";
+    let inner = if use_self {
+        None
+    } else {
+        let Ok(parsed) = scraper::Selector::parse(inner_sel_str) else {
+            return Vec::new();
+        };
+        Some(parsed)
     };
     let mut out = Vec::new();
     for hit in doc.select(&outer) {
         if out.len() >= limit {
             break;
         }
-        let Some(target) = hit.select(&inner).next() else {
-            continue;
-        };
-        let value = match inner_attr {
-            Some(name) => target.value().attr(name).map(String::from),
-            None => Some(collapse_whitespace(
-                &target.text().collect::<String>(),
-            )),
+        let value = if use_self {
+            match inner_attr {
+                Some(name) => hit.value().attr(name).map(String::from),
+                None => Some(collapse_whitespace(
+                    &hit.text().collect::<String>(),
+                )),
+            }
+        } else {
+            let Some(target) = inner.as_ref().and_then(|sel| hit.select(sel).next()) else {
+                continue;
+            };
+            match inner_attr {
+                Some(name) => target.value().attr(name).map(String::from),
+                None => Some(collapse_whitespace(
+                    &target.text().collect::<String>(),
+                )),
+            }
         };
         if let Some(v) = value {
             out.push(v);
@@ -514,19 +552,87 @@ fn extract_hits(
             out
         }
         ResponseShape::RestJson => {
-            // For JSON shape, hits_path must resolve to an array.
-            // The implementation here is intentionally simple — full
-            // JSONPath bracket-iteration is left for a follow-up if
-            // a real corpus needs it; CNIL is HTML-only today.
-            tracing::warn!(
-                "[manifest] rest-json hits extraction not yet implemented; \
-                 returning empty (corpus likely declared search but no \
-                 backend currently honours it). Open an issue with a real \
-                 example to drive the impl."
-            );
-            Vec::new()
+            extract_hits_json(body, spec, limit, lang)
         }
     }
+}
+
+fn extract_hits_json(
+    body: &str,
+    spec: &HttpSearchKeywordSpec,
+    limit: usize,
+    lang: &str,
+) -> Vec<CorpusHit> {
+    let Ok(root) = serde_json::from_str::<serde_json::Value>(body) else {
+        return Vec::new();
+    };
+    let Some(items) = walk_jsonpath_items(&root, &spec.hits_path) else {
+        return Vec::new();
+    };
+
+    let (id_path, id_post) = split_postprocessors(&spec.identifier_at);
+    let (title_path, title_post) = split_postprocessors(&spec.title_at);
+    let date_pair = spec.date_at.as_deref().map(split_postprocessors);
+
+    let mut out = Vec::new();
+    for item in items.into_iter().take(limit) {
+        let Some(id_raw) = extract_from_json_value(item, id_path) else {
+            continue;
+        };
+        let Some(title_raw) = extract_from_json_value(item, title_path) else {
+            continue;
+        };
+
+        let identifier = apply_postprocessors(id_raw, &id_post);
+        if identifier.is_empty() {
+            continue;
+        }
+        let title = apply_postprocessors(title_raw, &title_post);
+        let date = match date_pair.as_ref() {
+            Some((d_path, d_post)) => {
+                extract_from_json_value(item, d_path).map(|v| apply_postprocessors(v, d_post))
+            }
+            None => None,
+        };
+
+        out.push(CorpusHit {
+            identifier,
+            title,
+            date,
+            url: String::new(),
+            languages_available: vec![lang.to_string()],
+        });
+    }
+    out
+}
+
+fn walk_jsonpath_items<'a>(
+    root: &'a serde_json::Value,
+    path: &str,
+) -> Option<Vec<&'a serde_json::Value>> {
+    let normalized = if path.starts_with("$") {
+        path.to_string()
+    } else {
+        format!("$.{}", path)
+    };
+    let node = walk_jsonpath_first(root, &normalized)?;
+    match node {
+        serde_json::Value::Array(a) => Some(a.iter().collect()),
+        _ => None,
+    }
+}
+
+fn extract_from_json_value(root: &serde_json::Value, path: &str) -> Option<String> {
+    let normalized = if path.starts_with("$") {
+        path.to_string()
+    } else {
+        format!("$.{}", path)
+    };
+    let v = walk_jsonpath_first(root, &normalized)?;
+    Some(match v {
+        serde_json::Value::String(s) => s.clone(),
+        other => other.to_string(),
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -772,6 +878,29 @@ mod tests {
         assert_eq!(hits[0].identifier, "SAN-2024-013");
         assert_eq!(hits[0].title, "Délibération SAN-2024-013");
         assert_eq!(hits[1].identifier, "MED-2024-007");
+    }
+
+    #[test]
+    fn hits_extraction_supports_self_selector() {
+        let body = r#"
+            <dl>
+                <dt><a href="/bgb/__535.html">§ 535 Mietvertrag</a></dt>
+                <dt><a href="/stgb/__263.html">§ 263 Betrug</a></dt>
+            </dl>
+        "#;
+        let spec = HttpSearchKeywordSpec {
+            url_template: String::new(),
+            shape: ResponseShape::RestHtml,
+            hits_path: "dt a".to_string(),
+            identifier_at: ":self@href:strip-prefix=/".to_string(),
+            title_at: ":self".to_string(),
+            date_at: None,
+        };
+        let hits = extract_hits(body, &spec, 10, "de");
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].identifier, "bgb/__535.html");
+        assert_eq!(hits[0].title, "§ 535 Mietvertrag");
+        assert_eq!(hits[1].identifier, "stgb/__263.html");
     }
 
     #[test]

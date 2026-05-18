@@ -1,0 +1,52 @@
+{
+    "id": "at-ris",
+    "display_name": "AT / RIS",
+    "display_name_locale": {
+        "it": "Austria — RIS",
+        "en": "Austria — RIS"
+    },
+    "description": "Rechtsinformationssystem des Bundes (legislation + case law). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.ris.bka.gv.at/",
+    "languages": ["de"],
+    "default_language": "de",
+    "supports_language_fallback": false,
+    "identifier_label": "RIS Doc ID",
+    "identifier_example": "leg:00000000",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.ris.bka.gv.at/Dokumente/Bundesnormen/{identifier}/{identifier}.html",
+            "shape": "rest-html",
+            "title_path": "title",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://data.bka.gv.at/ris/api/v2.6/Bundesrecht?Applikation=BrKons&Suchworte={query}&Seitennummer=1&DokumenteProSeite=Ten",
+            "shape": "rest-json",
+            "hits_path": "$.OgdSearchResult.OgdDocumentResults.OgdDocumentReference",
+            "identifier_at": "$.Data.Metadaten.Technisch.ID",
+            "title_at": "$.Data.Metadaten.Bundesrecht.Kurztitel",
+            "date_at": "$.Data.Metadaten.Allgemein.Veroeffentlicht"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "ris",
+            "display_name": "RIS",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

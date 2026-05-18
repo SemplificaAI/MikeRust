@@ -12,7 +12,7 @@
     "supports_language_fallback": false,
     "identifier_label": "URN",
     "identifier_example": "urn:nir:stato:legge:2023-12-29;213",
-    "enabled_by_default": true,
+    "enabled_by_default": false,
     "strategy": {
         "kind": "builtin",
         "builtin_id": "italian-legal-hf"

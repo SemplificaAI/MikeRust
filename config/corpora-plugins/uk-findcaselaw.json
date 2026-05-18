@@ -1,0 +1,52 @@
+{
+    "id": "uk-findcaselaw",
+    "display_name": "UK / Find Case Law",
+    "display_name_locale": {
+        "it": "Regno Unito — Find Case Law",
+        "en": "United Kingdom — Find Case Law"
+    },
+    "description": "Giurisprudenza UK via National Archives Find Case Law. Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://caselaw.nationalarchives.gov.uk/",
+    "languages": ["en"],
+    "default_language": "en",
+    "supports_language_fallback": false,
+    "identifier_label": "Case URI",
+    "identifier_example": "ewhc/ch/2026/694",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://caselaw.nationalarchives.gov.uk/{identifier}",
+            "shape": "rest-html",
+            "title_path": "title:strip-suffix= - Find Case Law",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://caselaw.nationalarchives.gov.uk/atom.xml?query={query}&page=1&per_page={limit}",
+            "shape": "rest-html",
+            "hits_path": "entry",
+            "identifier_at": "link@href:strip-prefix=https://caselaw.nationalarchives.gov.uk/",
+            "title_at": "title",
+            "date_at": "updated"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "find-case-law",
+            "display_name": "Find Case Law",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

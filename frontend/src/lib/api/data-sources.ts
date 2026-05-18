@@ -89,6 +89,7 @@ export interface EurlexDocument {
   filename: string
   corpus_identifier: string | null
   corpus_language: string | null
+  corpus_date?: string | null
   fetched_with_fallback: boolean
   size_bytes: number
   created_at: string
@@ -116,8 +117,8 @@ export const eurlexApi = {
       body: { query, language },
     }),
 
-  fetchCelex: (celex: string, language?: string) =>
-    api<unknown>('/eurlex/fetch', { method: 'POST', body: { celex, language } }),
+  fetchCelex: (celex: string, language?: string, date?: string) =>
+    api<unknown>('/eurlex/fetch', { method: 'POST', body: { celex, language, date } }),
 
   listDocuments: () => api<{ documents: EurlexDocument[] }>('/eurlex/documents'),
 
@@ -143,6 +144,16 @@ export interface CorpusCapabilities {
   user_config: boolean
 }
 
+export interface CorpusSourceItem {
+  id: string
+  display_name: string
+  subtitle?: string | null
+  description?: string | null
+  available: boolean
+  default_enabled: boolean
+  status_label?: string | null
+}
+
 export interface CorpusItem {
   id: string
   display_name: string
@@ -155,6 +166,7 @@ export interface CorpusItem {
   enabled_by_default: boolean
   runnable: boolean
   capabilities: CorpusCapabilities
+  sources: CorpusSourceItem[]
 }
 
 export const corporaApi = {
@@ -184,6 +196,7 @@ export interface CorpusDocument {
   id: string
   filename: string
   corpus_identifier: string | null
+  corpus_date?: string | null
   size_bytes: number
   created_at: string
   status: string
@@ -211,16 +224,17 @@ export const italianLegalApi = {
       method: 'POST',
       body: { query },
     }),
-  fetchRow: (hf_id: string) =>
-    api<unknown>('/italian-legal/fetch', { method: 'POST', body: { hf_id } }),
+  fetchRow: (hf_id: string, opts?: { signal?: AbortSignal }) =>
+    api<unknown>('/italian-legal/fetch', { method: 'POST', body: { hf_id }, signal: opts?.signal }),
   documents: () => api<{ documents: CorpusDocument[] }>('/italian-legal/documents'),
   deleteDocument: (id: string) =>
     api<{ ok: boolean }>(`/italian-legal/documents/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     }),
-  resyncDocument: (id: string) =>
+  resyncDocument: (id: string, opts?: { signal?: AbortSignal }) =>
     api<unknown>(`/italian-legal/documents/${encodeURIComponent(id)}/resync`, {
       method: 'POST',
+      signal: opts?.signal,
     }),
 }
 
@@ -235,12 +249,21 @@ export function genericCorpusApi(id: string) {
         method: 'POST',
         body: { query },
       }),
-    fetch: (identifier: string) =>
-      api<unknown>(`${base}/fetch`, { method: 'POST', body: { identifier } }),
+    fetch: (identifier: string, opts?: { signal?: AbortSignal; date?: string }) =>
+      api<unknown>(`${base}/fetch`, {
+        method: 'POST',
+        body: { identifier, date: opts?.date },
+        signal: opts?.signal,
+      }),
     documents: () => api<{ documents: CorpusDocument[] }>(`${base}/documents`),
     deleteDocument: (docId: string) =>
       api<{ ok: boolean }>(`${base}/documents/${encodeURIComponent(docId)}`, {
         method: 'DELETE',
+      }),
+    resyncDocument: (docId: string, opts?: { signal?: AbortSignal }) =>
+      api<unknown>(`${base}/documents/${encodeURIComponent(docId)}/resync`, {
+        method: 'POST',
+        signal: opts?.signal,
       }),
     startImport: () => api<{ started?: boolean }>(`${base}/import`, { method: 'POST' }),
     importStatus: () => api<ImportStatus>(`${base}/import-status`),

@@ -1,0 +1,52 @@
+{
+    "id": "nl-wetten",
+    "display_name": "NL / Wetten",
+    "display_name_locale": {
+        "it": "Paesi Bassi — Wetten",
+        "en": "Netherlands — Wetten"
+    },
+    "description": "Normativa olandese (wetten.overheid.nl). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://wetten.overheid.nl/",
+    "languages": ["nl"],
+    "default_language": "nl",
+    "supports_language_fallback": false,
+    "identifier_label": "BWBR",
+    "identifier_example": "BWBR0005537",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://wetten.overheid.nl/{identifier}",
+            "shape": "rest-html",
+            "title_path": "title",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://zoekservice.overheid.nl/sru/Search?version=1.2&operation=searchRetrieve&x-connection=BWB&query=overheidbwb.titel={query}&maximumRecords={limit}",
+            "shape": "rest-html",
+            "hits_path": "recordData",
+            "identifier_at": "dcterms\\:identifier",
+            "title_at": "dcterms\\:title",
+            "date_at": "dcterms\\:modified"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "wetten",
+            "display_name": "Wetten",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

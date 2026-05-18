@@ -360,16 +360,24 @@ async fn fetch_row(
     Json(body): Json<FetchPayload>,
 ) -> ApiResult {
     // Pull the row's metadata + offset from our local FTS index.
-    let row: Option<(i64, String, Option<String>, Option<String>, Option<String>, Option<i64>)> =
+    let row: Option<(
+        i64,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<i64>,
+        Option<String>,
+    )> =
         sqlx::query_as(
-            "SELECT row_offset, source, doc_type, title, number, year \
+            "SELECT row_offset, source, doc_type, title, number, year, date \
              FROM italian_corpus WHERE hf_id = ?",
         )
         .bind(&body.hf_id)
         .fetch_optional(&state.db)
         .await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
-    let (row_offset, source, doc_type, title_metadata, _number, _year) = row
+    let (row_offset, source, doc_type, title_metadata, _number, _year, corpus_date) = row
         .ok_or_else(|| {
             err(
                 StatusCode::NOT_FOUND,
@@ -390,9 +398,21 @@ async fn fetch_row(
     .ok()
     .flatten();
     if let Some((id, filename)) = existing {
+        if corpus_date.is_some() {
+            let _ = sqlx::query(
+                "UPDATE documents SET corpus_date = COALESCE(corpus_date, ?) \
+                 WHERE id = ? AND user_id = ?",
+            )
+            .bind(&corpus_date)
+            .bind(&id)
+            .bind(&auth.user_id)
+            .execute(&state.db)
+            .await;
+        }
         return Ok(Json(json!({
             "id": id,
             "filename": filename,
+            "corpus_date": corpus_date,
             "already_indexed": true,
         })));
     }
@@ -440,8 +460,8 @@ async fn fetch_row(
         "INSERT INTO documents \
            (id, user_id, project_id, filename, file_type, size_bytes, \
             storage_path, status, content_hash, extracted_text_path, \
-            corpus_id, corpus_identifier, corpus_language, fetched_with_fallback) \
-         VALUES (?, ?, NULL, ?, 'txt', ?, ?, 'syncing', ?, ?, ?, ?, 'it', 0)",
+            corpus_id, corpus_identifier, corpus_language, corpus_date, fetched_with_fallback) \
+         VALUES (?, ?, NULL, ?, 'txt', ?, ?, 'syncing', ?, ?, ?, ?, 'it', ?, 0)",
     )
     .bind(&doc_id)
     .bind(&auth.user_id)
@@ -452,6 +472,7 @@ async fn fetch_row(
     .bind(&text_key)
     .bind(CORPUS_ID)
     .bind(&body.hf_id)
+    .bind(&corpus_date)
     .execute(&state.db)
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
@@ -505,6 +526,7 @@ async fn fetch_row(
         "filename": filename,
         "corpus_id": CORPUS_ID,
         "corpus_identifier": body.hf_id,
+        "corpus_date": corpus_date,
         "size_bytes": size,
         "status": final_status,
         "already_indexed": false,
@@ -519,8 +541,8 @@ async fn list_documents(
     State(state): State<Arc<AppState>>,
     auth: AuthUser,
 ) -> ApiResult {
-    let rows: Vec<(String, String, Option<String>, i64, String, String)> = sqlx::query_as(
-        "SELECT id, filename, corpus_identifier, size_bytes, created_at, status \
+    let rows: Vec<(String, String, Option<String>, Option<String>, i64, String, String)> = sqlx::query_as(
+        "SELECT id, filename, corpus_identifier, corpus_date, size_bytes, created_at, status \
          FROM documents \
          WHERE user_id = ? AND corpus_id = ? \
          ORDER BY created_at DESC",
@@ -533,11 +555,12 @@ async fn list_documents(
 
     let docs: Vec<Value> = rows
         .into_iter()
-        .map(|(id, filename, ident, size, created, status)| {
+        .map(|(id, filename, ident, date, size, created, status)| {
             json!({
                 "id": id,
                 "filename": filename,
                 "corpus_identifier": ident,
+                "corpus_date": date,
                 "size_bytes": size,
                 "created_at": created,
                 "status": status,

@@ -1,0 +1,53 @@
+{
+    "id": "nl-rechtspraak",
+    "display_name": "NL / Rechtspraak",
+    "display_name_locale": {
+        "it": "Paesi Bassi — Rechtspraak",
+        "en": "Netherlands — Rechtspraak"
+    },
+    "description": "Giurisprudenza olandese (Rechtspraak). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.rechtspraak.nl/",
+    "languages": ["nl"],
+    "default_language": "nl",
+    "supports_language_fallback": false,
+    "identifier_label": "ECLI",
+    "identifier_example": "ECLI:NL:HR:2024:1234",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://data.rechtspraak.nl/uitspraken/content?id={identifier}",
+            "shape": "rest-html",
+            "title_path": "dcterms\\:creator",
+            "body_path": "body",
+            "date_path": "dcterms\\:date"
+        },
+        "search_by_keyword": {
+            "url_template": "https://data.rechtspraak.nl/uitspraken/zoeken?max={limit}&from=0&sort=DESC&type=Uitspraak",
+            "shape": "rest-html",
+            "hits_path": "entry",
+            "identifier_at": "id",
+            "title_at": "title",
+            "date_at": "updated"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "rechtspraak",
+            "display_name": "Rechtspraak",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

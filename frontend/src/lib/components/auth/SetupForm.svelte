@@ -82,6 +82,7 @@
     label={i18n.t('Auth.pin')}
     type="password"
     bind:value={pin}
+    autofocus
     placeholder={i18n.t('Auth.pinPlaceholder', { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH })}
     inputmode="numeric"
     maxlength={PIN_MAX_LENGTH}

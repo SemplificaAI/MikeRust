@@ -55,6 +55,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/{id}/fetch", post(generic_fetch))
         .route("/{id}/documents", get(generic_list_documents))
         .route("/{id}/documents/{doc_id}", delete(generic_delete_document))
+        .route("/{id}/documents/{doc_id}/resync", post(generic_resync_document))
         // Bulk import (DILA-style: download tar.gz, walk XML, populate
         // corpus_documents + FTS5). Synchronous today; the route
         // blocks until the import finishes. Acceptable for CNIL
@@ -138,6 +139,102 @@ fn lookup_plugin<'a>(
         .iter()
         .find(|p| p.id == id)
         .ok_or_else(|| err(StatusCode::NOT_FOUND, &format!("corpus {id:?} not found")))
+}
+
+fn de_gesetze_slug_for_code(code: &str) -> Option<&'static str> {
+    match code {
+        "BGB" => Some("bgb"),
+        "STGB" => Some("stgb"),
+        "HGB" => Some("hgb"),
+        "GG" => Some("gg"),
+        "ZPO" => Some("zpo"),
+        "STPO" => Some("stpo"),
+        "AO" => Some("ao_1977"),
+        "VWGO" => Some("vwgo"),
+        "BVERFGG" => Some("bverfgg"),
+        _ => None,
+    }
+}
+
+fn is_section_token(token: &str) -> bool {
+    let mut chars = token.chars();
+    let mut saw_digit = false;
+    while let Some(c) = chars.next() {
+        if c.is_ascii_digit() {
+            saw_digit = true;
+            continue;
+        }
+        if c.is_ascii_alphabetic() {
+            continue;
+        }
+        return false;
+    }
+    saw_digit
+}
+
+fn extract_section_after_paragraph_sign(query: &str) -> Option<String> {
+    let idx = query.find('§')?;
+    let mut out = String::new();
+    let mut started = false;
+    for c in query[idx + '§'.len_utf8()..].chars() {
+        if !started && c.is_whitespace() {
+            continue;
+        }
+        if c.is_ascii_digit() || c.is_ascii_alphabetic() {
+            started = true;
+            out.push(c.to_ascii_lowercase());
+            continue;
+        }
+        break;
+    }
+    if out.is_empty() {
+        None
+    } else {
+        Some(out)
+    }
+}
+
+fn parse_de_gesetze_identifier(query: &str) -> Option<String> {
+    let q = query.trim();
+    if q.is_empty() {
+        return None;
+    }
+
+    // Already a direct path (advanced users / pasted href).
+    if q.contains('/') && q.ends_with(".html") && !q.contains(' ') {
+        return Some(q.trim_start_matches('/').to_string());
+    }
+
+    let tokens: Vec<String> = q
+        .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_ascii_uppercase())
+        .collect();
+    let (code_idx, code, slug) = tokens
+        .iter()
+        .enumerate()
+        .find_map(|(i, t)| de_gesetze_slug_for_code(t).map(|slug| (i, t.clone(), slug)))?;
+
+    let section = extract_section_after_paragraph_sign(q).or_else(|| {
+        let neigh = [
+            code_idx.checked_add(1),
+            code_idx.checked_sub(1),
+            code_idx.checked_add(2),
+            code_idx.checked_sub(2),
+        ];
+        for i in neigh.into_iter().flatten() {
+            if let Some(tok) = tokens.get(i) {
+                let n = tok.to_ascii_lowercase();
+                if is_section_token(&n) {
+                    return Some(n);
+                }
+            }
+        }
+        None
+    })?;
+
+    let _ = code; // kept for future metadata/debug use
+    Some(format!("{slug}/__{section}.html"))
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +324,34 @@ async fn generic_search(
             _ => None,
         })
         .unwrap_or(false);
-    let hits = if has_keyword {
+    let hits = if id == "de-gesetze" {
+        if let Some(identifier) = parse_de_gesetze_identifier(q) {
+            let direct = adapter
+                .search_by_id(&identifier, lang)
+                .await
+                .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+            if !direct.is_empty() {
+                direct
+            } else if has_keyword {
+                adapter
+                    .search_by_keyword(q, lang, limit)
+                    .await
+                    .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?
+            } else {
+                Vec::new()
+            }
+        } else if has_keyword {
+            adapter
+                .search_by_keyword(q, lang, limit)
+                .await
+                .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?
+        } else {
+            adapter
+                .search_by_id(q, lang)
+                .await
+                .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?
+        }
+    } else if has_keyword {
         adapter
             .search_by_keyword(q, lang, limit)
             .await
@@ -259,6 +383,7 @@ async fn generic_search(
 struct FetchPayload {
     identifier: String,
     language: Option<String>,
+    date: Option<String>,
 }
 
 async fn generic_fetch(
@@ -323,6 +448,14 @@ async fn generic_fetch(
             .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?
     };
 
+    let corpus_date = body
+        .date
+        .as_deref()
+        .map(str::trim)
+        .filter(|d| !d.is_empty())
+        .map(str::to_string)
+        .or(fetched.date.clone());
+
     // Dedupe by (corpus_id, identifier, language) — same policy the
     // EUR-Lex route uses.
     let existing: Option<(String, String)> = sqlx::query_as(
@@ -338,10 +471,22 @@ async fn generic_fetch(
     .ok()
     .flatten();
     if let Some((eid, fname)) = existing {
+        if corpus_date.is_some() {
+            let _ = sqlx::query(
+                "UPDATE documents SET corpus_date = COALESCE(corpus_date, ?) \
+                 WHERE id = ? AND user_id = ?",
+            )
+            .bind(&corpus_date)
+            .bind(&eid)
+            .bind(&auth.user_id)
+            .execute(&state.db)
+            .await;
+        }
         return Ok(Json(json!({
             "id": eid, "filename": fname, "already_indexed": true,
             "corpus_id": plugin.id, "corpus_identifier": identifier,
             "corpus_language": lang,
+            "corpus_date": corpus_date,
         })));
     }
 
@@ -374,8 +519,8 @@ async fn generic_fetch(
         "INSERT INTO documents \
            (id, user_id, project_id, filename, file_type, size_bytes, \
             storage_path, status, content_hash, extracted_text_path, \
-            corpus_id, corpus_identifier, corpus_language, fetched_with_fallback) \
-         VALUES (?, ?, NULL, ?, 'txt', ?, ?, 'syncing', ?, ?, ?, ?, ?, ?)",
+            corpus_id, corpus_identifier, corpus_language, corpus_date, fetched_with_fallback) \
+         VALUES (?, ?, NULL, ?, 'txt', ?, ?, 'syncing', ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&doc_id)
     .bind(&auth.user_id)
@@ -387,6 +532,7 @@ async fn generic_fetch(
     .bind(&plugin.id)
     .bind(&fetched.identifier)
     .bind(&fetched.language)
+    .bind(&corpus_date)
     .bind(fetched.fetched_with_fallback as i64)
     .execute(&state.db)
     .await
@@ -412,6 +558,7 @@ async fn generic_fetch(
         "corpus_id": plugin.id,
         "corpus_identifier": fetched.identifier,
         "corpus_language": fetched.language,
+        "corpus_date": corpus_date,
         "fetched_with_fallback": fetched.fetched_with_fallback,
         "source_url": fetched.source_url,
         "size_bytes": size,
@@ -477,13 +624,14 @@ async fn generic_list_documents(
         String,
         Option<String>,
         Option<String>,
+        Option<String>,
         i64,
         i64,
         String,
         String,
     )> = sqlx::query_as(
         "SELECT id, filename, corpus_identifier, corpus_language, \
-                fetched_with_fallback, size_bytes, created_at, status \
+                corpus_date, fetched_with_fallback, size_bytes, created_at, status \
          FROM documents \
          WHERE user_id = ? AND corpus_id = ? \
          ORDER BY created_at DESC",
@@ -496,10 +644,11 @@ async fn generic_list_documents(
 
     let docs: Vec<Value> = rows
         .into_iter()
-        .map(|(doc_id, filename, ident, lang, fb, size, created, status)| {
+        .map(|(doc_id, filename, ident, lang, date, fb, size, created, status)| {
             json!({
                 "id": doc_id, "filename": filename,
                 "corpus_identifier": ident, "corpus_language": lang,
+                "corpus_date": date,
                 "fetched_with_fallback": fb != 0,
                 "size_bytes": size, "created_at": created, "status": status,
             })
@@ -583,6 +732,82 @@ async fn generic_delete_document(
 }
 
 // ---------------------------------------------------------------------------
+// POST /corpora/:id/documents/:doc_id/resync — restart indexing for a doc
+// ---------------------------------------------------------------------------
+//
+// Mirrors EUR-Lex/Italian Legal behaviour: keeps the cached corpus text,
+// marks the row as syncing, re-runs chunk+embed, then writes terminal status.
+async fn generic_resync_document(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path((id, doc_id)): Path<(String, String)>,
+) -> ApiResult {
+    let plugin = lookup_plugin(&state, &id)?;
+    if !plugin.capabilities.documents_resync {
+        return Err(err(
+            StatusCode::METHOD_NOT_ALLOWED,
+            &format!("corpus {id} does not declare capabilities.documents_resync"),
+        ));
+    }
+
+    let row: Option<(Option<String>, Option<String>, String)> = sqlx::query_as(
+        "SELECT extracted_text_path, corpus_identifier, status FROM documents \
+         WHERE id = ? AND user_id = ? AND corpus_id = ?",
+    )
+    .bind(&doc_id)
+    .bind(&auth.user_id)
+    .bind(&id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let (text_path, _identifier, prev_status) =
+        row.ok_or_else(|| err(StatusCode::NOT_FOUND, "Document not found"))?;
+    let text_key = text_path.ok_or_else(|| {
+        err(
+            StatusCode::CONFLICT,
+            "Documento senza testo estratto: re-fetch necessario",
+        )
+    })?;
+
+    let _ = sqlx::query("UPDATE documents SET status = 'syncing' WHERE id = ?")
+        .bind(&doc_id)
+        .execute(&state.db)
+        .await;
+
+    let storage =
+        make_storage().map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let bytes = storage
+        .get(&text_key)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let source_path = storage_root()
+        .join(text_key.replace('/', std::path::MAIN_SEPARATOR_STR))
+        .to_string_lossy()
+        .to_string();
+
+    let (chunks_indexed, indexing_error, final_status) =
+        index_text(&state, &auth.user_id, &doc_id, &source_path, &text).await;
+
+    sqlx::query("UPDATE documents SET status = ? WHERE id = ?")
+        .bind(&final_status)
+        .bind(&doc_id)
+        .execute(&state.db)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    Ok(Json(json!({
+        "id": doc_id,
+        "corpus_id": id,
+        "previous_status": prev_status,
+        "status": final_status,
+        "chunks_indexed": chunks_indexed,
+        "indexing_error": indexing_error,
+    })))
+}
+
+// ---------------------------------------------------------------------------
 // Bulk-indexed corpus helpers (DILA today)
 // ---------------------------------------------------------------------------
 
@@ -599,9 +824,11 @@ async fn fetch_corpus_document(
         Option<String>,
         Option<String>,
         Option<String>,
+        Option<String>,
+        Option<String>,
         String,
     )> = sqlx::query_as(
-        "SELECT identifier, titre_full, titre, numero, body \
+        "SELECT identifier, titre_full, titre, numero, date_texte, date_publi, body \
          FROM corpus_documents \
          WHERE corpus_id = ? AND identifier = ?",
     )
@@ -609,7 +836,7 @@ async fn fetch_corpus_document(
     .bind(identifier)
     .fetch_optional(db)
     .await?;
-    Ok(row.map(|(id, titre_full, titre, numero, body)| {
+    Ok(row.map(|(id, titre_full, titre, numero, date_texte, date_publi, body)| {
         let title = titre_full
             .filter(|s| !s.is_empty())
             .or(titre.filter(|s| !s.is_empty()))
@@ -618,6 +845,9 @@ async fn fetch_corpus_document(
         crate::corpora::CorpusDocument {
             identifier: id,
             title,
+            date: date_texte
+                .filter(|s| !s.is_empty())
+                .or(date_publi.filter(|s| !s.is_empty())),
             language: String::new(), // DILA is corpus-monolingual; UI fills in
             fetched_with_fallback: false,
             bytes: body.into_bytes(),

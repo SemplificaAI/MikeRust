@@ -1,0 +1,51 @@
+{
+    "id": "it-normattiva",
+    "display_name": "IT / Normattiva",
+    "display_name_locale": {
+        "it": "Italia — Normattiva",
+        "en": "Italy — Normattiva"
+    },
+    "description": "Normativa italiana via portale Normattiva (fonte distinta dal corpus HF). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.normattiva.it/",
+    "languages": ["it"],
+    "default_language": "it",
+    "supports_language_fallback": false,
+    "identifier_label": "ELI path",
+    "identifier_example": "/eli/id/2024/01/01/legge/1/sg",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.normattiva.it/eli/id/{identifier}/sg",
+            "shape": "rest-html",
+            "title_path": "title",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://www.normattiva.it/ricerca/semplice?formType=ricercaSemplice&stem=true&searchTerms={query}&pagina=1",
+            "shape": "rest-html",
+            "hits_path": "a[href*='/eli/id/']",
+            "identifier_at": "a@href:strip-prefix=/eli/id/:strip-suffix=/sg",
+            "title_at": "a"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "normattiva",
+            "display_name": "Normattiva",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

@@ -1,0 +1,36 @@
+{
+    "id": "be-justel",
+    "display_name": "BE / Justel",
+    "display_name_locale": {
+        "it": "Belgio — Justel",
+        "en": "Belgium — Justel"
+    },
+    "description": "Corpus normativo belga (Justel). Manifest aggiunto per selezione fonte; connettore runtime non ancora attivo.",
+    "homepage": "https://www.ejustice.just.fgov.be/eli/",
+    "languages": ["fr", "nl", "de"],
+    "default_language": "fr",
+    "supports_language_fallback": false,
+    "identifier_label": "ELI / Numac",
+    "identifier_example": "2019/01/01/123",
+    "enabled_by_default": true,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "justel",
+            "display_name": "Justel",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

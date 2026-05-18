@@ -1,0 +1,36 @@
+{
+    "id": "eu-curia",
+    "display_name": "EU / CURIA",
+    "display_name_locale": {
+        "it": "UE — CURIA",
+        "en": "EU — CURIA"
+    },
+    "description": "Giurisprudenza della Corte di giustizia UE (CURIA). Fonte aggiunta in UI in modalità roadmap.",
+    "homepage": "https://curia.europa.eu/",
+    "languages": ["en", "fr", "it", "de", "es"],
+    "default_language": "it",
+    "supports_language_fallback": false,
+    "identifier_label": "CELEX",
+    "identifier_example": "62023CJ0123",
+    "enabled_by_default": false,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "curia",
+            "display_name": "CURIA",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

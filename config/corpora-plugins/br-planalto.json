@@ -1,0 +1,36 @@
+{
+    "id": "br-planalto",
+    "display_name": "BR / Planalto",
+    "display_name_locale": {
+        "it": "Brasile — Planalto",
+        "en": "Brazil — Planalto"
+    },
+    "description": "Normativa brasiliana (Planalto / LexML). Visibile in UI come fonte roadmap; integrazione runtime ancora non disponibile.",
+    "homepage": "https://www.planalto.gov.br/",
+    "languages": ["pt"],
+    "default_language": "pt",
+    "supports_language_fallback": false,
+    "identifier_label": "URN",
+    "identifier_example": "urn:lex:br:federal:lei:2024-01-01;12345",
+    "enabled_by_default": true,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "planalto",
+            "display_name": "Planalto",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

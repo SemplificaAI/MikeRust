@@ -1,0 +1,53 @@
+{
+    "id": "de-openlegaldata",
+    "display_name": "DE / OpenLegalData",
+    "display_name_locale": {
+        "it": "Germania — OpenLegalData",
+        "en": "Germany — OpenLegalData"
+    },
+    "description": "Case law tedesca via OpenLegalData. Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://de.openlegaldata.io/",
+    "languages": ["de"],
+    "default_language": "de",
+    "supports_language_fallback": false,
+    "identifier_label": "Case ID",
+    "identifier_example": "case:12345",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://de.openlegaldata.io/api/cases/{identifier}/",
+            "shape": "rest-json",
+            "title_path": "$.file_number",
+            "body_path": "$.content",
+            "date_path": "$.date"
+        },
+        "search_by_keyword": {
+            "url_template": "https://de.openlegaldata.io/api/cases/search/?text={query}&size={limit}&from=0",
+            "shape": "rest-json",
+            "hits_path": "$.results",
+            "identifier_at": "$.id",
+            "title_at": "$.file_number",
+            "date_at": "$.date"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "openlegaldata",
+            "display_name": "OpenLegalData",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

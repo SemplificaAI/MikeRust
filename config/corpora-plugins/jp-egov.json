@@ -1,0 +1,44 @@
+{
+    "id": "jp-egov",
+    "display_name": "JP / e-Gov",
+    "display_name_locale": {
+        "it": "Giappone — e-Gov",
+        "en": "Japan — e-Gov"
+    },
+    "description": "Leggi giapponesi da e-Gov. Fonte attiva con fetch e indicizzazione via adapter runtime.",
+    "homepage": "https://laws.e-gov.go.jp/",
+    "languages": ["ja"],
+    "default_language": "ja",
+    "supports_language_fallback": false,
+    "identifier_label": "LawId",
+    "identifier_example": "417AC0000000086",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://elaws.e-gov.go.jp/api/1/lawdata/{identifier}",
+            "shape": "rest-html",
+            "title_path": "LawTitle",
+            "body_path": "LawFullText"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "egov",
+            "display_name": "e-Gov",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

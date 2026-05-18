@@ -99,7 +99,7 @@
   async function indexHit(hit: CorpusHit) {
     syncingId = hit.identifier
     try {
-      await eurlexApi.fetchCelex(hit.identifier, config.language)
+      await eurlexApi.fetchCelex(hit.identifier, config.language, hit.date ?? undefined)
       toastStore.success(t('Eurlex.alreadyIndexed'))
       await loadDocs()
     } catch (e) {
@@ -128,6 +128,11 @@
     } catch (e) {
       toastStore.danger(t('Errors.somethingWrong'), { detail: (e as Error).message })
     }
+  }
+
+  function indexedDocDate(doc: EurlexDocument): string | null {
+    if (doc.corpus_date) return doc.corpus_date
+    return hits.find((h) => h.identifier === doc.corpus_identifier)?.date ?? null
   }
 </script>
 
@@ -227,6 +232,7 @@
               <p class="text-sm text-(--color-text-primary) truncate">{doc.filename}</p>
               <p class="text-xs text-(--color-text-secondary) font-mono">
                 {doc.corpus_identifier ?? ''}
+                {#if indexedDocDate(doc)} · {indexedDocDate(doc)}{/if}
                 {#if doc.corpus_language} · {doc.corpus_language.toUpperCase()}{/if}
                 · {doc.chunks_indexed} {t('Sync.chunks')}
               </p>

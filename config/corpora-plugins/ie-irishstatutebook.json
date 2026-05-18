@@ -1,0 +1,44 @@
+{
+    "id": "ie-irishstatutebook",
+    "display_name": "IE / Irish Statute Book",
+    "display_name_locale": {
+        "it": "Irlanda — Irish Statute Book",
+        "en": "Ireland — Irish Statute Book"
+    },
+    "description": "Normativa irlandese con ricerca citation-oriented. Fonte attiva con fetch e indicizzazione via adapter runtime.",
+    "homepage": "https://www.irishstatutebook.ie/",
+    "languages": ["en"],
+    "default_language": "en",
+    "supports_language_fallback": false,
+    "identifier_label": "Citation",
+    "identifier_example": "2018/act/7",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.irishstatutebook.ie/eli/{identifier}/revised/en/html",
+            "shape": "rest-html",
+            "title_path": "title:strip-suffix= | Irish Statute Book",
+            "body_path": "body"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "irish-statutebook",
+            "display_name": "Irish Statute Book",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

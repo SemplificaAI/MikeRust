@@ -1,0 +1,52 @@
+{
+    "id": "au-federalregister",
+    "display_name": "AU / Federal Register",
+    "display_name_locale": {
+        "it": "Australia — Federal Register",
+        "en": "Australia — Federal Register"
+    },
+    "description": "Federal Register of Legislation (Australia). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.legislation.gov.au/",
+    "languages": ["en"],
+    "default_language": "en",
+    "supports_language_fallback": false,
+    "identifier_label": "Register ID",
+    "identifier_example": "C2004A00594",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.legislation.gov.au/{identifier}/latest/text",
+            "shape": "rest-html",
+            "title_path": "title:strip-suffix= | Federal Register of Legislation",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://api.prod.legislation.gov.au/v1/titles?$filter=contains(tolower(name),'{query}')&$top={limit}",
+            "shape": "rest-json",
+            "hits_path": "$.value",
+            "identifier_at": "$.id",
+            "title_at": "$.name",
+            "date_at": "$.makingDate"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "federal-register",
+            "display_name": "Federal Register",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

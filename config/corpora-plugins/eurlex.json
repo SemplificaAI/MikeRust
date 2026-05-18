@@ -17,7 +17,7 @@
     "fallback_language": "en",
     "identifier_label": "CELEX",
     "identifier_example": "32016R0679",
-    "enabled_by_default": true,
+    "enabled_by_default": false,
     "strategy": {
         "kind": "builtin",
         "builtin_id": "eurlex"

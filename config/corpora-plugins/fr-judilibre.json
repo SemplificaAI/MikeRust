@@ -1,0 +1,36 @@
+{
+    "id": "fr-judilibre",
+    "display_name": "FR / Judilibre",
+    "display_name_locale": {
+        "it": "Francia — Judilibre",
+        "en": "France — Judilibre"
+    },
+    "description": "Giurisprudenza francese (Judilibre, API key). Presente in UI; attivazione runtime prevista in step successivo.",
+    "homepage": "https://www.courdecassation.fr/",
+    "languages": ["fr"],
+    "default_language": "fr",
+    "supports_language_fallback": false,
+    "identifier_label": "Decision ID",
+    "identifier_example": "JURI000000000000",
+    "enabled_by_default": false,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "judilibre",
+            "display_name": "Judilibre",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "richiede API key"
+        }
+    ]
+}

@@ -1,0 +1,52 @@
+{
+    "id": "uk-legislation",
+    "display_name": "UK / Legislation",
+    "display_name_locale": {
+        "it": "Regno Unito — Legislation.gov.uk",
+        "en": "United Kingdom — Legislation.gov.uk"
+    },
+    "description": "Normativa UK da legislation.gov.uk. Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.legislation.gov.uk/",
+    "languages": ["en"],
+    "default_language": "en",
+    "supports_language_fallback": false,
+    "identifier_label": "Legislation path",
+    "identifier_example": "ukpga/1998/29",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.legislation.gov.uk/{identifier}",
+            "shape": "rest-html",
+            "title_path": "title:strip-suffix= | Legislation.gov.uk",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://www.legislation.gov.uk/all/data.feed?title={query}&page=1",
+            "shape": "rest-html",
+            "hits_path": "entry",
+            "identifier_at": "id:strip-prefix=https://www.legislation.gov.uk/id/",
+            "title_at": "title",
+            "date_at": "updated"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "legislation-gov-uk",
+            "display_name": "legislation.gov.uk",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

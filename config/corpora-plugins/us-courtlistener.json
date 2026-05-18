@@ -1,0 +1,53 @@
+{
+    "id": "us-courtlistener",
+    "display_name": "US / CourtListener",
+    "display_name_locale": {
+        "it": "Stati Uniti — CourtListener",
+        "en": "United States — CourtListener"
+    },
+    "description": "Giurisprudenza USA via CourtListener. Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.courtlistener.com/",
+    "languages": ["en"],
+    "default_language": "en",
+    "supports_language_fallback": false,
+    "identifier_label": "Opinion ID",
+    "identifier_example": "1234567",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.courtlistener.com/api/rest/v4/opinions/{identifier}/",
+            "shape": "rest-json",
+            "title_path": "$.case_name",
+            "body_path": "$.plain_text",
+            "date_path": "$.date_filed"
+        },
+        "search_by_keyword": {
+            "url_template": "https://www.courtlistener.com/api/rest/v4/search/?type=o&q={query}",
+            "shape": "rest-json",
+            "hits_path": "$.results",
+            "identifier_at": "$.id",
+            "title_at": "$.caseName",
+            "date_at": "$.dateFiled"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "courtlistener",
+            "display_name": "CourtListener",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "token opzionale"
+        }
+    ]
+}

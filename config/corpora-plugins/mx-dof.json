@@ -1,0 +1,36 @@
+{
+    "id": "mx-dof",
+    "display_name": "MX / DOF",
+    "display_name_locale": {
+        "it": "Messico — DOF",
+        "en": "Mexico — DOF"
+    },
+    "description": "Diario Oficial de la Federación (Messico). Fonte aggiunta alla UI; integrazione runtime da implementare.",
+    "homepage": "https://www.dof.gob.mx/",
+    "languages": ["es"],
+    "default_language": "es",
+    "supports_language_fallback": false,
+    "identifier_label": "DOF note id",
+    "identifier_example": "08-05-2026:12345",
+    "enabled_by_default": false,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "dof",
+            "display_name": "DOF",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

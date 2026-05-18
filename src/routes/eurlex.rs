@@ -271,6 +271,7 @@ async fn search(
 struct FetchPayload {
     celex: String,
     language: Option<String>,
+    date: Option<String>,
 }
 
 async fn fetch_celex(
@@ -306,9 +307,9 @@ async fn fetch_celex(
     // of re-fetching. Re-fetching the same CELEX in a *different*
     // language is a separate concern handled by upserting based on
     // (corpus_id, identifier, corpus_language).
-    let existing: Option<(String, String, Option<String>, Option<String>, i64)> =
+    let existing: Option<(String, String, Option<String>, Option<String>, Option<String>, i64)> =
         sqlx::query_as(
-            "SELECT id, filename, corpus_language, storage_path, fetched_with_fallback \
+            "SELECT id, filename, corpus_language, corpus_date, storage_path, fetched_with_fallback \
              FROM documents \
              WHERE user_id = ? AND corpus_id = ? AND corpus_identifier = ? AND corpus_language = ?",
         )
@@ -320,13 +321,25 @@ async fn fetch_celex(
         .await
         .ok()
         .flatten();
-    if let Some((id, filename, language, _, fb)) = existing {
+    if let Some((id, filename, language, date, _, fb)) = existing {
+        if body.date.as_ref().is_some_and(|d| !d.trim().is_empty()) {
+            let _ = sqlx::query(
+                "UPDATE documents SET corpus_date = COALESCE(corpus_date, ?) \
+                 WHERE id = ? AND user_id = ?",
+            )
+            .bind(body.date.as_deref().map(str::trim))
+            .bind(&id)
+            .bind(&auth.user_id)
+            .execute(&state.db)
+            .await;
+        }
         return Ok(Json(json!({
             "id": id,
             "filename": filename,
             "corpus_id": CORPUS_ID,
             "corpus_identifier": body.celex,
             "corpus_language": language,
+            "corpus_date": date,
             "fetched_with_fallback": fb != 0,
             "already_indexed": true,
         })));
@@ -338,6 +351,14 @@ async fn fetch_celex(
         .fetch(&body.celex, Some(&lang), stored_fallback)
         .await
         .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
+
+    let corpus_date = body
+        .date
+        .as_deref()
+        .map(str::trim)
+        .filter(|d| !d.is_empty())
+        .map(str::to_string)
+        .or(fetched.date.clone());
 
     // Refuse to persist a phantom document. A real CELEX served in
     // any language is at least several thousand chars (even short
@@ -406,8 +427,8 @@ async fn fetch_celex(
         "INSERT INTO documents \
            (id, user_id, project_id, filename, file_type, size_bytes, \
             storage_path, status, content_hash, extracted_text_path, \
-            corpus_id, corpus_identifier, corpus_language, fetched_with_fallback) \
-         VALUES (?, ?, NULL, ?, 'txt', ?, ?, 'syncing', ?, ?, ?, ?, ?, ?)",
+            corpus_id, corpus_identifier, corpus_language, corpus_date, fetched_with_fallback) \
+         VALUES (?, ?, NULL, ?, 'txt', ?, ?, 'syncing', ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&doc_id)
     .bind(&auth.user_id)
@@ -419,6 +440,7 @@ async fn fetch_celex(
     .bind(CORPUS_ID)
     .bind(&fetched.identifier)
     .bind(&fetched.language)
+    .bind(&corpus_date)
     .bind(fetched.fetched_with_fallback as i64)
     .execute(&state.db)
     .await
@@ -461,6 +483,7 @@ async fn fetch_celex(
         "corpus_id": CORPUS_ID,
         "corpus_identifier": fetched.identifier,
         "corpus_language": fetched.language,
+        "corpus_date": corpus_date,
         "fetched_with_fallback": fetched.fetched_with_fallback,
         "source_url": fetched.source_url,
         "size_bytes": size,
@@ -637,6 +660,7 @@ async fn list_documents(
         String,
         Option<String>,
         Option<String>,
+        Option<String>,
         i64,
         i64,
         String,
@@ -644,7 +668,7 @@ async fn list_documents(
         i64,
     )> = sqlx::query_as(
         "SELECT d.id, d.filename, d.corpus_identifier, d.corpus_language, \
-                d.fetched_with_fallback, d.size_bytes, d.created_at, d.status, \
+                d.corpus_date, d.fetched_with_fallback, d.size_bytes, d.created_at, d.status, \
                 COALESCE(c.n, 0) AS chunks \
          FROM documents d \
          LEFT JOIN ( \
@@ -661,12 +685,13 @@ async fn list_documents(
 
     let docs: Vec<Value> = rows
         .into_iter()
-        .map(|(id, filename, ident, lang, fb, size, created, status, chunks)| {
+        .map(|(id, filename, ident, lang, date, fb, size, created, status, chunks)| {
             json!({
                 "id": id,
                 "filename": filename,
                 "corpus_identifier": ident,
                 "corpus_language": lang,
+                "corpus_date": date,
                 "fetched_with_fallback": fb != 0,
                 "size_bytes": size,
                 "created_at": created,

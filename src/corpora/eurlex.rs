@@ -1233,6 +1233,7 @@ impl LegalCorpusAdapter for EurlexAdapter {
         Ok(CorpusDocument {
             identifier: celex.to_string(),
             title,
+            date: None,
             language: fetched.lang_iso.clone(),
             fetched_with_fallback: used_fallback,
             bytes: fetched.text.into_bytes(),

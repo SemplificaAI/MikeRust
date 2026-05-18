@@ -41,6 +41,8 @@ pub struct CorpusHit {
 pub struct CorpusDocument {
     pub identifier: String,
     pub title: String,
+    /// Source-provided date (publication/act date) when available.
+    pub date: Option<String>,
     /// Language actually fetched. May differ from the user's request
     /// when the document wasn't available in the requested language
     /// and the adapter fell back to English (or a corpus-native

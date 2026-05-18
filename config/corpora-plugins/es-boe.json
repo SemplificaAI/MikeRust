@@ -1,0 +1,51 @@
+{
+    "id": "es-boe",
+    "display_name": "ES / BOE",
+    "display_name_locale": {
+        "it": "Spagna — BOE",
+        "en": "Spain — BOE"
+    },
+    "description": "Boletín Oficial del Estado (Spagna). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.boe.es/",
+    "languages": ["es"],
+    "default_language": "es",
+    "supports_language_fallback": false,
+    "identifier_label": "BOE ID",
+    "identifier_example": "BOE-A-2024-12345",
+    "enabled_by_default": true,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.boe.es/buscar/act.php?id={identifier}",
+            "shape": "rest-html",
+            "title_path": "title",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://www.boe.es/buscar/legislacion.php?campo[0]=ID_SRC&dato[0]=&campo[2]=DOC&dato[2]={query}&checkbox_solo_tit=S&accion=Buscar",
+            "shape": "rest-html",
+            "hits_path": "a[href*='act.php?id=BOE-A-']",
+            "identifier_at": "a@href:strip-prefix=/buscar/act.php?id=",
+            "title_at": "a"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "boe",
+            "display_name": "BOE",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

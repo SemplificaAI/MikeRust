@@ -1,0 +1,36 @@
+{
+    "id": "ch-fedlex",
+    "display_name": "CH / Fedlex",
+    "display_name_locale": {
+        "it": "Svizzera — Fedlex",
+        "en": "Switzerland — Fedlex"
+    },
+    "description": "Fedlex / ELI svizzero. Fonte dichiarata per UI country-by-country; integrazione runtime non ancora attiva.",
+    "homepage": "https://www.fedlex.admin.ch/",
+    "languages": ["de", "fr", "it", "en"],
+    "default_language": "it",
+    "supports_language_fallback": false,
+    "identifier_label": "ELI IRI",
+    "identifier_example": "https://fedlex.data.admin.ch/eli/cc/1999/404",
+    "enabled_by_default": false,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "fedlex",
+            "display_name": "Fedlex",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

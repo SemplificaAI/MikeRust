@@ -1,0 +1,51 @@
+{
+    "id": "de-gesetze",
+    "display_name": "DE / Gesetze im Internet",
+    "display_name_locale": {
+        "it": "Germania — Gesetze im Internet",
+        "en": "Germany — Gesetze im Internet"
+    },
+    "description": "Normativa tedesca federale (Gesetze im Internet). Fonte attiva con ricerca e fetch via adapter runtime.",
+    "homepage": "https://www.gesetze-im-internet.de/",
+    "languages": ["de"],
+    "default_language": "de",
+    "supports_language_fallback": false,
+    "identifier_label": "Percorso documento",
+    "identifier_example": "bgb/__535.html",
+    "enabled_by_default": false,
+    "strategy": {
+        "kind": "http-fetch-per-id",
+        "search_by_id": {
+            "url_template": "https://www.gesetze-im-internet.de/{identifier}",
+            "shape": "rest-html",
+            "title_path": "title:strip-suffix= - Gesetze im Internet",
+            "body_path": "body"
+        },
+        "search_by_keyword": {
+            "url_template": "https://www.gesetze-im-internet.de/cgi-bin/htsearch?method=and&format=short&sort=score&words={query}&page=1",
+            "shape": "rest-html",
+            "hits_path": "dt a",
+            "identifier_at": ":self@href:strip-prefix=/",
+            "title_at": ":self"
+        }
+    },
+    "capabilities": {
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": true
+    },
+    "sources": [
+        {
+            "id": "gesetze-im-internet",
+            "display_name": "Gesetze im Internet",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "in arrivo"
+        }
+    ]
+}

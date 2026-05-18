@@ -1,0 +1,36 @@
+{
+    "id": "fr-legifrance",
+    "display_name": "FR / Légifrance",
+    "display_name_locale": {
+        "it": "Francia — Légifrance",
+        "en": "France — Légifrance"
+    },
+    "description": "Normativa francese (Légifrance / PISTE OAuth2). Fonte già registrata in UI; connettore runtime non ancora attivo in MikeRust.",
+    "homepage": "https://www.legifrance.gouv.fr/",
+    "languages": ["fr"],
+    "default_language": "fr",
+    "supports_language_fallback": false,
+    "identifier_label": "LEGIARTI",
+    "identifier_example": "LEGIARTI000006419297",
+    "enabled_by_default": false,
+    "strategy": { "kind": "hf-dataset-bulk" },
+    "capabilities": {
+        "search": false,
+        "fetch": false,
+        "documents": false,
+        "documents_delete": false,
+        "documents_resync": false,
+        "embed_progress": false,
+        "bulk_import": false,
+        "user_config": false
+    },
+    "sources": [
+        {
+            "id": "legifrance",
+            "display_name": "Légifrance",
+            "available": false,
+            "default_enabled": false,
+            "status_label": "richiede OAuth2"
+        }
+    ]
+}
