@@ -460,7 +460,8 @@
     "interruptTitle": "Interromper a resposta?",
     "interruptBody": "O chat atual ainda está a receber uma resposta de {model}. Se continuar, essa comunicação será interrompida.",
     "interruptConfirm": "Interromper e continuar",
-    "genericModel": "o assistente"
+    "genericModel": "o assistente",
+    "reasoning": "Raciocínio"
   },
   "People": {
     "addByEmail": "Adicionar por e-mail…",

@@ -299,6 +299,10 @@ function createChatStore() {
             const m = assistant()
             if (m) m.content += delta
           },
+          onReasoningDelta: (delta) => {
+            const m = assistant()
+            if (m) m.reasoning = (m.reasoning ?? '') + delta
+          },
           onToolCallStart: (name) => {
             const m = assistant()
             if (!m) return

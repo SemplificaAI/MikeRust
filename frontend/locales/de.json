@@ -460,7 +460,8 @@
     "interruptTitle": "Antwort abbrechen?",
     "interruptBody": "Der aktuelle Chat empfängt noch eine Antwort von {model}. Wenn Sie fortfahren, wird diese Kommunikation abgebrochen.",
     "interruptConfirm": "Abbrechen und fortfahren",
-    "genericModel": "dem Assistenten"
+    "genericModel": "dem Assistenten",
+    "reasoning": "Denkprozess"
   },
   "People": {
     "addByEmail": "Per E-Mail hinzufügen…",

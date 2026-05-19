@@ -55,6 +55,9 @@ export interface ChatMessage {
   citations?: Citation[]
   /** Ordered tool / document steps for an assistant message. */
   steps?: ChatStep[]
+  /** Model reasoning / "thinking" text — streamed, shown collapsed,
+   *  not persisted (it is not part of the saved answer). */
+  reasoning?: string
 }
 
 /** One message in the `POST /chat` request body. */

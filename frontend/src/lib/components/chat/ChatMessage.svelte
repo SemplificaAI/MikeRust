@@ -73,6 +73,21 @@
   </div>
 {:else}
   <div class="max-w-[85%]">
+    {#if message.reasoning}
+      <details class="mb-2">
+        <summary
+          class="cursor-pointer select-none text-xs text-(--color-text-secondary) hover:text-(--color-text-primary)"
+        >
+          {i18n.t('Assistant.reasoning')}
+        </summary>
+        <div
+          class="mt-1 pl-3 border-l-2 border-(--color-surface-200) text-xs
+                 text-(--color-text-secondary) whitespace-pre-wrap break-words"
+        >
+          {message.reasoning}
+        </div>
+      </details>
+    {/if}
     {#if message.steps && message.steps.length}
       <ChatSteps steps={message.steps} />
     {/if}

@@ -2212,6 +2212,29 @@ async fn stream_chat_root(
                             Ok(StreamEvent::ToolCalls(calls)) => {
                                 iter_tool_calls = calls;
                             }
+                            // Model reasoning / "thinking" — forwarded as
+                            // its own SSE event so the UI can show it in a
+                            // separate collapsible block rather than mixing
+                            // it into the answer text. Not appended to
+                            // `full_response` (it is not the answer).
+                            Ok(StreamEvent::ReasoningDelta(text)) => {
+                                let payload = json!({
+                                    "type": "reasoning_delta", "text": text
+                                });
+                                if tx
+                                    .send(Ok(Event::default().data(payload.to_string())))
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+                            Ok(StreamEvent::ReasoningEnd) => {
+                                let payload = json!({ "type": "reasoning_done" });
+                                let _ = tx
+                                    .send(Ok(Event::default().data(payload.to_string())))
+                                    .await;
+                            }
                             Ok(StreamEvent::Done) => { got_done = true; break; }
                             Err(e) => { got_err = Some(e.to_string()); break; }
                             _ => {}

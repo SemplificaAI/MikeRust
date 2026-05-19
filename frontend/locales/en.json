@@ -460,7 +460,8 @@
     "interruptTitle": "Interrupt the response?",
     "interruptBody": "The current chat is still receiving a response from {model}. If you continue, that communication will be interrupted.",
     "interruptConfirm": "Interrupt and continue",
-    "genericModel": "the assistant"
+    "genericModel": "the assistant",
+    "reasoning": "Reasoning"
   },
   "People": {
     "addByEmail": "Add by email…",
