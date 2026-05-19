@@ -1166,7 +1166,7 @@ mod tests {
 
     #[test]
     fn vec_to_blob_roundtrips_via_from_le_bytes() {
-        let v = vec![0.0_f32, -1.5, 3.14, f32::MAX, f32::MIN];
+        let v = vec![0.0_f32, -1.5, 3.5, f32::MAX, f32::MIN];
         let bytes = vec_to_blob(&v);
         let mut back: Vec<f32> = Vec::new();
         for chunk in bytes.chunks_exact(4) {
