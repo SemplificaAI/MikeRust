@@ -35,7 +35,8 @@
     "actions": "Actions",
     "settings": "Settings",
     "logout": "Sign out",
-    "or": "or"
+    "or": "or",
+    "expand": "Expand"
   },
   "App": {
     "title": "MikeRust",
@@ -626,7 +627,12 @@
     "isolationHint": "Controls what the project's chats can retrieve: the whole knowledge base, or only this project's documents.",
     "isolationSaved": "Retrieval scope updated",
     "documentRemoved": "Document removed",
-    "openConversation": "Open conversation"
+    "openConversation": "Open conversation",
+    "newFolder": "New folder",
+    "newSubfolder": "New subfolder",
+    "renameFolder": "Rename",
+    "deleteFolderTitle": "Delete folder?",
+    "deleteFolderBody": "Delete \"{name}\"? Subfolders are removed; documents move to the project root."
   },
   "EmbeddingStatus": {
     "loadingModelTitle": "Loading embedding model…",

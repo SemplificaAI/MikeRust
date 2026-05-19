@@ -11,4 +11,6 @@ export interface DocumentMeta {
   status: string
   domain: Domain
   created_at: string
+  /** Folder within the project (`GET /document`). null = project root. */
+  project_folder_id?: string | null
 }

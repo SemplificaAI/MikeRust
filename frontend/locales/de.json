@@ -35,7 +35,8 @@
     "actions": "Aktionen",
     "settings": "Einstellungen",
     "logout": "Abmelden",
-    "or": "oder"
+    "or": "oder",
+    "expand": "Aufklappen"
   },
   "App": {
     "title": "MikeRust",
@@ -626,7 +627,12 @@
     "isolationHint": "Legt fest, worauf die Chats des Projekts zugreifen: die gesamte Wissensbasis oder nur die Dokumente dieses Projekts.",
     "isolationSaved": "Abrufbereich aktualisiert",
     "documentRemoved": "Dokument entfernt",
-    "openConversation": "Unterhaltung öffnen"
+    "openConversation": "Unterhaltung öffnen",
+    "newFolder": "Neuer Ordner",
+    "newSubfolder": "Neuer Unterordner",
+    "renameFolder": "Umbenennen",
+    "deleteFolderTitle": "Ordner löschen?",
+    "deleteFolderBody": "„{name}\" löschen? Unterordner werden entfernt; Dokumente landen im Projektstamm."
   },
   "Domains": {
     "label": "Bereich",

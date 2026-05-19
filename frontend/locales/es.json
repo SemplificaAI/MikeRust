@@ -35,7 +35,8 @@
     "actions": "Acciones",
     "settings": "Ajustes",
     "logout": "Cerrar sesión",
-    "or": "o"
+    "or": "o",
+    "expand": "Expandir"
   },
   "App": {
     "title": "MikeRust",
@@ -626,7 +627,12 @@
     "isolationHint": "Controla qué pueden recuperar los chats del proyecto: toda la base de conocimiento, o solo los documentos de este proyecto.",
     "isolationSaved": "Ámbito de recuperación actualizado",
     "documentRemoved": "Documento eliminado",
-    "openConversation": "Abrir conversación"
+    "openConversation": "Abrir conversación",
+    "newFolder": "Nueva carpeta",
+    "newSubfolder": "Nueva subcarpeta",
+    "renameFolder": "Renombrar",
+    "deleteFolderTitle": "¿Eliminar la carpeta?",
+    "deleteFolderBody": "¿Eliminar «{name}»? Las subcarpetas se eliminan; los documentos vuelven a la raíz del proyecto."
   },
   "Domains": {
     "label": "Dominio",

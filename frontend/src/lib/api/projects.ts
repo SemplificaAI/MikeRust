@@ -14,6 +14,14 @@ export type ProjectFilter = {
   domain?: Domain
 }
 
+/** A node of a project's document-folder tree. parent_id null = root. */
+export interface ProjectFolder {
+  id: string
+  parent_id: string | null
+  name: string
+  created_at: string
+}
+
 /** Wrappers for `src/routes/projects.rs`. All require auth. */
 export const projectsApi = {
   list: (filter?: ProjectFilter) =>
@@ -38,6 +46,42 @@ export const projectsApi = {
     api<{ ok: boolean }>(
       `/project/${encodeURIComponent(id)}/documents/${encodeURIComponent(docId)}`,
       { method: 'PATCH', body: { filename } },
+    ),
+
+  // ── document folder tree ──────────────────────────────────────────
+  listFolders: (id: string) =>
+    api<{ folders: ProjectFolder[] }>(
+      `/project/${encodeURIComponent(id)}/folders`,
+    ),
+
+  createFolder: (id: string, name: string, parent_id: string | null = null) =>
+    api<{ id: string }>(`/project/${encodeURIComponent(id)}/folders`, {
+      method: 'POST',
+      body: { name, parent_id },
+    }),
+
+  /** Rename (`name`) and/or re-parent (`parent_id`, null = root) a folder. */
+  updateFolder: (
+    id: string,
+    folderId: string,
+    body: { name?: string; parent_id?: string | null },
+  ) =>
+    api<{ id: string }>(
+      `/project/${encodeURIComponent(id)}/folders/${encodeURIComponent(folderId)}`,
+      { method: 'PATCH', body },
+    ),
+
+  deleteFolder: (id: string, folderId: string) =>
+    api<{ ok: boolean }>(
+      `/project/${encodeURIComponent(id)}/folders/${encodeURIComponent(folderId)}`,
+      { method: 'DELETE' },
+    ),
+
+  /** Move a document into a folder (`folder_id` null = project root). */
+  moveDocument: (id: string, docId: string, folder_id: string | null) =>
+    api<{ id: string }>(
+      `/project/${encodeURIComponent(id)}/documents/${encodeURIComponent(docId)}/folder`,
+      { method: 'PATCH', body: { folder_id } },
     ),
 
   /** Export to an encrypted .mikeprj blob. */

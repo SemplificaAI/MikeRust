@@ -35,7 +35,8 @@
     "actions": "Azioni",
     "settings": "Impostazioni",
     "logout": "Esci",
-    "or": "oppure"
+    "or": "oppure",
+    "expand": "Espandi"
   },
   "App": {
     "title": "MikeRust",
@@ -626,7 +627,12 @@
     "isolationHint": "Controlla cosa possono recuperare le chat del progetto: l’intera base di conoscenza, o solo i documenti di questo progetto.",
     "isolationSaved": "Ambito di recupero aggiornato",
     "documentRemoved": "Documento rimosso",
-    "openConversation": "Apri conversazione"
+    "openConversation": "Apri conversazione",
+    "newFolder": "Nuova cartella",
+    "newSubfolder": "Nuova sottocartella",
+    "renameFolder": "Rinomina",
+    "deleteFolderTitle": "Eliminare la cartella?",
+    "deleteFolderBody": "Eliminare «{name}»? Le sottocartelle vengono rimosse; i documenti tornano alla radice del progetto."
   },
   "EmbeddingStatus": {
     "loadingModelTitle": "Istanza modello embeddings…",
