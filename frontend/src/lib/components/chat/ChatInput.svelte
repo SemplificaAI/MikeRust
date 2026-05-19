@@ -20,6 +20,7 @@
   import { DOMAINS, domainLabel } from '$lib/types/domain'
   import { userStore } from '$lib/stores/user.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
+  import { chatStore } from '$lib/stores/chat.svelte'
   import type { SendAttachments } from '$lib/stores/chat.svelte'
   import type { FileRef, TemplateRef, WorkflowRef } from '$lib/types/chat'
   import {
@@ -51,7 +52,23 @@
   let files = $state<FileRef[]>([])
   let workflow = $state<WorkflowRef | null>(null)
   let template = $state<TemplateRef | null>(null)
-  let project = $state<{ id: string; name: string } | null>(null)
+  let project = $state<{ id: string; name: string; domain?: string } | null>(null)
+
+  // A chat that lives in a project auto-attaches that project: the chip
+  // keeps the context visible and its domain scopes the workflow /
+  // template pickers. Re-derives when the active chat changes.
+  $effect(() => {
+    const pid = chatStore.activeProjectId
+    if (!pid || project?.id === pid) return
+    void projectsApi
+      .get(pid)
+      .then((p) => {
+        project = { id: p.id, name: p.name, domain: p.domain }
+      })
+      .catch(() => {
+        /* leave the composer without a project chip */
+      })
+  })
 
   // ── pickers ─────────────────────────────────────────────────────────
   type Kind = 'doc' | 'project' | 'workflow' | 'template'
@@ -115,7 +132,12 @@
     pickerOpen = true
     // The workflow and template pickers default to the user's domain;
     // resets each open.
-    pickerDomain = kind === 'workflow' || kind === 'template' ? userStore.defaultDomain : ''
+    // Workflow / template pickers scope to the chat's project domain
+    // when the chat lives in a project, else the user's default domain.
+    pickerDomain =
+      kind === 'workflow' || kind === 'template'
+        ? (project?.domain ?? userStore.defaultDomain)
+        : ''
     try {
       if (kind === 'doc') {
         const r = await documentsApi.list()
@@ -192,7 +214,9 @@
     files = []
     workflow = null
     template = null
-    project = null
+    // Keep the chat's own project attached (persistent context);
+    // clear only a manually-picked project attachment.
+    if (project && project.id !== chatStore.activeProjectId) project = null
   }
 
   function onKey(e: KeyboardEvent) {

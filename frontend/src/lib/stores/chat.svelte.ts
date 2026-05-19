@@ -183,6 +183,11 @@ function createChatStore() {
     get activeId() {
       return activeId
     },
+    /** project_id of the active chat — null for a global chat. Drives
+     *  the composer's project chip + domain-scoped pickers. */
+    get activeProjectId(): string | null {
+      return chats.find((c) => c.id === activeId)?.project_id ?? null
+    },
     get messages() {
       return messages
     },
