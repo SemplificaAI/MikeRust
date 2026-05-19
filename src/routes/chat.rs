@@ -1030,6 +1030,9 @@ Heading hierarchy: always use Heading 1 before introducing Heading 2, Heading 2 
 Numbering: all numbering MUST start from 1, never 0. Never duplicate the numbering prefix in heading text — pass "Introduction", never "1. Introduction".
 Contracts: when generating a contract or agreement, always include a signatures block at the very end of the document on its own page, with a signature line for each party (party name + "By:", "Name:", "Title:", "Date:"). Contract preambles (recitals, "WHEREAS" clauses, parties block) must NOT be numbered.
 
+SPREADSHEET / EXCEL GENERATION:
+When the user asks for an Excel file, a spreadsheet, an .xlsx, or to export tabular data to Excel, use the generate_xlsx tool. Pass the column labels in `headers` and one array of cell strings per row in `rows`. If you have just shown the user a Markdown table, reuse exactly those columns and rows. NEVER reply that you cannot create Excel files — generate_xlsx is available for exactly this. After calling generate_xlsx, do NOT include any download link or URL in your prose; the download card is presented automatically by the UI. Briefly state what the spreadsheet contains (sheet, number of rows/columns).
+
 DOCUMENT EDITING:
 When using edit_document, any edit that adds, removes, or reorders a numbered clause, section, sub-clause, schedule, exhibit, or list item shifts every downstream number. You MUST update all affected numbering AND every cross-reference to those numbers in the same edit_document call:
 - Renumber the sibling clauses/sections/sub-clauses that follow the change so the sequence stays contiguous.
@@ -2572,11 +2575,12 @@ async fn stream_chat_root(
                         // download card for a plain read.
                         //   generate_docx    → doc_created (download card,
                         //                      persisted so it survives reload)
+                        //   generate_xlsx    → doc_created (same card)
                         //   read_document    → doc_read
                         //   find_in_document → doc_find
                         //   read_workflow    → workflow_applied
-                        // A future generator (xlsx, pdf-export, …) adds
-                        // its own arm here.
+                        // A future generator (pdf-export, …) adds its
+                        // own arm here.
                         if let Ok(rv) = serde_json::from_str::<Value>(&result)
                             && rv.get("error").is_none()
                         {
@@ -2584,7 +2588,7 @@ async fn stream_chat_root(
                                 rv.get(k).and_then(|v| v.as_str()).unwrap_or("")
                             };
                             match call.name.as_str() {
-                                "generate_docx" => {
+                                "generate_docx" | "generate_xlsx" => {
                                     let doc_id = s("doc_id");
                                     let filename = s("filename");
                                     if !doc_id.is_empty() && !filename.is_empty() {

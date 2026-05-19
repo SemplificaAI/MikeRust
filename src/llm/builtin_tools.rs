@@ -6,8 +6,9 @@
 //! * `read_document` — fetch full text of a chat-attached document by `doc-N` label
 //! * `find_in_document` — case-insensitive search within a document
 //! * `read_workflow` — load the Markdown body of a saved workflow by id
-//! * `generate_docx` — produce a downloadable .docx (stub for now)
-//! * `edit_document` — modify an existing .docx (stub for now)
+//! * `generate_docx` — produce a downloadable .docx
+//! * `generate_xlsx` — produce a downloadable .xlsx from tabular data
+//! * `edit_document` — modify an existing .docx
 //!
 //! The model is expected to call these tools to ground its answers. The
 //! dispatch fn returns plain-string results that get fed back as `tool`
@@ -22,6 +23,7 @@ const READ_DOCUMENT: &str = "read_document";
 const FIND_IN_DOCUMENT: &str = "find_in_document";
 const READ_WORKFLOW: &str = "read_workflow";
 const GENERATE_DOCX: &str = "generate_docx";
+const GENERATE_XLSX: &str = "generate_xlsx";
 const EDIT_DOCUMENT: &str = "edit_document";
 const LIST_DOCX_TEMPLATES: &str = "list_docx_templates";
 const DESCRIBE_DOCX_TEMPLATE: &str = "describe_docx_template";
@@ -33,6 +35,7 @@ pub fn is_builtin(name: &str) -> bool {
             | FIND_IN_DOCUMENT
             | READ_WORKFLOW
             | GENERATE_DOCX
+            | GENERATE_XLSX
             | EDIT_DOCUMENT
             | LIST_DOCX_TEMPLATES
             | DESCRIBE_DOCX_TEMPLATE
@@ -112,6 +115,28 @@ pub fn schemas() -> Vec<ToolSchema> {
             }),
         ),
         fun(
+            GENERATE_XLSX,
+            "Produce a downloadable .xlsx (Microsoft Excel) spreadsheet from tabular data. Use this whenever the user asks for an Excel file, a spreadsheet, or to export a table to Excel. Pass the column labels in `headers` and the data in `rows` (one array of cell strings per row, aligned with `headers`). Returns the new document id and filename; the UI shows a download card automatically.",
+            json!({
+                "type": "object",
+                "properties": {
+                    "title": { "type": "string", "description": "Spreadsheet title / base filename (no extension)." },
+                    "sheet_name": { "type": "string", "description": "Optional worksheet tab name (default 'Foglio1', truncated to 31 chars)." },
+                    "headers": {
+                        "type": "array",
+                        "description": "Column header labels, left to right.",
+                        "items": { "type": "string" }
+                    },
+                    "rows": {
+                        "type": "array",
+                        "description": "Data rows. Each row is an array of cell values aligned with `headers`; pad short rows with empty strings.",
+                        "items": { "type": "array", "items": { "type": "string" } }
+                    }
+                },
+                "required": ["headers", "rows"]
+            }),
+        ),
+        fun(
             LIST_DOCX_TEMPLATES,
             "List the DOCX templates available to the closing formatter. Returns id, display_name, category, domain, automation_level, and required_metadata for each. Filter by `domain` (e.g. 'legal', 'finance', 'real_estate', 'compliance'). Call this FIRST when the user asks to produce a structured document (atto, diffida, parcella, contratto, ...) to pick the right template, then call describe_docx_template to see how to fill it, then generate_docx.",
             json!({
@@ -184,6 +209,7 @@ pub async fn dispatch(
         FIND_IN_DOCUMENT => exec_find_in_document(state, user_id, doc_label_map, arguments).await,
         READ_WORKFLOW => exec_read_workflow(state, user_id, arguments).await,
         GENERATE_DOCX => exec_generate_docx(state, user_id, chat_id, arguments).await,
+        GENERATE_XLSX => exec_generate_xlsx(state, user_id, chat_id, arguments).await,
         EDIT_DOCUMENT => exec_edit_document(state, user_id, doc_label_map, arguments).await,
         LIST_DOCX_TEMPLATES => exec_list_docx_templates(state, arguments).await,
         DESCRIBE_DOCX_TEMPLATE => exec_describe_docx_template(state, arguments).await,
@@ -528,6 +554,150 @@ async fn exec_generate_docx(
     payload.to_string()
 }
 
+/// Coerce a JSON cell value to a plain string so the LLM can be sloppy
+/// about types (a number, a bool, or a proper string all work).
+fn json_cell_to_string(v: &Value) -> String {
+    match v {
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => String::new(),
+        other => other.to_string(),
+    }
+}
+
+/// Build an .xlsx workbook with one bold header row plus the data rows.
+/// Kept as a standalone fn so the `&mut Worksheet` borrow ends before
+/// `save_to_buffer` needs the workbook back.
+fn build_xlsx(
+    sheet_name: &str,
+    headers: &[String],
+    rows: &[Vec<String>],
+) -> Result<Vec<u8>, rust_xlsxwriter::XlsxError> {
+    use rust_xlsxwriter::{Format, Workbook};
+    let mut workbook = Workbook::new();
+    let header_fmt = Format::new().set_bold();
+    {
+        let sheet = workbook.add_worksheet();
+        // set_name rejects names >31 chars or with invalid chars; a bad
+        // name shouldn't fail the whole export, so ignore the error.
+        let _ = sheet.set_name(sheet_name);
+        for (c, h) in headers.iter().enumerate() {
+            sheet.write_with_format(0, c as u16, h.as_str(), &header_fmt)?;
+        }
+        for (r, row) in rows.iter().enumerate() {
+            for (c, cell) in row.iter().enumerate() {
+                sheet.write((r + 1) as u32, c as u16, cell.as_str())?;
+            }
+        }
+    }
+    workbook.save_to_buffer()
+}
+
+async fn exec_generate_xlsx(
+    state: &AppState,
+    user_id: &str,
+    chat_id: Option<&str>,
+    arguments: &Value,
+) -> String {
+    let headers: Vec<String> = arguments
+        .get("headers")
+        .and_then(|v| v.as_array())
+        .map(|a| a.iter().map(json_cell_to_string).collect())
+        .unwrap_or_default();
+    if headers.is_empty() {
+        return json!({"error": "headers (a non-empty array of column names) is required"})
+            .to_string();
+    }
+    let rows: Vec<Vec<String>> = arguments
+        .get("rows")
+        .and_then(|v| v.as_array())
+        .map(|a| {
+            a.iter()
+                .map(|r| {
+                    r.as_array()
+                        .map(|cells| cells.iter().map(json_cell_to_string).collect())
+                        .unwrap_or_default()
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    if rows.is_empty() {
+        return json!({"error": "rows (an array of row arrays) is required and must be non-empty"})
+            .to_string();
+    }
+
+    let sheet_name: String = arguments
+        .get("sheet_name")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("Foglio1")
+        .chars()
+        .take(31)
+        .collect();
+
+    let bytes = match build_xlsx(&sheet_name, &headers, &rows) {
+        Ok(b) => b,
+        Err(e) => return json!({"error": format!("xlsx build: {e}")}).to_string(),
+    };
+
+    let title = arguments
+        .get("title")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "Tabella".to_string());
+    let safe_title = sanitize_filename(&title);
+    let filename = format!("{safe_title}.xlsx");
+    let doc_id = uuid::Uuid::new_v4().to_string();
+    let storage_path = format!("documents/{user_id}/{doc_id}");
+
+    let storage = match crate::storage::make_storage() {
+        Ok(s) => s,
+        Err(e) => return json!({"error": format!("storage: {e}")}).to_string(),
+    };
+    if let Err(e) = storage
+        .put(
+            &storage_path,
+            &bytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        .await
+    {
+        return json!({"error": format!("storage write: {e}")}).to_string();
+    }
+
+    let size = bytes.len() as i64;
+    // chat_id bound so the generated .xlsx cascades away with the chat
+    // on deletion, mirroring exec_generate_docx.
+    if let Err(e) = sqlx::query(
+        "INSERT INTO documents (id, user_id, project_id, chat_id, filename, file_type, size_bytes, storage_path, status) \
+         VALUES (?, ?, NULL, ?, ?, 'xlsx', ?, ?, 'ready')",
+    )
+    .bind(&doc_id)
+    .bind(user_id)
+    .bind(chat_id)
+    .bind(&filename)
+    .bind(size)
+    .bind(&storage_path)
+    .execute(&state.db)
+    .await
+    {
+        return json!({"error": format!("db: {e}")}).to_string();
+    }
+
+    json!({
+        "doc_id": doc_id,
+        "filename": filename,
+        "size_bytes": size,
+        "rows": rows.len(),
+        "columns": headers.len(),
+        "note": "Spreadsheet persisted as a standalone document. The download card is shown by the UI — do not add a download link in your prose."
+    })
+    .to_string()
+}
+
 async fn exec_list_docx_templates(state: &AppState, arguments: &Value) -> String {
     let domain_filter = arguments
         .get("domain")
@@ -732,6 +902,7 @@ mod tests {
             "find_in_document",
             "read_workflow",
             "generate_docx",
+            "generate_xlsx",
             "edit_document",
             "list_docx_templates",
             "describe_docx_template",
@@ -745,7 +916,7 @@ mod tests {
     #[test]
     fn schemas_have_required_fields() {
         let s = schemas();
-        assert_eq!(s.len(), 7);
+        assert_eq!(s.len(), 8);
         for sch in &s {
             assert_eq!(sch.kind, "function");
             assert!(!sch.function.name.is_empty());
@@ -757,6 +928,7 @@ mod tests {
         assert!(names.contains(&"find_in_document"));
         assert!(names.contains(&"read_workflow"));
         assert!(names.contains(&"generate_docx"));
+        assert!(names.contains(&"generate_xlsx"));
         assert!(names.contains(&"list_docx_templates"));
         assert!(names.contains(&"describe_docx_template"));
         assert!(names.contains(&"edit_document"));
@@ -907,6 +1079,27 @@ mod tests {
     fn sanitize_filename_keeps_safe_chars() {
         assert_eq!(sanitize_filename("Contract Draft 2025-Q1"), "Contract Draft 2025-Q1");
         assert_eq!(sanitize_filename("invoice_#42"), "invoice_#42".replace('#', "_"));
+    }
+
+    #[test]
+    fn build_xlsx_produces_a_zip_workbook() {
+        let headers = vec!["Col A".to_string(), "Col B".to_string()];
+        let rows = vec![
+            vec!["1".to_string(), "two".to_string()],
+            vec!["3".to_string()], // a short row must be tolerated
+        ];
+        let bytes = build_xlsx("Foglio1", &headers, &rows).expect("xlsx builds");
+        // An .xlsx is a ZIP container — it starts with the PK magic bytes.
+        assert!(bytes.starts_with(b"PK\x03\x04"));
+        assert!(bytes.len() > 100);
+    }
+
+    #[test]
+    fn json_cell_to_string_coerces_scalar_types() {
+        assert_eq!(json_cell_to_string(&json!("hi")), "hi");
+        assert_eq!(json_cell_to_string(&json!(42)), "42");
+        assert_eq!(json_cell_to_string(&json!(true)), "true");
+        assert_eq!(json_cell_to_string(&Value::Null), "");
     }
 
     #[test]
