@@ -950,22 +950,22 @@ RESPONSE STYLE:
 - Avoid verbose meta-reasoning or restating the whole workflow unless explicitly requested.
 
 DOCUMENT CITATION INSTRUCTIONS:
-When you reference specific content from a document, place a numbered marker [1], [2], etc. inline in your prose at the point of reference.
+When you reference specific content from an attached or project document, place a marker [c1], [c2], [c3], etc. inline in your prose at the point of reference. The marker ALWAYS begins with the lowercase letter "c" (for "chat document") followed by a sequential number. NEVER write a bare bracketed number like [1] — without the "c" prefix it is read as ordinary text (a clause or page number), not a citation, and no source pill is rendered.
 
 After your complete response, append a <CITATIONS> block containing a JSON array with one entry per marker:
 
 <CITATIONS>
 [
-  {"ref": 1, "doc_id": "doc-0", "page": 3, "quote": "exact verbatim text from the document"},
-  {"ref": 2, "doc_id": "doc-1", "page": "41-42", "quote": "Section 4.2 describes the procedure [[PAGE_BREAK]] in all material respects."}
+  {"ref": "c1", "doc_id": "doc-0", "page": 3, "quote": "exact verbatim text from the document"},
+  {"ref": "c2", "doc_id": "doc-1", "page": "41-42", "quote": "Section 4.2 describes the procedure [[PAGE_BREAK]] in all material respects."}
 ]
 </CITATIONS>
 
-CRITICAL: The number inside the [N] marker in your prose is the "ref" value of a citation entry in the <CITATIONS> block — it is NOT a page number, footnote number, section number, or any other number that appears in the document. The marker [1] refers to the entry with "ref": 1 in the JSON block; [2] refers to "ref": 2; and so on. Refs are simple sequential integers you assign (1, 2, 3, ...) in the order citations appear in your prose. Never use a page number or a document's own numbering as the marker number. Every [N] you write in prose MUST have a matching {"ref": N, ...} entry in the JSON block.
+CRITICAL: "ref" MUST be the exact marker text you wrote in prose, without the brackets — the marker [c1] pairs with {"ref": "c1", ...}, [c2] with {"ref": "c2", ...}, and so on. "ref" is a string, NOT a page number, footnote number, section number, or any other number printed inside the document. Assign refs as "c1", "c2", "c3", ... in the order citations first appear in your prose. Never use a page number or a document's own numbering as the marker. Every [cN] you write in prose MUST have a matching {"ref": "cN", ...} entry in the JSON block, and every entry MUST have a [cN] marker somewhere in the prose.
 
 Rules:
 - Only cite text that appears verbatim in the provided documents
-- In every <CITATIONS> entry, "doc_id" MUST be the exact chat-local document label you were given (for example "doc-0"). Never use a filename, document UUID, or any other identifier in "doc_id"
+- In every <CITATIONS> entry, "doc_id" MUST be the exact chat-local document label you were given (for example "doc-0"). Never use a filename, document UUID, or any other identifier in "doc_id". "doc_id" is separate from "ref": "ref" is the prose marker ("c1", "c2", ...) and "doc_id" is the document handle ("doc-0", "doc-1", ...) — they are not interchangeable
 - Keep quotes short (ideally <= 25 words) and narrowly scoped to the specific claim. Don't reuse one quote to support multiple different claims — give each its own citation
 - "page" refers to the sequential [Page N] marker in the text you were given (1-indexed from the first page). IGNORE any page numbers printed inside the document itself (footers, roman numerals, etc.)
 - For a single-page quote, set "page" to an integer. If a quote is one continuous sentence that spans two pages, set "page" to "N-M" and insert [[PAGE_BREAK]] in the quote at the page break. Otherwise, use separate citations for text on different pages
@@ -977,7 +977,7 @@ If the user follows up on a document you just generated and asks for changes (e.
 After calling generate_docx, do NOT include any download links, URLs, or markdown links to the document in your prose response — the download card is presented automatically by the UI.
 After calling generate_docx, you MUST call read_document on the returned doc_id before writing your prose response. Base your description on the generated document's actual text, not on memory of what you intended to generate.
 Your prose response MUST include a short description of the generated document: what it is, its structure (key sections/clauses), and — if the draft was informed by any provided source documents — which sources you drew from and how. Keep it concise (typically 3–8 sentences or a short bulleted list). Refer to the document by filename, never by a download link.
-When the description makes factual claims about the contents of the newly generated document, cite the generated document with [N] markers and a <CITATIONS> block exactly as specified in the DOCUMENT CITATION INSTRUCTIONS above. If you also make factual claims about provided source documents, cite those source documents separately. Omit the <CITATIONS> block if the description makes no such claims.
+When the description makes factual claims about the contents of the newly generated document, cite the generated document with [cN] markers and a <CITATIONS> block exactly as specified in the DOCUMENT CITATION INSTRUCTIONS above. If you also make factual claims about provided source documents, cite those source documents separately. Omit the <CITATIONS> block if the description makes no such claims.
 Heading hierarchy: always use Heading 1 before introducing Heading 2, Heading 2 before Heading 3, and so on. Never skip levels.
 Numbering: all numbering MUST start from 1, never 0. Never duplicate the numbering prefix in heading text — pass "Introduction", never "1. Introduction".
 Contracts: when generating a contract or agreement, always include a signatures block at the very end of the document on its own page, with a signature line for each party (party name + "By:", "Name:", "Title:", "Date:"). Contract preambles (recitals, "WHEREAS" clauses, parties block) must NOT be numbered.
@@ -1385,9 +1385,10 @@ fn build_kb_system_prompt(chunks: &[RetrievedKbEntry]) -> String {
               identifier — these passages count as document references \
               and the <CITATIONS> block applies to them exactly the same \
               way it applies to attached documents.\n\
-           3. In the <CITATIONS> entry, set \"doc_id\" to the EXACT tag \
-              you used inline (\"g1\", \"g2\", \"p1\", etc.) — NOT a \
-              number, NOT \"doc-0\", NOT a filename.\n\
+           3. In the <CITATIONS> entry, set BOTH \"ref\" and \"doc_id\" \
+              to the EXACT tag you used inline (\"g1\", \"g2\", \"p1\", \
+              etc.) — NOT a bare number, NOT \"doc-0\", NOT a filename. \
+              \"ref\" must equal the marker text in your prose.\n\
            4. The `quote` field MUST be a verbatim substring of the \
               passage text shown above between «…» — do NOT translate, \
               paraphrase, summarise, or correct typography. Copy the \
@@ -1401,7 +1402,7 @@ fn build_kb_system_prompt(chunks: &[RetrievedKbEntry]) -> String {
          \n\
          Prose: \"L'articolo 35 GDPR richiede una DPIA [g1].\"\n\
          <CITATIONS>\n\
-         [\n  {\"doc_id\": \"g1\", \"quote\": \"...\"}\n]\n\
+         [\n  {\"ref\": \"g1\", \"doc_id\": \"g1\", \"quote\": \"...\"}\n]\n\
          </CITATIONS>\n\n\
          Skipping the <CITATIONS> block when you used [gN]/[pN] tags is \
          a bug — the UI relies on it to render the clickable pill that \
@@ -1814,7 +1815,7 @@ async fn stream_chat_root(
     // Also pull in every document already linked to this chat from an
     // earlier turn. On a reopened chat the frontend no longer carries the
     // attachment in the message payload, so without this a follow-up turn
-    // would drop the document from context and — worse — its `[N]`
+    // would drop the document from context and — worse — its `[cN]`
     // citations would resolve to no `document_id`, leaving the viewer with
     // a "document not found" on a document that was never actually lost.
     // Appended after the payload ids so existing `doc-N` indices stay

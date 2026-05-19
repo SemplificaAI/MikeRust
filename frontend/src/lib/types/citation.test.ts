@@ -4,9 +4,9 @@ import { describe, it, expect } from 'vitest'
 import { scopeForRef, toCitation, PAGE_BREAK_SENTINEL } from './citation'
 
 describe('scopeForRef', () => {
-  it('maps a bare numeric marker to a document citation', () => {
-    expect(scopeForRef('1')).toBe('document')
-    expect(scopeForRef('42')).toBe('document')
+  it('maps a c-prefixed marker to a document citation', () => {
+    expect(scopeForRef('c1')).toBe('document')
+    expect(scopeForRef('c42')).toBe('document')
   })
 
   it('maps a g-prefixed marker to the global pool', () => {
@@ -16,12 +16,16 @@ describe('scopeForRef', () => {
   it('maps a p-prefixed marker to the project pool', () => {
     expect(scopeForRef('p3')).toBe('project')
   })
+
+  it('falls back to document for a legacy bare numeric marker', () => {
+    expect(scopeForRef('1')).toBe('document')
+  })
 })
 
 describe('toCitation', () => {
   it('prefers the real document UUID over the chat-local label', () => {
     const c = toCitation({
-      ref: '1',
+      ref: 'c1',
       doc_id: 'doc-0',
       document_id: '11111111-2222-3333-4444-555555555555',
       filename: 'contract.pdf',
@@ -42,12 +46,12 @@ describe('toCitation', () => {
   })
 
   it('accepts a page range string for a quote spanning a page break', () => {
-    const c = toCitation({ ref: '1', page: '41-42' })
+    const c = toCitation({ ref: 'c1', page: '41-42' })
     expect(c.page).toBe('41-42')
   })
 
   it('drops a non-number / non-string page into undefined', () => {
-    const c = toCitation({ ref: '1', page: { nonsense: true } })
+    const c = toCitation({ ref: 'c1', page: { nonsense: true } })
     expect(c.page).toBeUndefined()
   })
 

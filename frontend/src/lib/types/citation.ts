@@ -1,7 +1,7 @@
 // Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only.
 
 /**
- * Citation model. The assistant emits inline markers `[1]`, `[g2]`,
+ * Citation model. The assistant emits inline markers `[g1]`, `[c2]`,
  * `[p3]` in its prose and a trailing machine-readable block; the
  * backend parses that block into a `citations` SSE event whose entries
  * map onto this type.
@@ -12,7 +12,7 @@ export type CitationScope = 'document' | 'global' | 'project'
 
 /** One resolved citation, keyed by its marker reference. */
 export interface Citation {
-  /** Marker text without brackets: `1`, `g2`, `p3`. */
+  /** Marker text without brackets: `g1`, `c2`, `p3`. */
   ref: string
   /** Pool the passage came from. */
   scope: CitationScope
@@ -28,7 +28,11 @@ export interface Citation {
   quote: string
 }
 
-/** Marker prefix → scope. A bare numeric marker is a document citation. */
+/**
+ * Marker prefix → scope: `g` global library, `c` chat/attached
+ * document, `p` project. A bare (legacy, prefix-less) ref also falls
+ * through to `document`.
+ */
 export function scopeForRef(ref: string): CitationScope {
   if (ref.startsWith('g')) return 'global'
   if (ref.startsWith('p')) return 'project'

@@ -2,9 +2,14 @@
 
 /**
  * Citation processing for assistant messages. The model emits inline
- * markers (`[1]`, `[g2]`, `[p3]`, or comma groups) plus a trailing
+ * markers (`[g1]`, `[c2]`, `[p3]`, or comma groups) plus a trailing
  * machine-readable `<CITATIONS>` block. This module hides that block
  * and turns resolvable markers into clickable pills.
+ *
+ * Every marker carries a one-letter pool prefix — `g` global library,
+ * `c` chat/attached document, `p` project — so a bracketed bare number
+ * like `[3]` (a clause, a policy number, a year) is never mistaken for
+ * a citation.
  */
 
 import { renderMarkdown } from './markdown'
@@ -19,9 +24,9 @@ export function stripCitationsBlock(text: string): string {
   return (text ?? '').replace(/<CITATIONS>[\s\S]*$/i, '').trimEnd()
 }
 
-/** A marker token: bare digits, or a `g`/`p` prefix then digits. */
-const MARKER_GROUP = /\[((?:[gp]?\d{1,3})(?:\s*,\s*[gp]?\d{1,3})*)\]/g
-const SINGLE_TOKEN = /[gp]?\d{1,3}/g
+/** A marker token: a mandatory `g`/`c`/`p` pool prefix then digits. */
+const MARKER_GROUP = /\[((?:[gcp]\d{1,3})(?:\s*,\s*[gcp]\d{1,3})*)\]/g
+const SINGLE_TOKEN = /[gcp]\d{1,3}/g
 
 /** Tags whose text must not be rewritten (code, links, existing pills). */
 const SKIP_ANCESTORS = new Set(['CODE', 'PRE', 'A'])
@@ -44,15 +49,16 @@ function makePill(ref: string): HTMLElement {
   pill.setAttribute('role', 'button')
   pill.setAttribute('tabindex', '0')
   // Display the bare number; the prefix only encodes the pool.
-  pill.textContent = ref.replace(/^[gp]/, '')
+  pill.textContent = ref.replace(/^[gcp]/, '')
   return pill
 }
 
 /**
  * Render an assistant message body to sanitised HTML, with every
  * resolvable citation marker replaced by a clickable pill. Markers
- * with no matching citation are left as plain text; numbers of four or
- * more digits (years, amounts) are never treated as citations.
+ * with no matching citation are left as plain text; only `g`/`c`/`p`
+ * prefixed markers are ever considered, so bare bracketed numbers
+ * (years, amounts, clause numbers) are never treated as citations.
  */
 export function renderMessageHtml(md: string, citations: Citation[] = []): string {
   const safeHtml = renderMarkdown(stripCitationsBlock(md))

@@ -49,31 +49,38 @@ describe('renderMessageHtml', () => {
   })
 
   it('replaces a resolvable marker with a citation pill', () => {
-    const html = renderMessageHtml('See clause [1] here.', [cite('1')])
+    const html = renderMessageHtml('See clause [c1] here.', [cite('c1')])
     expect(html).toContain('cite-pill')
-    expect(html).toContain('data-cite-ref="1"')
+    expect(html).toContain('data-cite-ref="c1"')
   })
 
   it('colours the pill by scope', () => {
     expect(renderMessageHtml('Ref [g1].', [cite('g1')])).toContain('cite-global')
     expect(renderMessageHtml('Ref [p1].', [cite('p1')])).toContain('cite-project')
-    expect(renderMessageHtml('Ref [1].', [cite('1')])).toContain('cite-document')
+    expect(renderMessageHtml('Ref [c1].', [cite('c1')])).toContain('cite-document')
   })
 
-  it('leaves an unresolvable marker as plain text', () => {
-    const html = renderMessageHtml('The year [2024] was fine.', [cite('1')])
+  it('leaves a bare bracketed number as plain text — only prefixed markers cite', () => {
+    const html = renderMessageHtml('See clause [1] and year [2024].', [cite('c1')])
     expect(html).not.toContain('cite-pill')
+    expect(html).toContain('[1]')
     expect(html).toContain('[2024]')
   })
 
+  it('leaves an unresolvable marker as plain text', () => {
+    const html = renderMessageHtml('The clause [c9] was fine.', [cite('c1')])
+    expect(html).not.toContain('cite-pill')
+    expect(html).toContain('[c9]')
+  })
+
   it('strips the trailing CITATIONS block before rendering', () => {
-    const html = renderMessageHtml('Answer [1].\n<CITATIONS>\n[1] x\n</CITATIONS>', [cite('1')])
+    const html = renderMessageHtml('Answer [c1].\n<CITATIONS>\n[1] x\n</CITATIONS>', [cite('c1')])
     expect(html).not.toContain('CITATIONS')
   })
 
   it('renders each marker of a comma group as its own pill', () => {
-    const html = renderMessageHtml('Both [1, 2] apply.', [cite('1'), cite('2')])
-    expect(html).toContain('data-cite-ref="1"')
-    expect(html).toContain('data-cite-ref="2"')
+    const html = renderMessageHtml('Both [c1, c2] apply.', [cite('c1'), cite('c2')])
+    expect(html).toContain('data-cite-ref="c1"')
+    expect(html).toContain('data-cite-ref="c2"')
   })
 })
