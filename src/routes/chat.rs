@@ -1031,6 +1031,21 @@ fn build_project_docs_prompt(base: usize, docs: &[(String, String)]) -> String {
     s
 }
 
+/// System-prompt block stating the project this chat belongs to. Without
+/// it the assistant has no notion of the project's identity and, when
+/// asked "what is the project name?", guesses it from an attached
+/// document's filename or title.
+fn build_project_context_prompt(name: &str, domain: &str) -> String {
+    format!(
+        "PROJECT CONTEXT — this chat belongs to a project. The project's \
+         name is exactly \"{name}\" and its professional domain is \
+         \"{domain}\". Whenever the user asks about \"the project\" — its \
+         name, subject, or scope — this is what they mean. NEVER infer or \
+         guess the project name from a document's filename, title, or \
+         contents: the authoritative project name is \"{name}\"."
+    )
+}
+
 fn build_doc_system_prompt(docs: &[DocPayload]) -> String {
     let with_text: Vec<&DocPayload> = docs.iter().filter(|d| d.text.is_some()).collect();
     let with_imgs: Vec<&DocPayload> = docs.iter().filter(|d| !d.images.is_empty()).collect();
@@ -1869,6 +1884,23 @@ async fn stream_chat_root(
         Vec::new()
     };
 
+    // Project identity (name + domain) — surfaced in the system prompt
+    // so the assistant answers "what is the project name?" with the
+    // actual project, not a filename guessed from an attached document.
+    let project_meta: Option<(String, String)> = if let Some(pid) = &chat_project_id {
+        sqlx::query_as::<_, (String, String)>(
+            "SELECT name, domain FROM projects WHERE id = ? AND user_id = ?",
+        )
+        .bind(pid)
+        .bind(&auth.user_id)
+        .fetch_optional(&state.db)
+        .await
+        .ok()
+        .flatten()
+    } else {
+        None
+    };
+
     // Persist the *last* user message. We store:
     //   - the ORIGINAL content (raw user-typed text), not the
     //     marker-augmented form that goes to the LLM — markers like
@@ -1999,6 +2031,9 @@ async fn stream_chat_root(
     }
     if !docs_prompt.is_empty() {
         sections.push(docs_prompt);
+    }
+    if let Some((pname, pdomain)) = &project_meta {
+        sections.push(build_project_context_prompt(pname, pdomain));
     }
     let project_docs_prompt =
         build_project_docs_prompt(doc_ids.len(), &project_documents);
