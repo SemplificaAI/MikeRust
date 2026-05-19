@@ -2232,6 +2232,11 @@ async fn stream_chat_root(
         }
 
         const MAX_TOOL_ITERATIONS: u32 = 5;
+        // How many times to nudge the model when it ends a turn with a
+        // completely empty answer (no text, no tool call) — a flaky
+        // behaviour seen mostly with Gemini right after a tool result.
+        const MAX_EMPTY_ANSWER_RETRIES: u32 = 2;
+        let mut empty_answer_retries: u32 = 0;
         let mut full_response = String::new();
         // Per-message persistent events. Today this collects the
         // `doc_created` envelopes so reopening the chat re-shows the
@@ -2401,7 +2406,44 @@ async fn stream_chat_root(
                     );
 
                     if iter_tool_calls.is_empty() {
+                        // Empty final turn — no text and no further tool
+                        // call. Seen mostly with Gemini right after a
+                        // tool result (e.g. read_workflow), and it leaves
+                        // the user with a blank reply. Nudge the model to
+                        // actually produce its answer before giving up.
+                        if iter_text.trim().is_empty()
+                            && full_response.trim().is_empty()
+                            && empty_answer_retries < MAX_EMPTY_ANSWER_RETRIES
+                        {
+                            empty_answer_retries += 1;
+                            tracing::warn!(
+                                "[chat] empty answer at iter {iteration}; \
+                                 nudging model (retry {empty_answer_retries}/{MAX_EMPTY_ANSWER_RETRIES})"
+                            );
+                            current_messages.push(Message::user(
+                                "Non hai prodotto alcuna risposta. Completa \
+                                 ora la richiesta seguendo le istruzioni \
+                                 date: se ti serve il contenuto di un \
+                                 documento caricalo con read_document, poi \
+                                 fornisci direttamente l'output richiesto.",
+                            ));
+                            continue;
+                        }
                         // No more tools requested → final answer reached.
+                        if full_response.trim().is_empty() && !errored {
+                            // Retries exhausted (or none warranted) and
+                            // still nothing: surface a visible note so the
+                            // turn doesn't render as an empty bubble.
+                            let note = "_(Il modello non ha prodotto una \
+                                        risposta. Riprova a inviare il \
+                                        messaggio.)_";
+                            full_response.push_str(note);
+                            let payload =
+                                json!({ "type": "content_delta", "text": note });
+                            let _ = tx
+                                .send(Ok(Event::default().data(payload.to_string())))
+                                .await;
+                        }
                         break;
                     }
                     if iteration >= MAX_TOOL_ITERATIONS {
