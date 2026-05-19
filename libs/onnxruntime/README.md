@@ -34,26 +34,47 @@ machine and target.
   hijack surface where a poisoned `onnxruntime.dll` on the search
   path could be loaded before ours.
 
-## Version: must be exactly 1.24.2 for ort 2.0.0-rc.12
+## Version: must be exactly 1.20.0 for ort 2.0.0-rc.9
 
-`ort 2.0.0-rc.12` statically compiles against onnxruntime **1.24.2**.
-The vendored DLL must match that minor version *exactly* — anything
-older (e.g. Microsoft's stock 1.20.0 release) deadlocks
-`TextEmbedding::try_new_from_user_defined` silently because ort's
-function-pointer table references symbols that don't exist in the
-older DLL. Verify what version ort-sys actually links with:
+`ort 2.0.0-rc.9` (paired with `fastembed 4.9.1`) compiles against
+onnxruntime **1.20.0**. The vendored DLL must match that minor version
+*exactly* — anything else (older OR newer, including Microsoft's stock
+1.24.x releases) deadlocks `TextEmbedding::try_new_from_user_defined`
+silently because ort's function-pointer table references symbols that
+do not match the loaded DLL's ABI. Verify what version ort-sys actually
+links with:
 
 ```powershell
-# Strings like "branch=rel-1.24.2, git-commit=..." in mike-tauri.exe
+# Strings like "branch=rel-1.20.0, git-commit=..." in mike-tauri.exe
 # reveal the version ort-sys compiled against. Match the vendored
 # DLL to whatever that string says.
 Select-String -Path target\debug\mike-tauri.exe `
   -Pattern 'branch=rel-\d+\.\d+\.\d+' -Encoding Default
 ```
 
-When upgrading the `ort` dep, re-run the strings probe and bump the
-DLLs to the new version — don't trust the official onnxruntime
-releases page to be "close enough".
+When the `ort` dep changes, re-run the strings probe and re-vendor the
+DLLs to match — don't trust the official onnxruntime releases page to
+be "close enough".
+
+### Why we are deliberately on the rc.9 line
+
+The downgrade from `ort 2.0.0-rc.12` (paired with onnxruntime 1.20.0)
+back to rc.9 (1.20.0) is preparatory to a new data-security / privacy
+feature: it relies on the smaller, audited 1.20.0 runtime surface
+and on the execution-provider set that ships with it. Side effects of
+the downgrade:
+
+- The `rag-webgpu` and `rag-azure` cargo features are **gone**. Both
+  EPs were added to onnxruntime after 1.20.0 — they will return when
+  the privacy feature lands and we can move the runtime back forward.
+- The Vitis EP type is now spelled `VitisAIExecutionProvider` (rc.9
+  uses the long-form names; rc.12 had short `Vitis` aliases).
+- `UserDefinedEmbeddingModel` is now `#[non_exhaustive]` and built
+  through `::new(...).with_pooling(...).with_quantization(...)` — the
+  `external_initializers` / `output_key` fields that fastembed 5.x
+  exposes do not exist on this version.
+
+See [`HISTORY.md`](../../HISTORY.md) (2026-05-20) for the full story.
 
 ## Which variant?
 
@@ -67,23 +88,23 @@ DLL freely depending on the host.
 
 | Machine class | Recommended onnxruntime build | Bundle to download |
 |---|---|---|
-| **Windows desktop, any DX12 GPU** | DirectML | `Microsoft.ML.OnnxRuntime.DirectML` 1.24.2 (NuGet) — onnxruntime.dll + DirectML.dll |
-| **Windows + NVIDIA RTX/GeForce** | CUDA + TensorRT | `onnxruntime-win-x64-gpu-1.24.2.zip` (GitHub releases) |
-| **Windows + Intel CPU/iGPU** | OpenVINO | `Microsoft.ML.OnnxRuntime.OpenVino` 1.24.2 |
-| **Windows ARM64 (Snapdragon X Elite)** | QNN + DirectML | `Microsoft.ML.OnnxRuntime.QNN` 1.24.2 |
-| **Linux + NVIDIA** | CUDA + TensorRT | `onnxruntime-linux-x64-gpu-1.24.2.tgz` |
-| **Linux + AMD** | ROCm | `onnxruntime-linux-x64-rocm-1.24.2.tgz` |
-| **macOS Apple Silicon** | CoreML | `onnxruntime-osx-arm64-1.24.2.tgz` |
-| **macOS Intel** | CPU | `onnxruntime-osx-x86_64-1.24.2.tgz` |
-| **CPU-only / portable** | base CPU | `onnxruntime-<os>-<arch>-1.24.2.{zip,tgz}` |
+| **Windows desktop, any DX12 GPU** | DirectML | `Microsoft.ML.OnnxRuntime.DirectML` 1.20.0 (NuGet) — onnxruntime.dll + DirectML.dll |
+| **Windows + NVIDIA RTX/GeForce** | CUDA + TensorRT | `onnxruntime-win-x64-gpu-1.20.0.zip` (GitHub releases) |
+| **Windows + Intel CPU/iGPU** | OpenVINO | `Microsoft.ML.OnnxRuntime.OpenVino` 1.20.0 |
+| **Windows ARM64 (Snapdragon X Elite)** | QNN + DirectML | `Microsoft.ML.OnnxRuntime.QNN` 1.20.0 |
+| **Linux + NVIDIA** | CUDA + TensorRT | `onnxruntime-linux-x64-gpu-1.20.0.tgz` |
+| **Linux + AMD** | ROCm | `onnxruntime-linux-x64-rocm-1.20.0.tgz` |
+| **macOS Apple Silicon** | CoreML | `onnxruntime-osx-arm64-1.20.0.tgz` |
+| **macOS Intel** | CPU | `onnxruntime-osx-x86_64-1.20.0.tgz` |
+| **CPU-only / portable** | base CPU | `onnxruntime-<os>-<arch>-1.20.0.{zip,tgz}` |
 
 ## Fetching (Windows quick path)
 
 ```powershell
 # Pick the right URL from https://github.com/microsoft/onnxruntime/releases
-# v1.24.2 is what ort 2.0.0-rc.12 expects — bumping ort means
+# v1.20.0 is what ort 2.0.0-rc.9 expects — bumping ort means
 # bumping this too (see "Version" note above).
-$ver = "1.24.2"
+$ver = "1.20.0"
 $arch = "x64"   # or "arm64"
 $url = "https://github.com/microsoft/onnxruntime/releases/download/v$ver/onnxruntime-win-$arch-$ver.zip"
 Invoke-WebRequest -Uri $url -OutFile "$env:TEMP\ort.zip"

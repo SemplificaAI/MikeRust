@@ -12,6 +12,74 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — ONNX Runtime downgrade preparatory to data-privacy work
+
+Downgraded the embedding stack from `ort 2.0.0-rc.12` / `fastembed 5.13.4`
+(onnxruntime 1.24.2) back to `ort 2.0.0-rc.9` / `fastembed 4.9.1`
+(onnxruntime 1.20.0). The downgrade is **propedeutic to a new
+data-security and privacy feature**: that work relies on the smaller,
+audited 1.20.0 runtime surface and on the set of execution providers
+that shipped with it.
+
+### Changed
+
+- **`Cargo.toml`** — `ort` pinned at `=2.0.0-rc.9` (was `=2.0.0-rc.12`)
+  and `fastembed` pinned at `=4.9.1` (was `5`). The `std` feature flag
+  on `ort` is dropped — it never existed on rc.9. The `image-models`
+  feature on `fastembed` is dropped — it was a 5.x addition we never
+  used.
+- **EP type names** — rc.9 exposes execution providers only via
+  `ort::execution_providers::<Name>ExecutionProvider`; the short
+  `ort::ep::<Name>` aliases (`QNN`, `CUDA`, `DirectML`, …) were
+  introduced in a later rc and do not exist here. Every EP push in
+  `embeddings/service.rs::build_execution_providers` was renamed to
+  the long form. Vitis specifically is `VitisAIExecutionProvider`.
+- **`UserDefinedEmbeddingModel` construction** — fastembed 4.9.1 marks
+  the struct `#[non_exhaustive]`; the explicit struct literal we used
+  on 5.x no longer compiles. Now built through `::new(onnx, tokenizer)
+  .with_pooling(Pooling::Mean).with_quantization(QuantizationMode::None)`.
+  The `external_initializers` and `output_key` fields fastembed 5.x
+  exposes simply don't exist on this version — we never relied on
+  them, but they will need re-adding when we eventually bump back.
+
+### Removed
+
+- **`rag-webgpu`** and **`rag-azure`** cargo features and their EP
+  pushes in `build_execution_providers` — neither EP exists in
+  onnxruntime 1.20.0. Removed from the platform packs
+  (`rag-accel-windows`/`linux`/`macos`) and from `rag-accel-all`.
+  Will return when the runtime moves forward again.
+
+### Docs
+
+- **`libs/onnxruntime/README.md`** — version note flipped from
+  "must be exactly 1.24.2 for rc.12" to "must be exactly 1.20.0 for
+  rc.9", with the strings-probe pattern updated. New "Why we are
+  deliberately on the rc.9 line" subsection points back here.
+
+### Migration note for contributors
+
+Re-vendor the matching DLL before relaunching the dev binary:
+`libs/onnxruntime/<platform>/onnxruntime.dll` (or `.so`/`.dylib`) MUST
+be a **v1.20.0** Microsoft build. Keeping the 1.24.2 DLL while running
+rc.9 silently deadlocks `TextEmbedding::try_new_from_user_defined`
+during embedding-model load — the failure mode that triggered the
+original "lock to one version" rule. The README has a one-liner
+PowerShell snippet that fetches and drops the right file.
+
+### Tests
+
+All **360 mike lib tests pass** with default features. The
+`embeddings::service::` block (45 tests covering vector packing,
+dylib discovery walking, execution-provider construction with every
+EP enabled, …) is green both under default features and under
+`--features rag-accel-all`. The end-to-end ONNX inference path is
+only exercised when the dev binary loads the matched 1.20.0 DLL —
+contributors should re-run `tauri dev` and trigger an embedding to
+validate that side of the migration on their machine.
+
+---
+
 ## 2026-05-19 — Declarative legal-corpus connectors + data-sources UX overhaul
 
 Brought the JSON-manifest corpus system from scaffold to a working

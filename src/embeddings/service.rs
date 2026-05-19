@@ -214,22 +214,23 @@ impl EmbeddingService {
                         "[rag] step 2/4: inside spawn_blocking, building struct ({} MB onnx)",
                         onnx_mb
                     );
-                    let model = UserDefinedEmbeddingModel {
-                        onnx_file: files.onnx,
-                        external_initializers: vec![],
-                        tokenizer_files: TokenizerFiles {
+                    // fastembed 4.9.1 marks UserDefinedEmbeddingModel
+                    // `#[non_exhaustive]` (fields like `external_initializers`
+                    // and `output_key` only landed in 5.x) — use the
+                    // builder API. E5 family needs mean pooling over the
+                    // last hidden state to keep indexing- and query-time
+                    // vector geometry consistent.
+                    let model = UserDefinedEmbeddingModel::new(
+                        files.onnx,
+                        TokenizerFiles {
                             tokenizer_file: files.tokenizer,
                             config_file: files.config,
                             special_tokens_map_file: files.special_tokens_map,
                             tokenizer_config_file: files.tokenizer_config,
                         },
-                        // E5 family uses mean pooling over the last
-                        // hidden state — required to match retrieval-
-                        // time and indexing-time geometry.
-                        pooling: Some(Pooling::Mean),
-                        quantization: QuantizationMode::None,
-                        output_key: None,
-                    };
+                    )
+                    .with_pooling(Pooling::Mean)
+                    .with_quantization(QuantizationMode::None);
                     let opts = InitOptionsUserDefined::new()
                         .with_max_length(512)
                         .with_execution_providers(providers);
@@ -833,7 +834,7 @@ fn build_execution_providers()
         // `QnnHtp.dll` must be reachable; fp16 halves memory and ~2x
         // throughput vs fp32.
         out.push(
-            ort::ep::QNN::default()
+            ort::execution_providers::QNNExecutionProvider::default()
                 .with_backend_path("QnnHtp.dll")
                 .with_htp_fp16_precision(true)
                 .build(),
@@ -842,23 +843,23 @@ fn build_execution_providers()
     #[cfg(feature = "rag-cann")]
     {
         // Huawei Ascend NPU.
-        out.push(ort::ep::CANN::default().build());
+        out.push(ort::execution_providers::CANNExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-nnapi")]
     {
         // Android Neural Networks API — no-op on desktop targets, but
         // harmless to leave compiled in.
-        out.push(ort::ep::NNAPI::default().build());
+        out.push(ort::execution_providers::NNAPIExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-rknpu")]
     {
         // Rockchip RK3588 / RK3568 NPU.
-        out.push(ort::ep::RKNPU::default().build());
+        out.push(ort::execution_providers::RKNPUExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-vitis")]
     {
         // AMD/Xilinx Vitis AI FPGA.
-        out.push(ort::ep::Vitis::default().build());
+        out.push(ort::execution_providers::VitisAIExecutionProvider::default().build());
     }
 
     // ── GPU class ─────────────────────────────────────────────────
@@ -866,54 +867,51 @@ fn build_execution_providers()
     {
         // NVIDIA TensorRT — graph optimiser on top of CUDA. Listed
         // before plain CUDA so ort prefers it when both are available.
-        out.push(ort::ep::TensorRT::default().build());
+        out.push(ort::execution_providers::TensorRTExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-cuda")]
     {
-        out.push(ort::ep::CUDA::default().build());
+        out.push(ort::execution_providers::CUDAExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-migraphx")]
     {
         // AMD MIGraphX — graph optimiser on top of ROCm.
-        out.push(ort::ep::MIGraphX::default().build());
+        out.push(ort::execution_providers::MIGraphXExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-rocm")]
     {
-        out.push(ort::ep::ROCm::default().build());
+        out.push(ort::execution_providers::ROCmExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-directml")]
     {
         // DirectML — any DX12 GPU on Windows (Adreno X1, Iris, Radeon,
         // GeForce). Picks up the most capable adapter automatically.
-        out.push(ort::ep::DirectML::default().build());
+        out.push(ort::execution_providers::DirectMLExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-coreml")]
     {
         // Apple Silicon ANE / GPU. Best perf on M-series.
-        out.push(ort::ep::CoreML::default().build());
+        out.push(ort::execution_providers::CoreMLExecutionProvider::default().build());
     }
-    #[cfg(feature = "rag-webgpu")]
-    {
-        // WebGPU via WGPU/Dawn — cross-platform GPU acceleration where
-        // none of the vendor-specific EPs is available.
-        out.push(ort::ep::WebGPU::default().build());
-    }
+    // NOTE: WebGPU dropped together with the rc.12 → rc.9 downgrade;
+    // ORT 1.20.0 predates the WebGPU EP. Will return when we bump
+    // the runtime back up.
     #[cfg(feature = "rag-openvino")]
     {
         // Intel CPU / iGPU / Movidius VPU.
-        out.push(ort::ep::OpenVINO::default().build());
+        out.push(ort::execution_providers::OpenVINOExecutionProvider::default().build());
     }
 
     // ── Optimised CPU class ───────────────────────────────────────
     #[cfg(feature = "rag-onednn")]
     {
         // Intel oneDNN — CPU-side optimised kernels.
-        out.push(ort::ep::OneDNN::default().build());
+        out.push(ort::execution_providers::OneDNNExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-acl")]
     {
         // ARM Compute Library.
-        out.push(ort::ep::ACL::default().build());
+        out.push(ort::execution_providers::ACLExecutionProvider::default().build());
     }
     // NOTE: Arm NN was removed from upstream ONNX Runtime — use ACL,
     // XNNPACK, or the Kleidi-optimised CPU EP instead. The `rag-armnn`
@@ -921,20 +919,17 @@ fn build_execution_providers()
     #[cfg(feature = "rag-xnnpack")]
     {
         // Google XNNPACK — mobile / low-end CPU optimisation.
-        out.push(ort::ep::XNNPACK::default().build());
+        out.push(ort::execution_providers::XNNPACKExecutionProvider::default().build());
     }
     #[cfg(feature = "rag-tvm")]
     {
         // Apache TVM.
-        out.push(ort::ep::TVM::default().build());
+        out.push(ort::execution_providers::TVMExecutionProvider::default().build());
     }
 
-    // ── Service class ─────────────────────────────────────────────
-    #[cfg(feature = "rag-azure")]
-    {
-        // Azure-attached EPs (cognitive-services off-load).
-        out.push(ort::ep::Azure::default().build());
-    }
+    // NOTE: the Azure EP was dropped together with the rc.12 → rc.9
+    // downgrade. Cognitive-services off-load will return when the
+    // runtime is bumped back to a version that ships it.
 
     out
 }

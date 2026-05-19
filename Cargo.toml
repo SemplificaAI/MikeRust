@@ -53,24 +53,27 @@ sha2 = "0.10"
 # ABI drift: 1.24.x added IO-binding APIs / plugin-EP runtime that
 # 1.20.x doesn't export, and ort's dyloader deadlocks silently when
 # a function-pointer lookup misses. Vendored DLLs in
-# `libs/onnxruntime/{win-arm64,win-x64}/` are now Microsoft's
-# official v1.24.2 release archives — same ABI ort-sys's static
-# build was compiled against.
-fastembed = { version = "5", optional = true, default-features = false, features = [
+# `libs/onnxruntime/{win-arm64,win-x64}/` must be Microsoft's
+# official **v1.20.0** release archives — same ABI ort-sys-rc.9
+# baked in (ORT 1.24.x DLLs deadlock TextEmbedding::try_new silently).
+#
+# We are deliberately back on the rc.9 line: the upcoming
+# data-security / privacy feature relies on the smaller, audited
+# 1.20.0 runtime surface and on EP set that ships with it. See
+# HISTORY.md (2026-05-20) for context.
+fastembed = { version = "=4.9.1", optional = true, default-features = false, features = [
     "hf-hub-native-tls",
-    "image-models",
     "ort-load-dynamic",
 ] }
 # Direct dep on the same ort version fastembed pulls transitively so
 # we can configure execution providers (DirectML on Windows GPUs, QNN
 # on Qualcomm Snapdragon NPUs) without forking fastembed. Cargo
-# deduplicates: there's a single ort 2.0.0-rc.12 in the build.
+# deduplicates: there's a single ort 2.0.0-rc.9 in the build.
 #
 # `load-dynamic` enabled: onnxruntime.dll lives in
 # `libs/onnxruntime/<platform>/` and is loaded at runtime via
 # `ORT_DYLIB_PATH`. No static link.
-ort = { version = "=2.0.0-rc.12", optional = true, default-features = false, features = [
-    "std",
+ort = { version = "=2.0.0-rc.9", optional = true, default-features = false, features = [
     "load-dynamic",
 ] }
 # Vector store via the sqlite-vec extension. Same SQLite file as the
@@ -229,17 +232,19 @@ rag = [
 #   acl        ARM Compute Library
 #   armnn      Arm NN
 #   vitis      AMD/Xilinx Vitis AI FPGA
-#   azure      Azure Cognitive Services attached EPs
 #   nnapi      Android Neural Networks API
 #   rknpu      Rockchip RK3588 / RK3568 NPU
 #   tvm        Apache TVM
-#   webgpu     WGPU/Dawn (cross-platform via WebGPU)
 #   xnnpack    Google XNNPACK (mobile CPU optimisation)
+#
+# `webgpu` and `azure` were dropped together with the rc.12 → rc.9
+# downgrade: ORT 1.20.0 (paired with ort 2.0.0-rc.9) predates both
+# EPs, so the features no longer exist upstream. They will return
+# when we bump back to a runtime that ships them.
 #
 # Convenience umbrellas at the bottom — pick a platform pack or
 # `rag-accel-all` to enable every EP at once.
 rag-acl       = ["dep:ort", "ort/acl"]
-rag-azure     = ["dep:ort", "ort/azure"]
 rag-cann      = ["dep:ort", "ort/cann"]
 rag-coreml    = ["dep:ort", "ort/coreml"]
 rag-cuda      = ["dep:ort", "ort/cuda"]
@@ -261,7 +266,6 @@ rag-rocm      = ["dep:ort", "ort/rocm"]
 rag-tensorrt  = ["dep:ort", "ort/tensorrt"]
 rag-tvm       = ["dep:ort", "ort/tvm"]
 rag-vitis     = ["dep:ort", "ort/vitis"]
-rag-webgpu    = ["dep:ort", "ort/webgpu"]
 rag-xnnpack   = ["dep:ort", "ort/xnnpack"]
 
 # Platform packs — every EP that's actually useful on that OS family.
@@ -275,7 +279,6 @@ rag-accel-windows = [
     "rag-onednn",
     "rag-qnn",
     "rag-xnnpack",
-    "rag-webgpu",
 ]
 rag-accel-linux = [
     "rag-cuda",
@@ -285,20 +288,17 @@ rag-accel-linux = [
     "rag-rocm",
     "rag-migraphx",
     "rag-xnnpack",
-    "rag-webgpu",
 ]
 rag-accel-macos = [
     "rag-coreml",
     "rag-xnnpack",
-    "rag-webgpu",
 ]
 
-# Everything ort 2.0.0-rc.12 supports. Build size impact: ~negligible
+# Everything ort 2.0.0-rc.9 supports. Build size impact: ~negligible
 # with `load-dynamic` (no vendor SDKs linked). Runtime: every EP that
 # fails to find its backend DLL is skipped, so this never crashes.
 rag-accel-all = [
     "rag-acl",
-    "rag-azure",
     "rag-cann",
     "rag-coreml",
     "rag-cuda",
@@ -313,7 +313,6 @@ rag-accel-all = [
     "rag-tensorrt",
     "rag-tvm",
     "rag-vitis",
-    "rag-webgpu",
     "rag-xnnpack",
 ]
 
