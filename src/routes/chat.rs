@@ -692,6 +692,21 @@ fn build_mcp_system_prompt(servers: &[McpDiscovered]) -> String {
     s
 }
 
+/// Reduce a corpus identifier (or any model-emitted `doc_id` variant)
+/// to its alphanumeric-only, lowercase canonical form. Used by the
+/// citation resolver as a last-resort lookup key against the user's
+/// full corpus library so that bracket/space/separator/case variants
+/// the model produces (e.g. `[italian-legal] corte_costituzionale_1990_241`,
+/// `Italian-Legal_corte_costituzionale_1990_241`, or even
+/// `italianlegal:cortecostituzionale1990/241`) all collapse onto the
+/// same key as the canonical `<corpus_id><corpus_identifier>` we index.
+fn canonical_corpus_key(s: &str) -> String {
+    s.chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_lowercase())
+        .collect()
+}
+
 /// Repair the invalid backslash escapes LLMs routinely emit inside the
 /// `<CITATIONS>` JSON. The model copies verbatim quotes and over-escapes
 /// them — most commonly an apostrophe as `\'`, which is NOT a legal JSON
@@ -2807,6 +2822,48 @@ async fn stream_chat_root(
             }
         }
 
+        // Canonical-key index over the user's FULL corpus library. Catches
+        // the case where the model copies a verbatim inventory line
+        // (e.g. `[italian-legal] corte_costituzionale_1990_241`, with
+        // bracket and whitespace) as `doc_id` instead of the [gN]/[pN]
+        // tag — and where this turn produced no KB chunks at all, so
+        // `corpus_ref_to_tag` above stays empty. The canonical form
+        // strips every non-alphanumeric character and lowercases, so
+        // any separator / case / bracket variant collapses to the same
+        // key. Resolution sets `document_id` + `filename` directly and
+        // marks the citation as a viewable attached document.
+        let mut library_corpus_index: HashMap<String, (String, String)> = HashMap::new();
+        if let Ok(rows) = sqlx::query_as::<_, (String, String, String, String)>(
+            "SELECT id, filename, corpus_id, corpus_identifier FROM documents \
+             WHERE user_id = ? AND corpus_id IS NOT NULL AND corpus_identifier IS NOT NULL",
+        )
+        .bind(&auth.user_id)
+        .fetch_all(&state_clone.db)
+        .await
+        {
+            for (doc_uuid, filename, corpus_id, ident) in rows {
+                // Two canonical variants per row: the bare identifier
+                // (model wrote just the ident) and the combined
+                // corpus_id+ident (model copied the full inventory
+                // prefix). Both collapse to alphanumeric-only,
+                // lowercase under `canonical_corpus_key`.
+                for key_source in [ident.clone(), format!("{corpus_id} {ident}")] {
+                    let canon = canonical_corpus_key(&key_source);
+                    if !canon.is_empty() {
+                        library_corpus_index
+                            .entry(canon)
+                            .or_insert_with(|| (doc_uuid.clone(), filename.clone()));
+                    }
+                }
+            }
+            if !library_corpus_index.is_empty() {
+                tracing::info!(
+                    "[chat] built library corpus canonical index with {} entries",
+                    library_corpus_index.len()
+                );
+            }
+        }
+
         let citations_json = extract_citations_block(&full_response).or_else(|| {
             // Fallback: model wrote [gN]/[pN] inline but skipped the
             // <CITATIONS> JSON block. Synthesise from markers so the
@@ -3048,12 +3105,40 @@ async fn stream_chat_root(
                         }
                     } else {
                         obj.insert("source".into(), Value::String("attached".to_string()));
-                        let uuid = id_by_label.get(label).cloned();
-                        let filename = uuid
+                        let mut uuid = id_by_label.get(label).cloned();
+                        let mut filename = uuid
                             .as_ref()
                             .and_then(|u| name_by_id.get(u))
                             .cloned()
                             .unwrap_or_default();
+                        // Last-resort: canonical-key match against the
+                        // user's full corpus library. Catches the model
+                        // copying an inventory line verbatim (bracket +
+                        // space + identifier) as `doc_id` even when no
+                        // KB chunks were retrieved this turn.
+                        if uuid.is_none() {
+                            let canon = canonical_corpus_key(label);
+                            if !canon.is_empty()
+                                && let Some((corp_uuid, corp_filename)) =
+                                    library_corpus_index.get(&canon)
+                            {
+                                tracing::info!(
+                                    "[chat] citation doc_id {:?} resolved to corpus document {:?} via canonical-key match",
+                                    label,
+                                    corp_filename
+                                );
+                                uuid = Some(corp_uuid.clone());
+                                if filename.is_empty() {
+                                    filename = corp_filename.clone();
+                                }
+                                // The model invented the doc_id from the
+                                // inventory line — page (if any) is
+                                // almost certainly hallucinated. Drop it
+                                // so the viewer text-searches the quote
+                                // instead of jumping to a fake page.
+                                obj.remove("page");
+                            }
+                        }
                         if let Some(uuid) = uuid {
                             obj.insert("document_id".into(), Value::String(uuid));
                         }
@@ -3927,8 +4012,8 @@ async fn generate_title(
 #[cfg(test)]
 mod tests {
     use super::{
-        enrich_doc_citations, extract_citations_block, sanitise_annotations_quotes,
-        strip_page_markers,
+        canonical_corpus_key, enrich_doc_citations, extract_citations_block,
+        sanitise_annotations_quotes, strip_page_markers,
     };
     use serde_json::{json, Value};
 
@@ -4048,6 +4133,38 @@ mod tests {
     #[test]
     fn returns_none_for_invalid_json() {
         assert!(extract_citations_block("<CITATIONS>not json</CITATIONS>").is_none());
+    }
+
+    #[test]
+    fn canonical_corpus_key_collapses_inventory_variants_onto_one_key() {
+        // The bug we are guarding against: the model copies the
+        // `<USER LIBRARY>` line `[italian-legal] corte_costituzionale_1990_241`
+        // (with bracket + space) as `doc_id` instead of the [gN] tag.
+        // The canonical form must match whatever we index on the lookup
+        // side — `<corpus_id> <corpus_identifier>` — and tolerate every
+        // other punctuation / case variant.
+        let canon = canonical_corpus_key("[italian-legal] corte_costituzionale_1990_241");
+        assert_eq!(canon, "italianlegalcortecostituzionale1990241");
+        // Every reasonable alternative form must collapse to the same key.
+        for variant in [
+            "italian-legal corte_costituzionale_1990_241",
+            "Italian-Legal_corte_costituzionale_1990_241",
+            "italianlegal:cortecostituzionale1990/241",
+            "[ITALIAN-LEGAL] corte_costituzionale_1990_241",
+        ] {
+            assert_eq!(
+                canonical_corpus_key(variant),
+                canon,
+                "variant {variant:?} did not collapse to the canonical key"
+            );
+        }
+        // Sanity: bare ASCII passes through lowercase.
+        assert_eq!(canonical_corpus_key("EurLex_32016R0679"), "eurlex32016r0679");
+        // Empty / whitespace-only / punctuation-only inputs canonicalise
+        // to the empty string, which the resolver must skip.
+        assert_eq!(canonical_corpus_key(""), "");
+        assert_eq!(canonical_corpus_key("   "), "");
+        assert_eq!(canonical_corpus_key("[ ]"), "");
     }
 
     #[test]

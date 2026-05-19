@@ -12,6 +12,39 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — Citation viewer: resolve corpus-inventory `doc_id` via canonical key
+
+Clicking a citation pill could return `Impossibile caricare il documento
+— Not Found` when the model emitted the inventory-line form of a corpus
+document id (e.g. `[italian-legal] corte_costituzionale_1990_241`,
+bracket + space included) instead of the `[gN]`/`[pN]` KB tag. The
+backend resolver fell through every existing fallback, the frontend
+hit `GET /document/<the-broken-string>/display` → 404.
+
+### Fixed
+
+- **`src/routes/chat.rs`** — new `canonical_corpus_key()` helper that
+  strips every non-alphanumeric character and lowercases. A new
+  per-request `library_corpus_index` (canonical-key → `(uuid,
+  filename)`) is built from one cheap query against the user's full
+  corpus library (`WHERE corpus_id IS NOT NULL AND corpus_identifier
+  IS NOT NULL`), so it works even when the turn produced **zero** KB
+  chunks (the existing `corpus_ref_to_tag` map then stays empty and
+  doesn't help). The resolver's last-resort branch now canonicalises
+  the model's `doc_id`, looks it up in that index, and stamps
+  `document_id` + `filename` directly. The hallucinated `page` (if
+  any) is dropped so the viewer falls back to text-searching the
+  quote rather than scrolling to a fake page.
+
+### Tests
+
+`canonical_corpus_key_collapses_inventory_variants_onto_one_key`
+pins five sloppy variants the model produces in practice — all
+collapse to the same canonical string. Full suite:
+`cargo test -p mike --lib` → **366/366** green (was 365 +1).
+
+---
+
 ## 2026-05-20 — Pubblica Amministrazione domain + Fase-1 workflow pack
 
 Introduced `pa` as a new canonical professional vertical and shipped
