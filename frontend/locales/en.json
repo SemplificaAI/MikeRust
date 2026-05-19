@@ -914,6 +914,8 @@
     "exportToExcel": "Export to Excel",
     "export": "Export",
     "run": "Run",
+    "importExcel": "Import Excel",
+    "importedToast": "Imported {n} review(s)",
     "assistantInReview": "Assistant in Tabular Review",
     "actions": "Actions",
     "clearResults": "Clear results",

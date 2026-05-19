@@ -28,6 +28,7 @@ fn err(status: StatusCode, msg: &str) -> (StatusCode, Json<Value>) {
 pub fn router() -> Router<Arc<AppState>> {
     Router::new()
         .route("/", get(list_tabular_reviews).post(create_tabular_review))
+        .route("/import", post(import_tabular_review))
         .route(
             "/{id}",
             get(get_tabular_review)
@@ -152,6 +153,139 @@ async fn create_tabular_review(
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
     Ok(Json(json!({ "id": id, "title": title, "domain": dom })))
+}
+
+// ---------------------------------------------------------------------------
+// POST /tabular-review/import — create reviews from an uploaded spreadsheet
+// ---------------------------------------------------------------------------
+//
+// One review per worksheet (the user confirmed this mapping): the first
+// row becomes the column headers, every following row becomes a
+// document-less data row with its cells pre-filled (status = "done").
+// The whole conversion is local + deterministic via calamine — no LLM.
+async fn import_tabular_review(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    body: axum::body::Bytes,
+) -> ApiResult {
+    use calamine::Reader;
+    use std::io::Cursor;
+
+    if body.is_empty() {
+        return Err(err(StatusCode::BAD_REQUEST, "empty file"));
+    }
+    let mut workbook =
+        calamine::open_workbook_auto_from_rs(Cursor::new(body.to_vec()))
+            .map_err(|e| {
+                err(
+                    StatusCode::BAD_REQUEST,
+                    &format!("not a valid spreadsheet: {e}"),
+                )
+            })?;
+
+    let dom = crate::domain::normalise_or_default(None);
+    let mut created: Vec<Value> = Vec::new();
+
+    let mut tx = state
+        .db
+        .begin()
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    for sheet_name in workbook.sheet_names() {
+        let Ok(range) = workbook.worksheet_range(&sheet_name) else {
+            continue;
+        };
+        let mut rows_iter = range.rows();
+        // First row = headers. Skip empty sheets.
+        let Some(header) = rows_iter.next() else { continue };
+        if header.is_empty() {
+            continue;
+        }
+
+        // Header cells, left to right → review columns.
+        let columns: Vec<Value> = header
+            .iter()
+            .enumerate()
+            .map(|(i, cell)| {
+                let raw = cell.to_string();
+                let name = if raw.trim().is_empty() {
+                    format!("Column {}", i + 1)
+                } else {
+                    raw.trim().to_string()
+                };
+                json!({
+                    "key": format!("col_{}", i + 1),
+                    "name": name,
+                    "prompt": "",
+                    "format": "free_text",
+                })
+            })
+            .collect();
+        let n_cols = columns.len();
+        let columns_json =
+            serde_json::to_string(&columns).unwrap_or_else(|_| "[]".into());
+
+        let review_id = uuid::Uuid::new_v4().to_string();
+        sqlx::query(
+            "INSERT INTO tabular_reviews \
+               (id, user_id, title, columns_config, domain, status) \
+             VALUES (?, ?, ?, ?, ?, 'done')",
+        )
+        .bind(&review_id)
+        .bind(&auth.user_id)
+        .bind(&sheet_name)
+        .bind(&columns_json)
+        .bind(dom)
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+        // Data rows → document-less rows with pre-filled cells.
+        for (ri, row) in rows_iter.enumerate() {
+            let cells: Vec<Value> = (0..n_cols)
+                .map(|ci| {
+                    let content = row
+                        .get(ci)
+                        .map(|c| c.to_string())
+                        .unwrap_or_default();
+                    json!({
+                        "key": format!("col_{}", ci + 1),
+                        "status": "done",
+                        "content": content,
+                    })
+                })
+                .collect();
+            sqlx::query(
+                "INSERT INTO tabular_review_rows \
+                   (id, tabular_review_id, document_id, row_index, cells, status) \
+                 VALUES (?, ?, NULL, ?, ?, 'done')",
+            )
+            .bind(uuid::Uuid::new_v4().to_string())
+            .bind(&review_id)
+            .bind(ri as i64)
+            .bind(
+                serde_json::to_string(&cells)
+                    .unwrap_or_else(|_| "[]".into()),
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+        }
+        created.push(json!({ "id": review_id, "title": sheet_name }));
+    }
+
+    if created.is_empty() {
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "no non-empty worksheets found in the workbook",
+        ));
+    }
+    tx.commit()
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    Ok(Json(json!({ "reviews": created })))
 }
 
 // ---------------------------------------------------------------------------

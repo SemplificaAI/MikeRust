@@ -17,6 +17,7 @@
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
   import TabularDetail from '$lib/components/tabular/TabularDetail.svelte'
   import { tabularStore } from '$lib/stores/tabular.svelte'
+  import { tabularApi } from '$lib/api/tabular'
   import { workflowsApi } from '$lib/api/workflows'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { userStore } from '$lib/stores/user.svelte'
@@ -125,6 +126,27 @@
     }
   }
 
+  // ── import from spreadsheet (one review per worksheet) ──────────────
+  let fileInput = $state<HTMLInputElement>()
+  let importing = $state(false)
+
+  async function onFilePicked(e: Event) {
+    const input = e.currentTarget as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = '' // let the user re-pick the same file later
+    if (!file) return
+    importing = true
+    try {
+      const r = await tabularApi.importXlsx(file)
+      toastStore.success(t('TabularReviews.importedToast', { n: r.reviews.length }))
+      await tabularStore.refresh()
+    } catch (err) {
+      toastStore.danger(t('Errors.somethingWrong'), { detail: (err as Error).message })
+    } finally {
+      importing = false
+    }
+  }
+
   function fmtDate(iso: string): string {
     const d = new Date(iso)
     return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString()
@@ -142,7 +164,19 @@
         {t('TabularReviews.subtitle')}
       </p>
     </div>
-    <Button onclick={openCreate}>{t('TabularReviews.newReview')}</Button>
+    <div class="flex items-center gap-2">
+      <input
+        type="file"
+        accept=".xlsx,.xls,.xlsb,.ods"
+        class="hidden"
+        bind:this={fileInput}
+        onchange={onFilePicked}
+      />
+      <Button variant="secondary" loading={importing} onclick={() => fileInput?.click()}>
+        {t('TabularReviews.importExcel')}
+      </Button>
+      <Button onclick={openCreate}>{t('TabularReviews.newReview')}</Button>
+    </div>
   </header>
 
   <div class="flex justify-end">

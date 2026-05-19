@@ -60,6 +60,30 @@ export const tabularApi = {
       body: { row_ids },
     }),
 
+  /** Import a spreadsheet — one review per worksheet. */
+  importXlsx: async (
+    file: File,
+  ): Promise<{ reviews: { id: string; title: string }[] }> => {
+    const res = await fetch(
+      new URL('/tabular-review/import', apiBase.url || 'http://127.0.0.1:3001'),
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authStore.token ?? ''}` },
+        body: await file.arrayBuffer(),
+      },
+    )
+    if (!res.ok) {
+      let detail = `import failed (${res.status})`
+      try {
+        detail = ((await res.json()) as { detail?: string }).detail ?? detail
+      } catch {
+        /* keep the generic message */
+      }
+      throw new Error(detail)
+    }
+    return res.json() as Promise<{ reviews: { id: string; title: string }[] }>
+  },
+
   /** Download the review grid as an .xlsx blob. */
   exportXlsx: async (id: string): Promise<Blob> => {
     const res = await fetch(

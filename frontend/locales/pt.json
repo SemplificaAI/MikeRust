@@ -803,7 +803,9 @@
     "noDocuments": "Nenhum documento anexado. Adicione documentos para executar a revisão.",
     "cellDetail": "Detalhe da célula",
     "documentColumn": "Documento",
-    "runError": "Falha na execução da revisão"
+    "runError": "Falha na execução da revisão",
+    "importExcel": "Importar Excel",
+    "importedToast": "{n} revisão(ões) importada(s)"
   },
   "Documents": {
     "title": "Documentos",

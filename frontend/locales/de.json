@@ -803,7 +803,9 @@
     "noDocuments": "Keine Dokumente angehängt. Fügen Sie Dokumente hinzu, um die Prüfung auszuführen.",
     "cellDetail": "Zellendetail",
     "documentColumn": "Dokument",
-    "runError": "Prüfungslauf fehlgeschlagen"
+    "runError": "Prüfungslauf fehlgeschlagen",
+    "importExcel": "Excel importieren",
+    "importedToast": "{n} Prüfung(en) importiert"
   },
   "Documents": {
     "title": "Dokumente",

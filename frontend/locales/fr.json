@@ -803,7 +803,9 @@
     "noDocuments": "Aucun document joint. Ajoutez des documents pour exécuter la revue.",
     "cellDetail": "Détail de la cellule",
     "documentColumn": "Document",
-    "runError": "Échec de l'exécution de la revue"
+    "runError": "Échec de l'exécution de la revue",
+    "importExcel": "Importer Excel",
+    "importedToast": "{n} revue(s) importée(s)"
   },
   "Documents": {
     "title": "Documents",

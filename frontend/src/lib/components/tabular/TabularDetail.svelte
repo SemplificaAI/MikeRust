@@ -277,7 +277,7 @@
               </tr>
             </thead>
             <tbody>
-              {#each rows as row (row.id)}
+              {#each rows as row, ri (row.id)}
                 <tr class="hover:bg-(--color-hover-bg)">
                   <td class="sticky left-0 z-10 bg-(--color-surface-0) px-3 py-2
                              border-b border-r border-(--color-surface-200) align-top">
@@ -289,7 +289,9 @@
                         docViewer.openDocument(row.document_id, row.filename ?? row.document_id)}
                     >
                       <FileText size={13} class="shrink-0 text-(--color-text-secondary)" />
-                      <span class="truncate">{row.filename ?? row.document_id}</span>
+                      <!-- Imported (document-less) rows have no filename
+                           — fall back to a 1-based row number. -->
+                      <span class="truncate">{row.filename ?? `#${ri + 1}`}</span>
                     </button>
                   </td>
                   {#each columns as col, ci (colKey(col, ci))}
