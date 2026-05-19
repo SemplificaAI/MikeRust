@@ -1,0 +1,64 @@
+{
+    "id": "builtin-compliance-nis2-policy-inventory",
+    "title": "Inventario policy NIS2 (mapping ai 10 domini)",
+    "type": "tabular",
+    "domain": "compliance",
+    "practice": "NIS2 — Cybersecurity & resilience",
+    "prompt_md": "## Obiettivo\nProduci un inventario delle policy e procedure aziendali allegate per valutarne la copertura rispetto ai dieci domini NIS2 (D.Lgs. 138/2024, art. 24). Ogni RIGA della review corrisponde a UN documento allegato; le COLONNE estraggono gli attributi rilevanti per il successivo Audit Readiness NIS2.\n\n## Cosa ti aspetti negli allegati\nUno o più documenti aziendali fra: politica di sicurezza, procedura gestione incidenti, BCP/DR plan, registro fornitori critici, policy crittografica, piano di formazione, policy HR / controllo accessi, procedura di gestione vulnerabilità, SDLC sicuro, registro asset, atti deliberativi dell'organo di gestione.\n\n## Stile\n- Risposte concise; cita sempre articolo, sezione o paragrafo del documento fra parentesi.\n- Se il documento non tratta la colonna, rispondi 'Non previsto' — non inventare.\n- Per date, formato ISO `YYYY-MM-DD`.\n- Per i punteggi 0–3 usa la stessa scala dell'Audit Readiness NIS2: 0 controllo assente · 1 abbozzato/informale · 2 formalizzato ma con gap · 3 pienamente implementato e verificato.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Titolo documento",
+            "format": "text",
+            "prompt": "Titolo ufficiale del documento come riportato in copertina o intestazione. Se è una revisione di un documento precedente, indica anche numero e data revisione (es. 'Policy Sicurezza Informazioni — rev. 04 del 12/03/2026'). No commento ulteriore."
+        },
+        {
+            "index": 1,
+            "name": "Tipo",
+            "format": "tag",
+            "prompt": "Una sola etichetta tra: `policy` (politica di indirizzo) · `procedura` (passo-passo operativo) · `piano` (es. BCP, DR, formazione) · `registro` (es. asset, fornitori) · `delibera` (atto dell'organo di gestione) · `evidenza_tecnica` (config, log, report pen-test). Scegli quella prevalente."
+        },
+        {
+            "index": 2,
+            "name": "Domini NIS2 coperti",
+            "format": "bulleted_list",
+            "prompt": "Elenco dei domini NIS2 cui il documento contribuisce, usando ESATTAMENTE questi numeri-etichette: 1. Governance · 2. Politica di sicurezza · 3. Gestione incidenti · 4. Continuità & DR · 5. Supply chain · 6. SDLC & manutenzione · 7. Gestione vulnerabilità · 8. Formazione & awareness · 9. Crittografia · 10. HR & accessi. Indica solo quelli realmente trattati (cita la sezione per ciascuno). Se nessuno, scrivi 'Nessuno — fuori perimetro NIS2'."
+        },
+        {
+            "index": 3,
+            "name": "Versione e data revisione",
+            "format": "date",
+            "prompt": "Data dell'ultima revisione approvata, formato ISO `YYYY-MM-DD`. Tra parentesi quadre il numero di versione/revisione (es. `2026-03-12 [rev. 04]`). Se non indicata, rispondi 'Non specificato'."
+        },
+        {
+            "index": 4,
+            "name": "Approvazione organo di gestione (art. 20)",
+            "format": "yes_no",
+            "prompt": "Il documento è stato approvato dall'organo di gestione ai sensi dell'art. 20 D.Lgs. 138/2024? Rispondi `Sì` (con la citazione esatta dell'atto / verbale / firma) oppure `No` (e indica chi lo ha approvato a livello operativo). Se il documento è per natura non soggetto ad approvazione (es. evidenza tecnica), rispondi 'Non applicabile'."
+        },
+        {
+            "index": 5,
+            "name": "Controlli NIS2 presenti",
+            "format": "bulleted_list",
+            "prompt": "Elenco puntato dei controlli/misure NIS2 effettivamente formalizzati nel documento (es. 'Notifica entro 24h all'autorità competente — art. 25', 'Cifratura at-rest AES-256 per dati personali', 'MFA obbligatoria per accessi privilegiati'). Cita sempre l'articolo o paragrafo del documento."
+        },
+        {
+            "index": 6,
+            "name": "Gap rilevati",
+            "format": "bulleted_list",
+            "prompt": "Elenco puntato dei gap rispetto alle aspettative NIS2 per i domini dichiarati alla colonna 2: cosa manca, cosa è solo accennato, cosa è obsoleto rispetto a D.Lgs. 138/2024. Sii specifico (es. 'Manca la procedura di notifica precoce entro 24h ex art. 25, c.4'). Se nessun gap, scrivi 'Nessun gap rilevato'."
+        },
+        {
+            "index": 7,
+            "name": "Punteggio di maturità (0–3)",
+            "format": "number",
+            "prompt": "Punteggio sintetico del documento sulla scala 0–3: 0 assente / non utilizzabile · 1 abbozzato o informale · 2 formalizzato ma con gap · 3 pienamente implementato e verificato. Motiva in 1-2 righe nella colonna successiva. Se il documento copre più domini con maturità diverse, riporta la media arrotondata e segnala la disomogeneità nelle Note."
+        },
+        {
+            "index": 8,
+            "name": "Note del valutatore",
+            "format": "text",
+            "prompt": "Sintesi libera in 1-3 righe: motivazione del punteggio, raccomandazioni di breve periodo per portarlo a 3, dipendenze con altri documenti. Se la copertura per un dominio richiede di aggiornare anche altri documenti aziendali, indicalo qui."
+        }
+    ]
+}

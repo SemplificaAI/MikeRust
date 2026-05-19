@@ -1,0 +1,86 @@
+{
+    "schema_version": 1,
+    "id": "compliance/nis2-audit-readiness-report",
+    "source_reference": "docs/nis2-prompts.md",
+    "display_name": {
+        "it": "Report Audit Readiness NIS2",
+        "en": "NIS2 audit-readiness report",
+        "fr": "Rapport d'auto-évaluation NIS2",
+        "de": "NIS2-Auditbereitschaftsbericht",
+        "es": "Informe de preparación para auditoría NIS2",
+        "pt": "Relatório de prontidão para auditoria NIS2"
+    },
+    "category": "compliance-assessment",
+    "domain": "compliance",
+    "locale": "it-IT",
+    "automation_level": "L1",
+    "placeholder_syntax": "square_brackets",
+
+    "paper": { "size": "A4", "orientation": "portrait", "format": "standard" },
+    "margins_cm": { "top": 2.5, "right": 2.5, "bottom": 2.5, "left": 2.5 },
+    "typography": {
+        "body_font": "Calibri",
+        "body_size_pt": 11.0,
+        "line_spacing": 1.15,
+        "paragraph_after_pt": 6.0,
+        "alignment": "justify",
+        "first_line_indent_cm": 0.0
+    },
+    "footnotes": { "font": "Calibri", "size_pt": 9.0, "line_spacing": 1.0 },
+
+    "style_map_baseline": {
+        "body_text":       "Corpo testo",
+        "section_heading": "Titolo sezione",
+        "citation":        "Citazione",
+        "footnote":        "Note piè pagina"
+    },
+    "style_map": {
+        "heading_1":       "Nis2H1Numerato",
+        "heading_2":       "Nis2H2Numerato",
+        "table_scoring":   "Nis2TabellaScoring",
+        "table_remediation": "Nis2TabellaRemediation",
+        "semaforo_verde":  "Nis2SemaforoVerde",
+        "semaforo_giallo": "Nis2SemaforoGiallo",
+        "semaforo_rosso":  "Nis2SemaforoRosso"
+    },
+    "directives_supported": ["page_break"],
+
+    "header_block": "organizzazione_classificazione_data",
+    "footer_block": "report_nis2_pagina",
+    "section_numbering": "manual",
+
+    "section_skeleton": [
+        { "id": "title", "guidance": "Titolo in MAIUSCOLO: 'REPORT AUDIT READINESS NIS2'. Sottotitolo con [ORGANIZZAZIONE]." },
+        { "id": "intestazione", "render": "Intestazione",
+          "guidance": "Quattro righe metadati: Organizzazione: [ORGANIZZAZIONE]; Data assessment: [DATA_ASSESSMENT]; Valutatore: [VALUTATORE]; Classificazione: SOGGETTO [CLASSIFICAZIONE_SOGGETTO] (ESSENZIALE o IMPORTANTE in MAIUSCOLO)." },
+        { "id": "scoring", "render": "1. Scoring per dominio",
+          "guidance": "Tabella a 11 righe (1 header + 10 domini fissi) e 3 colonne: Dominio | Punteggio (0–3) | Note. I 10 domini sono in quest'ordine e con questa esatta dicitura: 1. Governance e responsabilità del management; 2. Politica di sicurezza; 3. Gestione incidenti e notifica; 4. Continuità operativa e DR; 5. Sicurezza supply chain; 6. Sicurezza sviluppo e manutenzione sistemi; 7. Gestione vulnerabilità; 8. Formazione e awareness; 9. Crittografia; 10. Sicurezza HR e controllo accessi. Sotto la tabella, riga TOTALE: somma /30. Subito sotto: SEMAFORO DI CONFORMITÀ con un singolo bollino acceso secondo il totale (☐ VERDE ≥24, ☐ GIALLO 16–23, ☐ ROSSO <16) — colora la riga con lo stile semaforo corrispondente." },
+        { "id": "rischi", "render": "2. Rischi sanzionatori principali (art. 38 D.Lgs. 138/2024)",
+          "guidance": "Paragrafo introduttivo con i massimali per la classificazione di [CLASSIFICAZIONE_SOGGETTO]: essenziali fino a €10.000.000 o 2% del fatturato globale annuo; importanti fino a €7.000.000 o 1,4%. Se [FATTURATO_GLOBALE] è fornito, calcola anche il valore percentuale in euro. Subito sotto, elenco numerato dei tre rischi più rilevanti — per ciascuno: descrizione · dominio NIS2 coinvolto (uno dei 10 sopra) · importo sanzionatorio stimato in euro." },
+        { "id": "remediation", "render": "3. Piano di remediation — 90 giorni",
+          "guidance": "Tre sotto-sezioni: 3.1 Settimane 1–4 (azioni immediate); 3.2 Settimane 5–8 (consolidamento); 3.3 Settimane 9–12 (verifica e governance). In ciascuna, tabella a 4 colonne: Azione | Dominio NIS2 | Responsabile | KPI di chiusura. Ogni azione deve riferirsi a un dominio dello scoring e mirare a portare il relativo punteggio a 3/3." },
+        { "id": "note_finali", "render": "4. Note finali e raccomandazioni",
+          "guidance": "Testo libero del valutatore: priorità strategiche, dipendenze fra azioni, rischi residui post-piano, suggerimenti su frequenza assessment successivi." },
+        { "id": "firme", "render": "Firme",
+          "guidance": "Blocco firme su pagina dedicata: Redatto da: [VALUTATORE] — Data: [DATA_ASSESSMENT]. Approvato dall'organo di gestione (ex art. 20 D.Lgs. 138/2024): [APPROVATORE_GESTIONE] — Data: [DATA_APPROVAZIONE]. Lascia spazio firma manoscritta sopra ciascuna riga." }
+    ],
+
+    "field_prompts": {
+        "ORGANIZZAZIONE":           "Ragione sociale completa dell'organizzazione oggetto dell'assessment. Compare in copertina, header e firme.",
+        "DATA_ASSESSMENT":          "Data dell'assessment nel formato 'gg/mm/aaaa'. Usata in copertina e nella riga firma del valutatore.",
+        "VALUTATORE":               "Nome e cognome del valutatore — più qualifica (es. 'CISO', 'Lead auditor ISO 27001', 'Consulente esterno'). Compare in copertina e nella riga firma.",
+        "CLASSIFICAZIONE_SOGGETTO": "Una sola fra 'ESSENZIALE' o 'IMPORTANTE' (D.Lgs. 138/2024). Determina i massimali sanzionatori nella sezione 2.",
+        "FATTURATO_GLOBALE":        "Opzionale. Fatturato globale annuo dell'organizzazione in euro (formato '€ 12.500.000'). Se fornito, il prompt calcola anche il 2% / 1,4% in euro nella sezione rischi sanzionatori.",
+        "APPROVATORE_GESTIONE":     "Nome e ruolo del membro dell'organo di gestione che approva il report ex art. 20 D.Lgs. 138/2024 (es. 'CEO', 'Presidente del CdA').",
+        "DATA_APPROVAZIONE":        "Data dell'approvazione formale ex art. 20 nel formato 'gg/mm/aaaa'. Può coincidere con DATA_ASSESSMENT o essere posteriore."
+    },
+
+    "required_metadata": [
+        "ORGANIZZAZIONE",
+        "DATA_ASSESSMENT",
+        "VALUTATORE",
+        "CLASSIFICAZIONE_SOGGETTO",
+        "APPROVATORE_GESTIONE",
+        "DATA_APPROVAZIONE"
+    ]
+}

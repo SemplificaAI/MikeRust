@@ -12,6 +12,67 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — NIS2 compliance pack: docx template + assistant workflow + tabular review
+
+Translated `docs/nis2-prompts.md` into three ready-to-ship MikeRust
+artefacts, all anchored to the **compliance** domain and to the Italian
+NIS2 transposition (D.Lgs. 138/2024).
+
+### Added
+
+- **`config/docx-templates/compliance/nis2-audit-readiness-report.json`**
+  — DOCX layout sidecar (`id: compliance/nis2-audit-readiness-report`,
+  A4 portrait, L1, square-bracket placeholders). Section skeleton
+  matches the spec one-to-one: title block, intestazione metadata,
+  fixed 10-domain scoring table (`1. Governance` → `10. HR & accessi`)
+  with TOTAL row + conformity semaphore, top-3 sanction risks under
+  art. 38, three 4-week remediation phases, free-text final notes, and
+  the signature block for valutatore + organo di gestione (art. 20).
+  Required metadata: `ORGANIZZAZIONE`, `DATA_ASSESSMENT`, `VALUTATORE`,
+  `CLASSIFICAZIONE_SOGGETTO` (`ESSENZIALE`/`IMPORTANTE`),
+  `APPROVATORE_GESTIONE`, `DATA_APPROVAZIONE` (+ optional
+  `FATTURATO_GLOBALE` to compute the 2% / 1,4% sanction cap in euro).
+- **`config/workflow-presets/compliance/nis2-audit-readiness.json`**
+  — `assistant`-type workflow (`builtin-compliance-nis2-audit-readiness`),
+  practice "NIS2 — Cybersecurity & resilience". Walks the model
+  through the full report (sections 1–4 of the spec), enforces the
+  fixed 10-domain ordering / dicitura, requires evidence citations
+  per score, and links to the docx via
+  `default_output_template: "compliance/nis2-audit-readiness-report"`
+  so `read_workflow` auto-bundles the template's authoring contract
+  and the closing instruction calls `generate_docx` with the right
+  template_id.
+- **`config/workflow-presets/compliance/nis2-policy-inventory.json`**
+  — `tabular`-type workflow (`builtin-compliance-nis2-policy-inventory`)
+  for inventorying multiple policy/procedure documents against the
+  ten NIS2 domains. Nine columns: title, type (policy/procedura/
+  piano/registro/delibera/evidenza_tecnica), NIS2 domains covered,
+  version+date, art. 20 approval, NIS2 controls present, gaps,
+  maturity score 0–3, evaluator notes. Designed as the pre-step to
+  the audit-readiness assistant workflow.
+- **`src/presets/workflow.rs::tests`** — two new tests:
+  - `shipped_workflow_presets_all_load_cleanly`: strongly-typed
+    loader must accept every JSON file in `config/workflow-presets/`,
+    every id must be unique, every `domain` canonical, every `kind`
+    in `{assistant, tabular}`. Future-proofs against silent
+    typo-induced startup drops.
+  - `shipped_compliance_nis2_presets_present_and_wired`: anchors the
+    three NIS2 ids and asserts the assistant workflow points at the
+    matching docx template id, and that the tabular has the expected
+    column shape.
+
+### Tests
+
+`cargo test -p mike --lib` → **364/364** green (was 360 +4: the two
+new workflow-preset tests above, plus the two thought_signature tests
+from the Gemini 3.5 entry).
+
+The dev binary auto-loads presets at startup, so a tauri-dev restart
+exposes "Audit readiness NIS2" in the Workflow picker and "Inventario
+policy NIS2" in the Tabular reviews picker.
+
+---
+
 ## 2026-05-20 — Gemini 3.5 Flash (GA) + thought_signature plumbing
 
 Google released **Gemini 3.5 Flash** as GA at Google I/O '26 (model id

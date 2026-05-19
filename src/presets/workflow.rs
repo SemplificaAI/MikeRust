@@ -174,3 +174,88 @@ pub fn load_workflow_presets(dir: &Path) -> Result<Vec<WorkflowPreset>> {
     out.sort_by(|a, b| a.id.cmp(&b.id));
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Sanity-check every JSON file shipped under `config/workflow-presets/`:
+    /// the strongly-typed loader must accept all of them, every id must
+    /// be unique, every `domain` must be in the canonical set and every
+    /// preset's `kind` must be one of `assistant` | `tabular`. Catches a
+    /// typo in a new preset before it disappears silently at startup.
+    #[test]
+    fn shipped_workflow_presets_all_load_cleanly() {
+        let dir = crate::presets::config_subdir("workflow-presets");
+        let presets = load_workflow_presets(&dir).expect("load shipped workflow presets");
+        assert!(
+            !presets.is_empty(),
+            "no shipped workflow presets found under {}",
+            dir.display()
+        );
+
+        let mut seen = std::collections::HashSet::new();
+        for p in &presets {
+            assert!(
+                seen.insert(p.id.clone()),
+                "duplicate workflow-preset id: {}",
+                p.id
+            );
+            assert!(
+                crate::domain::is_valid(&p.domain),
+                "preset {} has non-canonical domain {}",
+                p.id,
+                p.domain
+            );
+            assert!(
+                p.kind == "assistant" || p.kind == "tabular",
+                "preset {} has unexpected kind {}",
+                p.id,
+                p.kind
+            );
+        }
+    }
+
+    /// Anchor the three NIS2 compliance presets shipped together with the
+    /// `docs/nis2-prompts.md` spec — both an assistant workflow (linked
+    /// to the docx template) and a tabular workflow for policy inventory.
+    /// Failure here means a contributor renamed or deleted one of them.
+    #[test]
+    fn shipped_compliance_nis2_presets_present_and_wired() {
+        let dir = crate::presets::config_subdir("workflow-presets");
+        let presets = load_workflow_presets(&dir).expect("load");
+
+        let assistant = presets
+            .iter()
+            .find(|p| p.id == "builtin-compliance-nis2-audit-readiness")
+            .expect("NIS2 audit-readiness assistant workflow must ship");
+        assert_eq!(assistant.kind, "assistant");
+        assert_eq!(assistant.domain, "compliance");
+        assert_eq!(
+            assistant.default_output_template.as_deref(),
+            Some("compliance/nis2-audit-readiness-report"),
+            "assistant workflow must reference the docx template"
+        );
+        assert!(assistant.columns_config.is_none());
+
+        let tabular = presets
+            .iter()
+            .find(|p| p.id == "builtin-compliance-nis2-policy-inventory")
+            .expect("NIS2 policy-inventory tabular workflow must ship");
+        assert_eq!(tabular.kind, "tabular");
+        assert_eq!(tabular.domain, "compliance");
+        let cols = tabular.columns_config.as_ref().expect("tabular columns");
+        assert!(
+            cols.len() >= 7,
+            "expected ≥7 columns for the policy inventory, got {}",
+            cols.len()
+        );
+        // Column 0 must be the human-readable title — drives the row
+        // header in the review grid.
+        assert!(
+            cols[0].name.to_lowercase().contains("titolo"),
+            "first column should be the document title, got {:?}",
+            cols[0].name
+        );
+    }
+}
