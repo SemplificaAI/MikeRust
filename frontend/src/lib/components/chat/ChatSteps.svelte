@@ -20,6 +20,38 @@
     docViewer.openDocument(documentId, filename)
   }
 
+  /**
+   * Tint the generated-document card icon by file type. Word is blue and
+   * Excel is green today; Markdown (black), PDF (red) and PowerPoint
+   * (orange) are pre-mapped so they are already correct once generators
+   * for those formats land. Anything else keeps the brand colour.
+   */
+  function iconColor(filename: string): string {
+    const ext = /\.([a-z0-9]+)$/i.exec(filename.trim())?.[1]?.toLowerCase() ?? ''
+    switch (ext) {
+      case 'xlsx':
+      case 'xls':
+      case 'xlsb':
+      case 'ods':
+      case 'csv':
+        return 'text-(--color-success-500)' // Excel — green
+      case 'docx':
+      case 'doc':
+      case 'rtf':
+        return 'text-(--color-info-500)' // Word — blue
+      case 'md':
+      case 'markdown':
+        return 'text-(--color-text-primary)' // Markdown — black
+      case 'pdf':
+        return 'text-(--color-danger-500)' // PDF — red
+      case 'pptx':
+      case 'ppt':
+        return 'text-(--color-warning-500)' // PowerPoint — orange
+      default:
+        return 'text-(--color-brand-600)'
+    }
+  }
+
   async function download(documentId: string, filename: string) {
     try {
       const blob = await documentsApi.downloadBytes(documentId)
@@ -83,7 +115,7 @@
         class="flex items-center gap-2 px-2.5 py-1.5 rounded-(--radius-md)
                border border-(--color-surface-200) bg-(--color-surface-50) w-fit max-w-sm"
       >
-        <FileText size={14} class="text-(--color-brand-600) shrink-0" />
+        <FileText size={14} class="{iconColor(step.filename)} shrink-0" />
         <button
           type="button"
           class="flex-1 min-w-0 truncate text-xs text-(--color-text-primary) text-left hover:underline"
