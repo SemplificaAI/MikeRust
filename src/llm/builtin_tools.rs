@@ -142,7 +142,7 @@ pub fn schemas() -> Vec<ToolSchema> {
             json!({
                 "type": "object",
                 "properties": {
-                    "domain": { "type": "string", "description": "Optional canonical domain filter: 'legal' | 'medical' | 'finance' | 'real_estate' | 'hr' | 'insurance' | 'ip' | 'compliance' | 'others'." },
+                    "domain": { "type": "string", "description": "Optional canonical domain filter: 'legal' | 'medical' | 'finance' | 'real_estate' | 'hr' | 'insurance' | 'ip' | 'compliance' | 'pa' | 'others'." },
                     "locale": { "type": "string", "description": "Optional locale filter, e.g. 'it' to see only Italian templates." }
                 },
                 "required": []

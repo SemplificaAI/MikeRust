@@ -12,6 +12,73 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — Pubblica Amministrazione domain + Fase-1 workflow pack
+
+Introduced `pa` as a new canonical professional vertical and shipped
+the seven workflow presets specified in `docs/pa-prompts.md` with full
+prompt templates (the Fase-1 four-pack plus determina, RUP checklist
+and PNRR milestone). All other workflows from blocks 1–5 that the spec
+sketches with only a one-line description are deferred to a follow-up
+pack — they don't have an authoring prompt yet.
+
+### Added — domain registration
+
+- **`src/domain.rs`** — `pa` appended to `DOMAINS` (between `compliance`
+  and `others`). Schema-default validation (`is_valid`) accepts it
+  automatically.
+- **`frontend/src/lib/types/domain.ts`** — `pa` appended to the TS
+  mirror, so the picker dropdown lists it.
+- **`src/llm/builtin_tools.rs`** — `list_docx_templates` schema enum
+  description extended with `'pa'` so the model can filter on it.
+- **`frontend/locales/{it,en,fr,de,es,pt}.json`** — `Domains.values.pa`
+  added across all six locales:
+  - it: Pubblica Amministrazione · en: Public Administration
+  - fr: Administration publique · de: Öffentliche Verwaltung
+  - es: Administración pública · pt: Administração pública
+
+### Added — workflows (`config/workflow-presets/pa/`)
+
+Block 1 — Atti amministrativi:
+- **`pa-delibera`** (assistant) — analisi delibera: competenza, motivazione (art. 3 L. 241/1990), iter procedimentale, copertura finanziaria (art. 183 TUEL), vizi rilevati, termini di impugnazione (TAR / PR / autotutela).
+- **`pa-determina`** (assistant) — estrazione tabellare di 12 campi obbligatori della determina dirigenziale (numero, oggetto, norma attributiva, CIG, importo, capitolo, visti, pareri, pubblicazione, esecutività) con conformità sì/no/da verificare.
+
+Block 2 — Appalti pubblici (D.Lgs. 36/2023):
+- **`pa-appalto-review`** (assistant) — review clausola-per-clausola con focus obbligatorio su 10 aree (penali, SAL, subappalto, recesso, ADR, garanzie, varianti, riserve, revisione prezzi, clausole sociali) + sintesi rischi con semaforo 🔴🟡🟢.
+- **`pa-rup-checklist`** (tabular) — 1 riga = 1 documento del fascicolo gara; 8 colonne mappano la fase (programmazione/progettazione/affidamento/esecuzione/chiusura), l'adempimento RUP, la norma D.Lgs. 36/2023 e l'esito.
+
+Block 3 — Procedimento (L. 241/1990):
+- **`pa-241-check`** (assistant) — verifica dei 7 controlli L. 241/90 (responsabile, comunicazione avvio, termine, preavviso rigetto, motivazione, partecipazione, accesso) con mini-scheda per punto e tabella riassuntiva esito+rischio+sanatoria.
+
+Block 4 — PNRR e fondi UE:
+- **`pa-pnrr-milestone`** (tabular) — 1 riga = 1 documento probatorio; 10 colonne riconducono il doc a Missione/Componente/Investimento, milestone/target ID, scadenza UE, documentazione richiesta vs disponibile, spese rendicontate, rischio (🔴🟡🟢), azione raccomandata.
+
+Block 5 — Trasparenza e anticorruzione:
+- **`pa-ptpct`** (assistant) — analisi del PTPCT in 6 sezioni (struttura · analisi del rischio · misure di prevenzione · obblighi di trasparenza D.Lgs. 33/2013 · RPCT · gap+raccomandazioni con scala Obbligatorio-Mancante/Presente-carente/Raccomandato-Mancante).
+
+### Added — tests
+
+- **`src/presets/workflow.rs::shipped_pa_workflows_present_and_typed`**
+  anchors the seven PA preset ids, asserts each carries `domain = "pa"`
+  and the spec's prescribed kind (assistant/tabular), each `practice`
+  starts with `PA — `, and tabular presets have non-empty
+  `columns_config` while assistants don't carry one.
+
+### Tests
+
+`cargo test -p mike --lib` → **365/365** green (was 364 +1).
+Frontend `pnpm typecheck` → 0 errors / 0 warnings.
+
+### Deferred
+
+The fourteen workflows from `docs/pa-prompts.md` that are sketched
+with only a one-line description (pa-ordinanza, pa-parere, pa-bando,
+pa-collaudo, pa-variante, pa-silenzio, pa-autotutela, pa-accesso,
+pa-rendiconto, pa-audit, pa-irregolarita, pa-foia, pa-conflitto,
+pa-dati-aperti) require new authoring prompts and are tracked as a
+follow-up batch.
+
+---
+
 ## 2026-05-20 — NIS2 compliance pack: docx template + assistant workflow + tabular review
 
 Translated `docs/nis2-prompts.md` into three ready-to-ship MikeRust

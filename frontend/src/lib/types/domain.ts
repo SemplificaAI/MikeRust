@@ -17,6 +17,7 @@ export const DOMAINS = [
   'insurance',
   'ip',
   'compliance',
+  'pa',
   'others',
 ] as const
 

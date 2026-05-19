@@ -23,6 +23,7 @@ pub const DOMAINS: &[&str] = &[
     "insurance",
     "ip",
     "compliance",
+    "pa",
     "others",
 ];
 

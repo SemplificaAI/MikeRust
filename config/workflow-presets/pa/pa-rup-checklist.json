@@ -1,0 +1,58 @@
+{
+    "id": "builtin-pa-rup-checklist",
+    "title": "Checklist RUP — adempimenti per fase",
+    "type": "tabular",
+    "domain": "pa",
+    "practice": "PA — Appalti pubblici (D.Lgs. 36/2023)",
+    "prompt_md": "## Obiettivo\nVerifica gli adempimenti del Responsabile Unico del Procedimento (RUP) attraverso i documenti del fascicolo gara. Ogni RIGA della review = UN documento del fascicolo (bando, verbale, determina, comunicazione, SAL, certificato di collaudo, ecc.). Le COLONNE estraggono la fase del ciclo dell'appalto a cui il documento si riferisce e ne misurano la conformità al D.Lgs. 36/2023.\n\n## Stile\n- Risposte concise; cita SEMPRE l'articolo del D.Lgs. 36/2023 e il riferimento al documento (`art./pag.`).\n- Se il documento non attiene a una fase, rispondi `Non applicabile`.\n- Date in formato ISO `YYYY-MM-DD`; importi in `€ 1.234.567,00`.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Titolo / tipo documento",
+            "format": "text",
+            "prompt": "Titolo del documento come riportato in copertina + tipo sintetico (es. 'Determina a contrarre n. 154/2026 — D.D. RUP'). Una riga, no commento."
+        },
+        {
+            "index": 1,
+            "name": "Fase dell'appalto",
+            "format": "tag",
+            "prompt": "Una SOLA fase tra: `programmazione` · `progettazione` · `affidamento` · `esecuzione` · `chiusura`. Scegli quella prevalente in base al contenuto del documento."
+        },
+        {
+            "index": 2,
+            "name": "Adempimento RUP coperto",
+            "format": "text",
+            "prompt": "Quale adempimento del RUP il documento attesta. Usa una delle voci canoniche e cita l'articolo del D.Lgs. 36/2023: 'Inserimento nel programma biennale acquisti (art. 37)', 'Nomina RUP (art. 15)', 'Verifica progetto (art. 42)', 'Pubblicazione bando su BDNCP (art. 84)', 'Verifica requisiti aggiudicatario (art. 94-98)', 'Comunicazione esito gara (art. 90)', 'Consegna lavori/servizi (art. 107)', 'Approvazione SAL (art. 113)', 'Collaudo / CRE (art. 116)', 'Svincolo garanzie (art. 117)'. Se l'adempimento è un altro, descrivilo brevemente e cita comunque l'articolo. Se il documento non attesta un adempimento RUP, rispondi 'Non pertinente'."
+        },
+        {
+            "index": 3,
+            "name": "Norma D.Lgs. 36/2023",
+            "format": "text",
+            "prompt": "Articolo del D.Lgs. 36/2023 che regola l'adempimento (es. `art. 113`). Se opera anche un Allegato, indicalo (`Allegato II.14`). Se l'adempimento è disciplinato da un altro testo (capitolato tipo MIT, delibera ANAC), citalo per esteso."
+        },
+        {
+            "index": 4,
+            "name": "Eseguito",
+            "format": "yes_no",
+            "prompt": "Risponde `Sì` se il documento prova in modo completo l'esecuzione dell'adempimento; `No` se l'adempimento è formalmente assente o incompleto; `Da verificare` se la prova è parziale (es. determina senza visto contabile o verbale senza firme)."
+        },
+        {
+            "index": 5,
+            "name": "Data atto",
+            "format": "date",
+            "prompt": "Data riportata sul documento (data adozione, data pubblicazione, data sottoscrizione — la più rilevante per l'adempimento) in formato ISO `YYYY-MM-DD`. Se più date sono presenti, scegli quella che fa decorrere il termine del passo successivo. Se non esplicitata, scrivi 'Non specificata'."
+        },
+        {
+            "index": 6,
+            "name": "Riferimento nel documento",
+            "format": "text",
+            "prompt": "Indica articolo/pagina/paragrafo da cui hai tratto la prova dell'adempimento (es. `art. 4 della determina`, `pag. 3 del verbale di gara`)."
+        },
+        {
+            "index": 7,
+            "name": "Criticità / Note",
+            "format": "bulleted_list",
+            "prompt": "Elenco puntato delle criticità rilevate sull'adempimento attestato: termini non rispettati, vizi formali (firma mancante, motivazione carente), vizi sostanziali (violazione di norma), gap rispetto al capitolato tipo MIT. Se nessuna criticità, scrivi 'Nessuna criticità rilevata'."
+        }
+    ]
+}

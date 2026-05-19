@@ -1,0 +1,70 @@
+{
+    "id": "builtin-pa-pnrr-milestone",
+    "title": "Verifica milestone PNRR",
+    "type": "tabular",
+    "domain": "pa",
+    "practice": "PA — PNRR e fondi UE",
+    "prompt_md": "## Obiettivo\nVerifica lo stato di avanzamento di milestone e target PNRR di un intervento (soggetto attuatore o beneficiario), attraverso i documenti probatori caricati. Ogni RIGA = UN documento (attestazione, SAL, certificato di collaudo, delibera, report di monitoraggio, ecc.); le COLONNE riconducono il documento alla milestone/target di pertinenza e ne misurano la copertura probatoria.\n\n## Riferimenti normativi\n- Reg. (UE) 2021/241 (RRF) e relativi atti delegati\n- D.L. 77/2021 conv. L. 108/2021 (governance PNRR Italia)\n- Circolari e linee guida RGS (MEF — Ragioneria Generale dello Stato)\n- Codici e tassonomia ReGiS\n\n## Stile\n- Risposte concise; cita SEMPRE il documento (`pag./art.`) e — quando applicabile — il codice ReGiS o la milestone/target ID PNRR.\n- Date in formato ISO `YYYY-MM-DD`; importi in `€ 1.234.567,00`.\n- Se il documento non si riferisce a una milestone PNRR identificabile, marca `Milestone/Target ID = Non pertinente` e segnala come gap nelle note.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Titolo documento",
+            "format": "text",
+            "prompt": "Titolo del documento come in copertina + un'etichetta sintetica fra parentesi quadre (es. 'Certificato di collaudo tecnico-amministrativo lavori Lotto A [collaudo]'). Una riga, no commento."
+        },
+        {
+            "index": 1,
+            "name": "Identificazione intervento (Missione/Componente/Investimento)",
+            "format": "text",
+            "prompt": "Indica Missione (M1–M6), Componente (es. M1C1) e Investimento o Riforma di riferimento (es. `M1C1 — Investimento 1.1 Digitalizzazione PA`). Se nel documento è esplicitato il CUP, riportarlo fra parentesi. Se l'intervento non è esplicitato, scrivi `Non specificato`."
+        },
+        {
+            "index": 2,
+            "name": "Milestone / Target ID",
+            "format": "text",
+            "prompt": "Identificativo della milestone o del target europeo (es. `M1C1-13`, `T-DIG-04`). Se il documento si riferisce a più ID, elencali separati da virgola. Se nessuno è esplicitato, scrivi `Non pertinente` e annota nelle note come gap di tracciabilità."
+        },
+        {
+            "index": 3,
+            "name": "Tipo",
+            "format": "tag",
+            "prompt": "Una sola etichetta tra: `milestone` (traguardo qualitativo) · `target` (traguardo quantitativo) · `entrambi` (documento che attesta sia milestone sia target) · `non_pertinente`."
+        },
+        {
+            "index": 4,
+            "name": "Scadenza UE",
+            "format": "date",
+            "prompt": "Scadenza europea della milestone/target in formato ISO `YYYY-MM-DD` (di norma fine trimestre — es. 2026-06-30). Se il documento non la cita, dedurla da fonti note (CID, Decisione UE, ReGiS) e marcarla con `(stimata)` accanto alla data. Se completamente assente, scrivi `Non specificata`."
+        },
+        {
+            "index": 5,
+            "name": "Documentazione probatoria richiesta",
+            "format": "bulleted_list",
+            "prompt": "Elenco puntato dei tipi di evidenza che il sistema di monitoraggio PNRR richiede per chiudere quella milestone/target (es. 'verbale di collaudo', 'attestazione di realizzazione fisica', 'certificazione di spesa SAL'). Basati su circolari RGS e check-list ReGiS."
+        },
+        {
+            "index": 6,
+            "name": "Documentazione disponibile / gap",
+            "format": "bulleted_list",
+            "prompt": "Per ciascun tipo di evidenza richiesto al punto precedente: il documento allegato lo copre (✓) o no (✗)? In caso negativo, esplicita il gap (es. '✗ manca attestazione del Responsabile Unico di Progetto')."
+        },
+        {
+            "index": 7,
+            "name": "Spese rendicontate",
+            "format": "monetary_amount",
+            "prompt": "Importo rendicontato nel documento (totale o per categoria), formato `€ 1.234.567,00`. Indica fra parentesi periodo e categoria di costo (es. `€ 250.000,00 (Q1-2026, lavori)`). Se il documento non rendiconta spese, scrivi `Non applicabile`. Verifica sempre l'ammissibilità (spese sostenute dopo il 01/02/2020, conformi Reg. UE 2021/241 e linee guida RGS); eventuali incongruenze vanno nelle Note."
+        },
+        {
+            "index": 8,
+            "name": "Rischio (semaforo)",
+            "format": "tag",
+            "prompt": "Una sola etichetta tra: `🔴 alto` (gap probatori bloccanti, ritardo > 90 gg., sospetto doppio finanziamento o irregolarità da segnalare OLAF) · `🟡 medio` (gap recuperabili, ritardo entro 90 gg.) · `🟢 basso` (documentazione completa, in tempo). Motiva in 1 frase nelle Note."
+        },
+        {
+            "index": 9,
+            "name": "Azione raccomandata",
+            "format": "text",
+            "prompt": "Azione concreta per chiudere il gap, con responsabile e termine (es. `Acquisire attestazione RUP entro 30/06/2026 — Resp. Unità di missione`). Se rischio = 🟢, scrivi `Nessuna azione richiesta`."
+        }
+    ]
+}

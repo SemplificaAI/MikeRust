@@ -216,6 +216,67 @@ mod tests {
         }
     }
 
+    /// Anchor the Pubblica Amministrazione presets shipped with the
+    /// `docs/pa-prompts.md` spec: the four Fase-1 priority workflows
+    /// (delibera, 241-check, appalto-review, ptpct) plus determina,
+    /// PNRR milestone and RUP checklist. Failure here means a
+    /// contributor renamed or deleted one of them, or the `pa` domain
+    /// itself disappeared from the canonical set.
+    #[test]
+    fn shipped_pa_workflows_present_and_typed() {
+        let dir = crate::presets::config_subdir("workflow-presets");
+        let presets = load_workflow_presets(&dir).expect("load");
+
+        // Domain must be canonical or the loader silently dropped the
+        // preset (validate_minimal rejects unknown domains).
+        assert!(
+            crate::domain::is_valid("pa"),
+            "`pa` must be in the canonical domain set for these presets to load"
+        );
+
+        let expected: [(&str, &str); 7] = [
+            ("builtin-pa-delibera", "assistant"),
+            ("builtin-pa-determina", "assistant"),
+            ("builtin-pa-appalto-review", "assistant"),
+            ("builtin-pa-rup-checklist", "tabular"),
+            ("builtin-pa-241-check", "assistant"),
+            ("builtin-pa-pnrr-milestone", "tabular"),
+            ("builtin-pa-ptpct", "assistant"),
+        ];
+        for (id, kind) in expected {
+            let preset = presets
+                .iter()
+                .find(|p| p.id == id)
+                .unwrap_or_else(|| panic!("PA preset must ship: {id}"));
+            assert_eq!(preset.domain, "pa", "{id} must be domain=pa");
+            assert_eq!(preset.kind, kind, "{id} must be type={kind}");
+            // Every PA preset belongs to one of the spec's five blocks
+            // and the practice string anchors that mapping in the UI.
+            let practice = preset.practice.as_deref().unwrap_or("");
+            assert!(
+                practice.starts_with("PA — "),
+                "{id} practice must start with 'PA — ': got {practice:?}"
+            );
+        }
+        // Sanity: the tabular ones must carry columns_config; the
+        // assistant ones must NOT (otherwise the picker mis-renders).
+        for p in presets.iter().filter(|p| p.domain == "pa") {
+            match p.kind.as_str() {
+                "tabular" => assert!(
+                    p.columns_config.as_ref().is_some_and(|c| !c.is_empty()),
+                    "tabular preset {} must have non-empty columns_config",
+                    p.id
+                ),
+                "assistant" => assert!(
+                    p.columns_config.is_none(),
+                    "assistant preset {} must NOT carry columns_config",
+                    p.id
+                ),
+                _ => {}
+            }
+        }
+    }
+
     /// Anchor the three NIS2 compliance presets shipped together with the
     /// `docs/nis2-prompts.md` spec — both an assistant workflow (linked
     /// to the docx template) and a tabular workflow for policy inventory.
