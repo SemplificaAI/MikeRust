@@ -5,40 +5,40 @@
         "it": "Svizzera — Fedlex",
         "en": "Switzerland — Fedlex"
     },
-    "description": "Fedlex / ELI svizzero. Fonte dichiarata per UI country-by-country; integrazione runtime non ancora attiva.",
+    "description": "Legislazione federale svizzera da Fedlex (endpoint SPARQL, ontologia JOLux). Ricerca per titolo e recupero del testo HTML multilingue (de/fr/it).",
     "homepage": "https://www.fedlex.admin.ch/",
     "languages": ["de", "fr", "it", "en"],
     "default_language": "it",
-    "supports_language_fallback": false,
+    "supports_language_fallback": true,
+    "fallback_language": "de",
     "identifier_label": "ELI IRI",
     "identifier_example": "https://fedlex.data.admin.ch/eli/cc/1999/404",
-    "enabled_by_default": false,
-    "available": false,
+    "enabled_by_default": true,
+    "available": true,
     "discovery": {
         "jurisdiction": "ch",
         "doc_types": ["legislation"],
         "auth": "public",
-        "search_mode": "sparql",
+        "search_mode": "free-text",
         "fetch_format": "html"
     },
-    "strategy": { "kind": "hf-dataset-bulk" },
+    "strategy": { "kind": "builtin", "builtin_id": "ch-fedlex" },
     "capabilities": {
-        "search": false,
-        "fetch": false,
-        "documents": false,
-        "documents_delete": false,
-        "documents_resync": false,
+        "search": true,
+        "fetch": true,
+        "documents": true,
+        "documents_delete": true,
+        "documents_resync": true,
         "embed_progress": false,
         "bulk_import": false,
-        "user_config": false
+        "user_config": true
     },
     "sources": [
         {
             "id": "fedlex",
             "display_name": "Fedlex",
-            "available": false,
-            "default_enabled": false,
-            "status_label": "in arrivo"
+            "available": true,
+            "default_enabled": true
         }
     ]
 }

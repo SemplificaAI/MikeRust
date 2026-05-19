@@ -781,6 +781,20 @@ pub fn build_adapter_registry(plugins: &[CorpusPlugin]) -> AdapterRegistry {
                 plugin.id
             );
             out.insert(plugin.id.clone(), Arc::new(adapter));
+        } else if let CorpusStrategy::Builtin { builtin_id } = &plugin.strategy {
+            // Builtin adapters that opt into the generic /corpora routes.
+            // EUR-Lex and Italian-Legal keep their dedicated routes and
+            // are intentionally NOT registered here.
+            if builtin_id == "ch-fedlex" {
+                tracing::info!(
+                    "[adapter-registry] registered FedlexAdapter for corpus {:?}",
+                    plugin.id
+                );
+                out.insert(
+                    plugin.id.clone(),
+                    Arc::new(crate::corpora::fedlex::FedlexAdapter::new()),
+                );
+            }
         }
     }
     out

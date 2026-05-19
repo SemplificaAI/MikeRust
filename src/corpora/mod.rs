@@ -14,6 +14,7 @@ use async_trait::async_trait;
 
 pub mod dila_bulk;
 pub mod eurlex;
+pub mod fedlex;
 pub mod italian_legal;
 pub mod manifest_adapter;
 pub mod plugin;

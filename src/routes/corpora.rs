@@ -426,6 +426,9 @@ async fn generic_search(
         crate::corpora::plugin::CorpusStrategy::HttpFetchPerId(spec) => {
             spec.search_by_keyword.is_some()
         }
+        // Builtin adapters in the registry (Fedlex) implement keyword
+        // search natively.
+        crate::corpora::plugin::CorpusStrategy::Builtin { .. } => true,
         _ => false,
     };
     let hits = if id == "de-gesetze" {

@@ -584,7 +584,7 @@ fn is_valid_iso639_1(s: &str) -> bool {
 
 /// Known builtin adapter ids. Keep in sync with the registry in
 /// `src/corpora/mod.rs` (when we add it).
-const KNOWN_BUILTINS: &[&str] = &["eurlex", "italian-legal-hf"];
+const KNOWN_BUILTINS: &[&str] = &["eurlex", "italian-legal-hf", "ch-fedlex"];
 
 fn is_known_builtin(id: &str) -> bool {
     KNOWN_BUILTINS.contains(&id)
