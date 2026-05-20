@@ -27,12 +27,12 @@
   end up with two MSIs in dist/, each carrying the right native DLLs
   next to the binary.
 
-  Cross-toolchain note: building both archs on the same Windows host
-  requires the corresponding MSVC build tools installed via the Visual
-  Studio Installer ("MSVC v143 - VS 2022 C++ x64/x86" and
-  "MSVC v143 - VS 2022 C++ ARM64/ARM64EC"). The script does not
-  check for those — `link.exe` failures with a "machine type" message
-  point at this if you see them.
+  Cross-toolchain: each build is launched through the matching
+  `VsDevCmd.bat -arch=<target> -host_arch=<host>` so the right
+  `cl.exe` / `link.exe` are on PATH regardless of how the caller's
+  shell was opened. The script auto-discovers Visual Studio via
+  `vswhere.exe` and fails fast with the exact workload id if the
+  required MSVC component isn't installed.
 
 .PARAMETER Target
   Which architecture(s) to build. Defaults to `both`.
@@ -90,7 +90,49 @@ $tripleByArch = @{
     'x64'   = 'x86_64-pc-windows-msvc'
     'arm64' = 'aarch64-pc-windows-msvc'
 }
+# VsDevCmd's `-arch` argument name (x64 is 'amd64' in VsDevCmd-speak).
+$vsArchByArch = @{
+    'x64'   = 'amd64'
+    'arm64' = 'arm64'
+}
+# The MSVC workload that ships the C/C++ build tools for each target.
+# vswhere will reject a VS install missing the required component, so we
+# surface a clear error pointing at the VS Installer instead of letting
+# link.exe fail with an opaque "machine type" message later.
+$workloadByArch = @{
+    'x64'   = 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
+    'arm64' = 'Microsoft.VisualStudio.Component.VC.Tools.ARM64'
+}
 $archesToBuild = if ($Target -eq 'both') { @('x64', 'arm64') } else { @($Target) }
+
+function Get-HostArch {
+    switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
+        'Arm64' { return 'arm64' }
+        'X64'   { return 'amd64' }
+        'X86'   { return 'x86' }
+        default { throw "Unsupported host architecture: $_" }
+    }
+}
+
+function Get-VsInstallPath {
+    [CmdletBinding()]
+    param([string[]]$Requires)
+    $vswhere = @(
+        "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe",
+        "${env:ProgramFiles}\Microsoft Visual Studio\Installer\vswhere.exe"
+    ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+    if (-not $vswhere) {
+        throw 'vswhere.exe not found. Install Visual Studio Build Tools 2022 (or newer) from https://visualstudio.microsoft.com/downloads/.'
+    }
+    $vswhereArgs = @('-latest', '-products', '*', '-property', 'installationPath')
+    foreach ($req in $Requires) { $vswhereArgs += @('-requires', $req) }
+    $path = & $vswhere @vswhereArgs
+    if (-not $path) {
+        throw ("No Visual Studio installation found with required component(s): {0}. " +
+               'Open Visual Studio Installer and add the missing workload.') -f ($Requires -join ', ')
+    }
+    return ($path | Select-Object -First 1).Trim()
+}
 
 # Pre-flight: every requested arch must have its rustc target installed.
 $installedTargets = (rustup target list --installed) -split "`n" | ForEach-Object { $_.Trim() }
@@ -149,11 +191,26 @@ function New-ResourcesOverlay {
     return $path
 }
 
+$hostArch = Get-HostArch
+Write-Host ("Host architecture: {0}" -f $hostArch) -ForegroundColor DarkGray
+
 $built = @()
 foreach ($arch in $archesToBuild) {
     $triple = $tripleByArch[$arch]
     Write-Host ''
     Write-Host "=== Build $arch ($triple) ===" -ForegroundColor Cyan
+
+    # 1. Locate the Visual Studio install that carries the C++ build
+    #    tools for this specific arch. Fails with a clear error if the
+    #    matching workload isn't installed — much better than letting
+    #    link.exe blow up later on a "machine type" mismatch.
+    $vsInstall = Get-VsInstallPath -Requires @($workloadByArch[$arch])
+    $vsDev = Join-Path $vsInstall 'Common7\Tools\VsDevCmd.bat'
+    if (-not (Test-Path $vsDev)) {
+        throw "VsDevCmd.bat not found at $vsDev (Visual Studio at $vsInstall)."
+    }
+    Write-Host ("VS install : {0}" -f $vsInstall) -ForegroundColor DarkGray
+    Write-Host ("VsDevCmd   : {0} -arch={1} -host_arch={2}" -f $vsDev, $vsArchByArch[$arch], $hostArch) -ForegroundColor DarkGray
 
     $bundleRoot = Join-Path $RepoRoot "target\$triple\release\bundle"
     if ($Clean -and (Test-Path $bundleRoot)) {
@@ -162,19 +219,22 @@ foreach ($arch in $archesToBuild) {
     }
 
     $overlay = New-ResourcesOverlay -Arch $arch
-    Write-Host "Overlay: $overlay" -ForegroundColor DarkGray
+    Write-Host "Overlay    : $overlay" -ForegroundColor DarkGray
 
-    # --bundles msi overrides the conf's `bundle.targets: "all"` so we
-    # skip the NSIS .exe. The base config plus the overlay together
-    # produce a single MSI with the matching arch DLLs bundled into
-    # <install>/resources/libs/<lib>/win-<arch>/.
-    & $tauriBin build `
-        --config $config `
-        --config $overlay `
-        --target $triple `
-        --bundles msi
+    # 2. Build the cmd-line we hand off to `cmd /c`. VsDevCmd.bat
+    #    primes PATH/INCLUDE/LIB/LIBPATH for the right cross-target,
+    #    then `tauri.CMD build` inherits them. Each arch gets a fresh
+    #    cmd subprocess so the env never leaks between iterations.
+    #    --bundles msi overrides the conf's `bundle.targets: "all"`
+    #    to skip the NSIS .exe; the base + overlay configs together
+    #    produce a single MSI with the matching arch DLLs bundled
+    #    into <install>/resources/libs/<lib>/win-<arch>/.
+    $cmdLine = '"{0}" -arch={1} -host_arch={2} -no_logo && "{3}" build --config "{4}" --config "{5}" --target {6} --bundles msi' -f `
+        $vsDev, $vsArchByArch[$arch], $hostArch, $tauriBin, $config, $overlay, $triple
+
+    & cmd.exe /c $cmdLine
     if ($LASTEXITCODE -ne 0) {
-        throw "tauri build failed for $triple (exit $LASTEXITCODE)"
+        throw "tauri build failed for $triple (exit $LASTEXITCODE). Check the cl.exe/link.exe output above for the failing step."
     }
 
     $msiSrcDir = Join-Path $bundleRoot 'msi'
