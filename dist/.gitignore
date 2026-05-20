@@ -1,0 +1,5 @@
+# Build artefacts produced by scripts/build-release.ps1 — never
+# committed. The directory itself is tracked (this .gitignore) so
+# the script can rely on it existing without an mkdir step.
+*
+!.gitignore

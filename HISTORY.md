@@ -12,6 +12,46 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — Build & dev launch scripts (`scripts/build-release.ps1`, `scripts/dev.ps1`)
+
+Two PowerShell scripts that replace the ad-hoc command lines we have
+been pasting into terminals all session.
+
+### Added
+
+- **`scripts/build-release.ps1`** — drives `tauri build --bundles msi`
+  twice, once per Windows target triple (`x86_64-pc-windows-msvc` and
+  `aarch64-pc-windows-msvc`), and collects the produced `.msi` files
+  into the top-level `dist/` directory. Each MSI is renamed with a
+  short `_x64` / `_arm64` suffix so the two architectures coexist
+  without clobbering each other. Parameters: `-Target` (`x64` /
+  `arm64` / `both`, default `both`), `-Clean` (wipe the per-triple
+  bundle dir first), `-FrontendInstall` (run `pnpm install
+  --frozen-lockfile` before the Rust build — useful in CI). Verifies
+  that the rustc targets are actually installed before kicking off a
+  long build.
+- **`scripts/dev.ps1`** — wraps `tauri dev` with the right config
+  pre-selected and the local `@tauri-apps/cli` resolved out of
+  `frontend/node_modules`. Optional `-LogTrace` switch sets
+  `RUST_LOG=mike=debug,info` for a richer backend trace.
+- **`dist/`** is now a tracked directory (carries its own
+  `.gitignore` that excludes everything but itself) so the build
+  script can rely on its existence and `git status` stays clean
+  after a build.
+
+### Caveat documented in the script header
+
+The runtime still needs `onnxruntime.dll` (matching the `ort` version
+pin) and `pdfium.dll` next to the installed binary for the RAG and
+PDF paths to work. Today these are **not** bundled via
+`tauri.bundle.resources` in `src-tauri/tauri.svelte.conf.json`, so the
+MSI installs only the application binary; post-install the operator
+has to drop the matching DLLs into the install folder by hand. The
+script's docstring points at `libs/onnxruntime/README.md` for the
+right version pairing.
+
+---
+
 ## 2026-05-20 — PDF viewer: serialize citation highlight against page rasterisation
 
 Opening a citation on a **long** source PDF often landed the user on
