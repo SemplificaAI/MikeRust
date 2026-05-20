@@ -12,6 +12,72 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — Auto-fetch native DLLs + bundle them into the MSI
+
+End-to-end: a clean checkout can now do `pnpm --dir frontend install`
+followed by `./scripts/build-release.ps1` and end up with two MSIs in
+`dist/` that **install with all native runtime DLLs already next to
+the binary**. Operator zero-touch.
+
+### Added
+
+- **`scripts/fetch-native-libs.ps1`** — downloads the pinned versions
+  of `onnxruntime` and `pdfium` for both Windows architectures and
+  places them under `libs/<lib>/win-<arch>/`. Pinned to:
+  - `onnxruntime 1.20.0` (matches `ort = "=2.0.0-rc.9"` per
+    `libs/onnxruntime/README.md`; cross-version DLL deadlocks
+    `TextEmbedding::try_new_from_user_defined` silently).
+  - `pdfium chromium/7834` (recent bblanchon prebuilt; pdfium-render
+    0.8+ binds dynamically through the stable `FPDF_*` C API).
+  Idempotent — existing DLLs are kept unless `-Force` is passed.
+  HEAD-checked every URL is alive (onnxruntime ≈ 62 MB / arch,
+  pdfium ≈ 3.5 MB / arch).
+
+### Changed
+
+- **`scripts/build-release.ps1`** auto-invokes the fetch script when a
+  target arch's DLLs are missing, then injects a per-arch
+  `bundle.resources` overlay via a second `--config` argument. Each
+  MSI bundles only the matching arch's DLLs (no double-arch payload).
+- **`src/pdf/mod.rs::load_pdfium`** primary lookup is now per-arch
+  (`libs/pdfium/win-x64/pdfium.dll` / `libs/pdfium/win-arm64/...`)
+  mirroring the onnxruntime layout. Legacy flat `libs/pdfium/pdfium.dll`
+  is kept as a fallback so pre-existing developer checkouts don't
+  break before they run the fetch script.
+- **`src/pdf/mod.rs` + `src/embeddings/service.rs`** lookups also
+  walk `<exe_dir>/resources/` — Tauri MSI installs land
+  `bundle.resources` files at `<install>/resources/<dest>`, so adding
+  that directory to the candidate bases means the existing
+  walker finds the bundled DLLs without any platform-specific
+  branching.
+
+### Install layout post-MSI
+
+```
+C:\Program Files\MikeRust\
+├── mike-tauri.exe
+└── resources\
+    └── libs\
+        ├── pdfium\win-<arch>\pdfium.dll
+        └── onnxruntime\win-<arch>\onnxruntime.dll
+```
+
+Both loaders now find the DLLs at first boot of the installed
+application — no manual operator step.
+
+### Tests
+
+`cargo test -p mike --lib` → **381/381** green (no test regressions
+from the loader changes; the existing
+`onnxruntime_subdir_and_filename_matches_compile_target`,
+`find_onnxruntime_dylib_*` and `build_execution_providers_*` cover
+the surface that moved).
+
+PowerShell scripts parse-checked via
+`[System.Management.Automation.Language.Parser]::ParseFile()`.
+
+---
+
 ## 2026-05-20 — Build & dev launch scripts (`scripts/build-release.ps1`, `scripts/dev.ps1`)
 
 Two PowerShell scripts that replace the ad-hoc command lines we have

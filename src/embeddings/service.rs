@@ -981,8 +981,19 @@ pub fn ensure_onnxruntime_dylib_path() {
         .and_then(|p| p.parent().map(|x| x.to_path_buf()));
     let cwd = std::env::current_dir().ok();
 
-    let starts: Vec<PathBuf> =
-        exe_dir.into_iter().chain(cwd.into_iter()).collect();
+    // Tauri MSI installs land at `<install>/mike-tauri.exe` with
+    // `bundle.resources` files staged under `<install>/resources/`.
+    // Including that directory as an additional start makes the
+    // walker find `<install>/resources/libs/onnxruntime/<sub>/<file>`
+    // without any platform-specific branching.
+    let exe_resources =
+        exe_dir.as_ref().map(|d| d.join("resources"));
+    let starts: Vec<PathBuf> = exe_dir
+        .clone()
+        .into_iter()
+        .chain(exe_resources.into_iter())
+        .chain(cwd.into_iter())
+        .collect();
 
     match find_onnxruntime_dylib(&starts, dir, file) {
         Some(path) => {

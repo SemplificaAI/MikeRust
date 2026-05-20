@@ -20,14 +20,21 @@ const OCR_FALLBACK_THRESHOLD: usize = 10;
 ///
 /// Looks (in order):
 ///   1. `$PDFIUM_DYNAMIC_LIB_PATH` if set (explicit override).
-///   2. `<exe_dir>/libs/pdfium/`
-///   3. `<cwd>/libs/pdfium/`
-///   4. Each ancestor of `<cwd>` ending in `libs/pdfium/`, up to filesystem root.
-///   5. Each ancestor of `<exe_dir>` ending in `libs/pdfium/`, up to filesystem root.
+///   2. `<exe_dir>/libs/pdfium/<arch>/` and `<exe_dir>/resources/libs/pdfium/<arch>/`
+///      (Tauri MSI install: `bundle.resources` staged under `resources/`).
+///   3. `<cwd>/libs/pdfium/<arch>/`
+///   4. The legacy flat `<base>/libs/pdfium/` path (no arch subdir), so a
+///      pre-existing developer checkout that downloaded the wrong layout
+///      doesn't immediately break.
+///   5. Ancestor walk: each ancestor of `<cwd>` and `<exe_dir>` checked for
+///      `libs/pdfium/<arch>/` first, then the legacy flat path.
 ///
-/// Steps 4-5 cover the common Tauri-dev layout where the binary lives at
-/// `target/debug/mike-tauri.exe` and the DLL sits at `<workspace>/libs/pdfium/`,
-/// neither directly under cwd nor exe_dir.
+/// Steps 2–4 cover the bundled-MSI layout (`scripts/fetch-native-libs.ps1`
+/// populates `libs/pdfium/win-x64/` and `libs/pdfium/win-arm64/`; the
+/// `scripts/build-release.ps1` bundle.resources overlay carries only the
+/// matching arch into the install). Step 5 still covers the
+/// `target/debug/mike-tauri.exe` dev layout where the DLL lives at
+/// `<workspace>/libs/pdfium/<arch>/` further up the tree.
 #[cfg(feature = "pdf")]
 fn load_pdfium() -> Result<Pdfium> {
     #[cfg(target_os = "windows")]
@@ -36,6 +43,23 @@ fn load_pdfium() -> Result<Pdfium> {
     const DLL_NAME: &str = "libpdfium.so";
     #[cfg(target_os = "macos")]
     const DLL_NAME: &str = "libpdfium.dylib";
+
+    /// Per-process compile target → matching subdirectory name for the
+    /// vendored DLL tree. Mirrors `embeddings::service::onnxruntime_subdir_and_filename`.
+    const ARCH_SUB: &str = {
+        #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+        { "win-x64" }
+        #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+        { "win-arm64" }
+        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+        { "linux-x64" }
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        { "linux-aarch64" }
+        #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
+        { "macos-x64" }
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        { "macos-arm64" }
+    };
 
     fn try_load(dir: &std::path::Path) -> Option<Pdfium> {
         let dll = dir.join(DLL_NAME);
@@ -65,17 +89,38 @@ fn load_pdfium() -> Result<Pdfium> {
         .ok()
         .and_then(|p| p.parent().map(|x| x.to_path_buf()));
     let cwd = std::env::current_dir().ok();
+    // Tauri MSI install layout: `bundle.resources` files land in
+    // `<install>/resources/` next to `<install>/mike-tauri.exe`.
+    let exe_resources = exe_dir.as_ref().map(|d| d.join("resources"));
 
-    // 2 & 3.
-    for base in exe_dir.iter().chain(cwd.iter()) {
+    let bases: Vec<&std::path::Path> = exe_dir
+        .as_deref()
+        .into_iter()
+        .chain(exe_resources.as_deref().into_iter())
+        .chain(cwd.as_deref().into_iter())
+        .collect();
+
+    // 2 & 3: per-arch lookup first.
+    for base in &bases {
+        let arch_dir = base.join("libs").join("pdfium").join(ARCH_SUB);
+        if let Some(p) = try_load(&arch_dir) {
+            return Ok(p);
+        }
+    }
+    // 4: legacy flat layout (pre-arch-subdir checkouts).
+    for base in &bases {
         if let Some(p) = try_load(&base.join("libs").join("pdfium")) {
             return Ok(p);
         }
     }
 
-    // 4 & 5: walk ancestors of cwd, then exe_dir.
+    // 5: ancestor walk — per-arch first, legacy flat as last resort.
     for base in cwd.iter().chain(exe_dir.iter()) {
         for ancestor in base.ancestors() {
+            let arch_dir = ancestor.join("libs").join("pdfium").join(ARCH_SUB);
+            if let Some(p) = try_load(&arch_dir) {
+                return Ok(p);
+            }
             if let Some(p) = try_load(&ancestor.join("libs").join("pdfium")) {
                 return Ok(p);
             }
@@ -83,10 +128,11 @@ fn load_pdfium() -> Result<Pdfium> {
     }
 
     Err(anyhow!(
-        "pdfium library not found. Download {DLL_NAME} from \
-         https://github.com/bblanchon/pdfium-binaries/releases (use the \
-         windows-arm64 build on Snapdragon X Elite) and place it under \
-         libs/pdfium/ at the project root, or set $PDFIUM_DYNAMIC_LIB_PATH."
+        "pdfium library not found. Run `./scripts/fetch-native-libs.ps1` \
+         to download the matching binary into libs/pdfium/{}/{}, or set \
+         $PDFIUM_DYNAMIC_LIB_PATH explicitly.",
+        ARCH_SUB,
+        DLL_NAME
     ))
 }
 
