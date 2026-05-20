@@ -12,6 +12,44 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-20 — PDF viewer: serialize citation highlight against page rasterisation
+
+Opening a citation on a **long** source PDF often landed the user on
+the top of the document instead of on the cited page, with no
+highlight. Cause: a race between the page-by-page render loop and the
+highlight effect. `loading` only covers the initial PDF fetch; once
+that resolves, the per-page rasterisation (canvas + text layer) keeps
+running asynchronously for seconds. The highlight effect fired the
+moment the user-supplied `quote` / `page` props arrived, scanned an
+empty or partial `pagesEl`, found nothing, and silently no-op'd.
+
+### Fixed
+
+- **New `renderInProgress` reactive flag** in
+  [PdfView.svelte](frontend/src/lib/components/documents/PdfView.svelte).
+  `renderAll` flips it `true` at the start and `false` in a `finally`
+  block — only the latest render (`token === renderToken`) clears it,
+  so an aborted older pass can't race the new one. The flag is the
+  promise-based "document fully painted" signal Svelte already had in
+  hand (every `pageObj.render(...).promise` and `TextLayer.render()`
+  return promises the loop awaits); we just expose its derivative as
+  reactive state.
+- **Highlight effect gates on both `loading` AND `renderInProgress`**.
+  The effect re-fires automatically on the `true → false` transition,
+  so an early citation click is honoured the moment the document is
+  actually paintable — no `setTimeout`, no polling.
+- **`renderAll` no longer calls `applyHighlight` directly** at its end.
+  Removing that direct invocation lets the reactive effect be the
+  single source of truth: same wake-up signal, no duplicate scrolls.
+- **`applyHighlight` falls back to a page-scroll even without a quote
+  match.** Citations that carry only `page` (KB chunks where verbatim
+  text was lost in re-flow / page-break) used to silently do nothing;
+  now they at least scroll the viewport to the right page.
+
+`pnpm typecheck` → 0 errors / 0 warnings.
+
+---
+
 ## 2026-05-20 — Gemini wire payload: explicit `safetySettings` + per-model `thinkingConfig`
 
 Our `gemini.rs` was sending neither `safetySettings` nor a

@@ -31,6 +31,12 @@
   let currentPage = $state(1)
   let gotoValue = $state('')
   let loading = $state(true)
+  /** True while `renderAll` is still rasterising pages into `pagesEl`.
+   *  On long PDFs the page-by-page rasterisation can outlast `loading`
+   *  (which only covers the initial document fetch) by seconds. The
+   *  highlight effect gates on this so it doesn't scan an empty / partial
+   *  DOM and silently no-op when the user clicks a citation early. */
+  let renderInProgress = $state(false)
   let err = $state<string | null>(null)
   let scrollEl: HTMLDivElement
   let pagesEl: HTMLDivElement
@@ -63,64 +69,79 @@
   async function renderAll() {
     const token = ++renderToken
     if (!pagesEl || !pdfDoc) return
-    pagesEl.innerHTML = ''
-    for (let p = 1; p <= numPages; p++) {
-      if (token !== renderToken) return
-      const pageObj = await pdfDoc.getPage(p)
-      const viewport = pageObj.getViewport({ scale })
+    renderInProgress = true
+    try {
+      pagesEl.innerHTML = ''
+      for (let p = 1; p <= numPages; p++) {
+        if (token !== renderToken) return
+        const pageObj = await pdfDoc.getPage(p)
+        const viewport = pageObj.getViewport({ scale })
 
-      const wrap = document.createElement('div')
-      wrap.className = 'pdf-page relative shadow-(--shadow-card) bg-white'
-      wrap.style.width = `${viewport.width}px`
-      wrap.style.height = `${viewport.height}px`
-      wrap.style.margin = '0 auto 12px'
-      wrap.dataset.page = String(p)
+        const wrap = document.createElement('div')
+        wrap.className = 'pdf-page relative shadow-(--shadow-card) bg-white'
+        wrap.style.width = `${viewport.width}px`
+        wrap.style.height = `${viewport.height}px`
+        wrap.style.margin = '0 auto 12px'
+        wrap.dataset.page = String(p)
 
-      const canvas = document.createElement('canvas')
-      canvas.width = viewport.width
-      canvas.height = viewport.height
-      canvas.style.width = `${viewport.width}px`
-      canvas.style.height = `${viewport.height}px`
-      wrap.appendChild(canvas)
+        const canvas = document.createElement('canvas')
+        canvas.width = viewport.width
+        canvas.height = viewport.height
+        canvas.style.width = `${viewport.width}px`
+        canvas.style.height = `${viewport.height}px`
+        wrap.appendChild(canvas)
 
-      const textDiv = document.createElement('div')
-      textDiv.className = 'pdf-text-layer'
-      textDiv.style.setProperty('--scale-factor', String(scale))
-      textDiv.style.width = `${viewport.width}px`
-      textDiv.style.height = `${viewport.height}px`
-      wrap.appendChild(textDiv)
+        const textDiv = document.createElement('div')
+        textDiv.className = 'pdf-text-layer'
+        textDiv.style.setProperty('--scale-factor', String(scale))
+        textDiv.style.width = `${viewport.width}px`
+        textDiv.style.height = `${viewport.height}px`
+        wrap.appendChild(textDiv)
 
-      pagesEl.appendChild(wrap)
+        pagesEl.appendChild(wrap)
 
-      const ctx = canvas.getContext('2d')
-      if (ctx) await pageObj.render({ canvasContext: ctx, viewport }).promise
+        const ctx = canvas.getContext('2d')
+        if (ctx) await pageObj.render({ canvasContext: ctx, viewport }).promise
 
-      const layer = new TextLayer({
-        textContentSource: pageObj.streamTextContent(),
-        container: textDiv,
-        viewport,
-      })
-      await layer.render()
+        const layer = new TextLayer({
+          textContentSource: pageObj.streamTextContent(),
+          container: textDiv,
+          viewport,
+        })
+        await layer.render()
+      }
+    } finally {
+      // Only the LATEST render's finally flips the flag back — an
+      // aborted older pass (token mismatch) must leave the signal in
+      // the new pass's hands. The reactive effect at the bottom will
+      // re-fire on the transition `true → false` and run the
+      // highlight against the now-fully-rendered DOM.
+      if (token === renderToken) renderInProgress = false
     }
-    if (token === renderToken) applyHighlight()
   }
 
   function applyHighlight() {
-    if (!quote || !pagesEl) return
+    if (!pagesEl) return
     const hint = pageHint()
-    const order: HTMLElement[] = []
-    const all = Array.from(pagesEl.querySelectorAll<HTMLElement>('.pdf-text-layer'))
-    if (hint && all[hint - 1]) order.push(all[hint - 1])
-    for (const l of all) if (!order.includes(l)) order.push(l)
+    if (quote) {
+      const order: HTMLElement[] = []
+      const all = Array.from(pagesEl.querySelectorAll<HTMLElement>('.pdf-text-layer'))
+      if (hint && all[hint - 1]) order.push(all[hint - 1])
+      for (const l of all) if (!order.includes(l)) order.push(l)
 
-    for (const layer of order) {
-      const mark = highlightCitation(layer, quote, PAGE_BREAK_SENTINEL)
-      if (mark) {
-        mark.classList.add('doc-hl-flash')
-        mark.scrollIntoView({ block: 'center', behavior: 'smooth' })
-        return
+      for (const layer of order) {
+        const mark = highlightCitation(layer, quote, PAGE_BREAK_SENTINEL)
+        if (mark) {
+          mark.classList.add('doc-hl-flash')
+          mark.scrollIntoView({ block: 'center', behavior: 'smooth' })
+          return
+        }
       }
     }
+    // Fallback: scroll to the hinted page even when the quote-search
+    // missed (or no quote was supplied). Without this, citations that
+    // carry only `page` (KB chunks where the verbatim text was lost in
+    // re-flow) silently did nothing.
     if (hint) {
       const pageEl = pagesEl.querySelector<HTMLElement>(`.pdf-page[data-page="${hint}"]`)
       pageEl?.scrollIntoView({ block: 'start', behavior: 'smooth' })
@@ -219,11 +240,19 @@
     return () => window.removeEventListener('keydown', onKey, true)
   })
 
-  // Re-run the highlight pass when the tab is re-targeted to a new quote.
+  // Re-run the highlight pass whenever the tab is re-targeted to a new
+  // quote/page AND the renderer has finished painting the pages it has
+  // to scan. Gating on `renderInProgress` (not just `loading`) is what
+  // closes the long-PDF race: `loading` only covers the initial fetch,
+  // while `renderInProgress` outlives it by however many seconds the
+  // page-by-page rasterisation takes. The effect re-fires on the
+  // `true → false` transition, so an early citation click is honoured
+  // the moment the document is actually paintable.
   $effect(() => {
     void revision
     void quote
-    if (!loading) applyHighlight()
+    void renderInProgress
+    if (!loading && !renderInProgress) applyHighlight()
   })
 
   const fitBtn =
