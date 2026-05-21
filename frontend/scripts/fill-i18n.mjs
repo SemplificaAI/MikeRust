@@ -66,6 +66,11 @@ const T = {
   'Settings.mcpServers': { fr: 'Serveurs MCP', de: 'MCP-Server', es: 'Servidores MCP', pt: 'Servidores MCP' },
   'Settings.dataSources': { fr: 'Sources de données', de: 'Datenquellen', es: 'Fuentes de datos', pt: 'Fontes de dados' },
   'Settings.dangerZone': { fr: 'Zone sensible', de: 'Gefahrenzone', es: 'Zona de peligro', pt: 'Zona de perigo' },
+  'Settings.domains': { fr: 'Domaines', de: 'Domänen', es: 'Dominios', pt: 'Domínios' },
+  'Settings.domainsHint': { fr: "Désactivez les domaines que vous n'utilisez pas pour les masquer des sélecteurs et filtres dans toute l'application. Au moins un domaine doit rester activé.", de: 'Deaktivieren Sie die Fachgebiete, die Sie nicht nutzen, um sie aus Auswahlfeldern und Filtern in der gesamten Anwendung auszublenden. Mindestens ein Bereich muss aktiv bleiben.', es: 'Desactiva los sectores que no usas para ocultarlos de los selectores y filtros en toda la aplicación. Al menos un dominio debe permanecer activo.', pt: 'Desative os setores que não usa para os ocultar de seletores e filtros em toda a aplicação. Pelo menos um domínio deve permanecer ativo.' },
+  'Settings.enabledDomainsSaved': { fr: 'Domaines mis à jour', de: 'Domänen aktualisiert', es: 'Dominios actualizados', pt: 'Domínios atualizados' },
+  'Settings.enabledDomainsError': { fr: 'Impossible de mettre à jour les domaines', de: 'Domänen konnten nicht aktualisiert werden', es: 'No se han podido actualizar los dominios', pt: 'Não foi possível atualizar os domínios' },
+  'Settings.atLeastOneDomain': { fr: 'Au moins un domaine doit rester activé', de: 'Mindestens eine Domäne muss aktiv bleiben', es: 'Al menos un dominio debe permanecer activo', pt: 'Pelo menos um domínio deve permanecer ativo' },
 
   'Workflows.restoredToast': { fr: '« {title} » restauré', de: '„{title}“ wiederhergestellt', es: '«{title}» restaurado', pt: '“{title}” restaurado' },
   'Workflows.hiddenToast': { fr: '« {title} » masqué', de: '„{title}“ ausgeblendet', es: '«{title}» ocultado', pt: '“{title}” ocultado' },

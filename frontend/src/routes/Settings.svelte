@@ -10,25 +10,39 @@
   import ModelsSection from '$lib/components/settings/ModelsSection.svelte'
   import McpSection from '$lib/components/settings/McpSection.svelte'
   import DataSourcesSection from '$lib/components/settings/DataSourcesSection.svelte'
+  import DomainsSection from '$lib/components/settings/DomainsSection.svelte'
   import DangerZoneSection from '$lib/components/settings/DangerZoneSection.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
 
-  type SectionId = 'profile' | 'security' | 'models' | 'mcp' | 'data' | 'danger'
+  type SectionId = 'profile' | 'security' | 'models' | 'mcp' | 'data' | 'domains' | 'danger'
+
+  /**
+   * Visual grouping for the sub-nav. Order = render order; a hairline
+   * separator is drawn between any two consecutive entries whose `group`
+   * field differs. Groups (top to bottom):
+   *   - account   — who you are (profile, security)
+   *   - content   — what the app shows (domains, data sources)
+   *   - ai        — how the assistant reasons (LLM models, MCP servers)
+   *   - danger    — destructive, deliberately isolated
+   */
+  type SectionGroup = 'account' | 'content' | 'ai' | 'danger'
 
   interface SectionEntry {
     id: SectionId
     labelKey: string
+    group: SectionGroup
     ready: boolean
   }
 
   const sections: SectionEntry[] = [
-    { id: 'profile', labelKey: 'Account.profile', ready: true },
-    { id: 'security', labelKey: 'Account.security', ready: true },
-    { id: 'models', labelKey: 'Settings.llmModels', ready: true },
-    { id: 'mcp', labelKey: 'Settings.mcpServers', ready: true },
-    { id: 'data', labelKey: 'Settings.dataSources', ready: true },
-    { id: 'danger', labelKey: 'Settings.dangerZone', ready: true },
+    { id: 'profile',  labelKey: 'Account.profile',     group: 'account', ready: true },
+    { id: 'security', labelKey: 'Account.security',    group: 'account', ready: true },
+    { id: 'domains',  labelKey: 'Settings.domains',    group: 'content', ready: true },
+    { id: 'data',     labelKey: 'Settings.dataSources', group: 'content', ready: true },
+    { id: 'models',   labelKey: 'Settings.llmModels',  group: 'ai',      ready: true },
+    { id: 'mcp',      labelKey: 'Settings.mcpServers', group: 'ai',      ready: true },
+    { id: 'danger',   labelKey: 'Settings.dangerZone', group: 'danger',  ready: true },
   ]
 
   let active = $state<SectionId>('profile')
@@ -39,7 +53,13 @@
 
   <div class="flex gap-8 items-start">
     <nav class="w-44 shrink-0 flex flex-col gap-0.5">
-      {#each sections as s (s.id)}
+      {#each sections as s, i (s.id)}
+        {#if i > 0 && s.group !== sections[i - 1].group}
+          <div
+            class="h-px my-1.5 mx-3 bg-(--color-surface-200)"
+            aria-hidden="true"
+          ></div>
+        {/if}
         <button
           type="button"
           disabled={!s.ready}
@@ -71,6 +91,8 @@
         <McpSection />
       {:else if active === 'data'}
         <DataSourcesSection />
+      {:else if active === 'domains'}
+        <DomainsSection />
       {:else if active === 'danger'}
         <DangerZoneSection />
       {:else}

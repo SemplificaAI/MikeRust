@@ -1162,7 +1162,12 @@
     "resetWithBiometric": "Restablecer con biometría",
     "usePinInstead": "Usar el PIN actual en su lugar",
     "pinResetReason": "Verifica tu identidad para restablecer el PIN",
-    "pinResetHint": "Si no recuerdas tu PIN actual, puedes establecer uno nuevo verificándote con Windows Hello / Touch ID."
+    "pinResetHint": "Si no recuerdas tu PIN actual, puedes establecer uno nuevo verificándote con Windows Hello / Touch ID.",
+    "domains": "Dominios",
+    "domainsHint": "Desactiva los sectores que no usas para ocultarlos de los selectores y filtros en toda la aplicación. Al menos un dominio debe permanecer activo.",
+    "enabledDomainsSaved": "Dominios actualizados",
+    "enabledDomainsError": "No se han podido actualizar los dominios",
+    "atLeastOneDomain": "Al menos un dominio debe permanecer activo"
   },
   "ColumnFormats": {
     "free_text": "Texto libre",

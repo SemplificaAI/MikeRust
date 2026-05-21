@@ -22,6 +22,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/llm-settings", get(get_llm_settings).put(update_llm_settings))
         .route("/locale", get(get_locale).put(update_locale))
         .route("/default-domain", get(get_default_domain).put(update_default_domain))
+        .route("/enabled-domains", get(get_enabled_domains).put(update_enabled_domains))
         .route("/account", delete(delete_account))
         .route("/mcp-servers", get(list_mcp_servers).post(upsert_mcp_server))
         .route("/mcp-servers/probe", axum::routing::post(probe_mcp_server))
@@ -136,6 +137,92 @@ async fn update_default_domain(
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     Ok(Json(json!({ "ok": true, "default_domain": body.default_domain })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /user/enabled-domains  →  { enabled_domains: ["legal", …] | null }
+// PUT /user/enabled-domains  body { enabled_domains: ["legal", …] }
+//
+// User preference for the subset of professional verticals visible in
+// the app. Stored as a JSON array of canonical English IDs in
+// `user_settings.enabled_domains`. NULL = "no explicit preference" =
+// every domain is visible (backwards-compatible default). The PUT
+// handler collapses an explicit "all 10 enabled" payload back to NULL
+// so a user resetting the preference doesn't leave a permanent
+// snapshot of the current shipped domain set in the DB.
+// ---------------------------------------------------------------------------
+async fn get_enabled_domains(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+) -> ApiResult {
+    let row: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT enabled_domains FROM user_settings WHERE user_id = ?",
+    )
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let parsed: Option<Value> = row
+        .and_then(|(s,)| s)
+        .and_then(|s| serde_json::from_str::<Value>(&s).ok());
+    Ok(Json(json!({ "enabled_domains": parsed })))
+}
+
+#[derive(Deserialize)]
+struct UpdateEnabledDomainsBody {
+    enabled_domains: Vec<String>,
+}
+
+async fn update_enabled_domains(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Json(body): Json<UpdateEnabledDomainsBody>,
+) -> ApiResult {
+    if body.enabled_domains.is_empty() {
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "enabled_domains must contain at least one domain",
+        ));
+    }
+    for d in &body.enabled_domains {
+        if !crate::domain::is_valid(d) {
+            return Err(err(
+                StatusCode::BAD_REQUEST,
+                &format!("'{d}' is not a canonical domain id"),
+            ));
+        }
+    }
+    // Dedup while preserving caller order, then collapse the all-enabled
+    // case to NULL so the DB doesn't pin the current shipped set.
+    let mut seen = std::collections::HashSet::new();
+    let mut domains: Vec<String> = Vec::with_capacity(body.enabled_domains.len());
+    for d in body.enabled_domains {
+        if seen.insert(d.clone()) {
+            domains.push(d);
+        }
+    }
+    let store_as: Option<String> = if domains.len() == crate::domain::DOMAINS.len() {
+        None
+    } else {
+        Some(serde_json::to_string(&domains).map_err(|e| {
+            err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
+        })?)
+    };
+    sqlx::query(
+        "INSERT INTO user_settings (user_id, enabled_domains, updated_at) \
+         VALUES (?, ?, datetime('now')) \
+         ON CONFLICT(user_id) DO UPDATE SET enabled_domains = excluded.enabled_domains, \
+             updated_at = datetime('now')",
+    )
+    .bind(&auth.user_id)
+    .bind(&store_as)
+    .execute(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    Ok(Json(json!({
+        "ok": true,
+        "enabled_domains": if store_as.is_some() { json!(domains) } else { Value::Null },
+    })))
 }
 
 // ---------------------------------------------------------------------------

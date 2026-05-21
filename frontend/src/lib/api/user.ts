@@ -37,6 +37,16 @@ export const userApi = {
       body: { default_domain },
     }),
 
+  /** `null` = no explicit preference (every domain enabled). */
+  getEnabledDomains: () =>
+    api<{ enabled_domains: Domain[] | null }>('/user/enabled-domains'),
+
+  updateEnabledDomains: (enabled_domains: Domain[]) =>
+    api<{ ok: boolean; enabled_domains: Domain[] | null }>('/user/enabled-domains', {
+      method: 'PUT',
+      body: { enabled_domains },
+    }),
+
   getLlmSettings: () => api<LlmSettings>('/user/llm-settings'),
 
   /** Patch semantics: omit fields to leave them unchanged. */
