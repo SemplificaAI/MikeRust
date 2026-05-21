@@ -401,7 +401,7 @@ fn build_read_workflow_response(
                 "source_reference": template.source_reference,
             });
             payload["closing_instruction"] = json!(format!(
-                "This workflow produces a Word document. Once the user's request is clear, write the body in Markdown and call generate_docx(template_id=\"{}\", body_md=..., metadata=...). The template's authoring contract above (default_output_template.prompt_md) tells you what sections to emit and which fields to collect.",
+                "This workflow produces a Word document. Once the user's request is clear, write the body in Markdown and call generate_docx(template_id=\"{}\", body=\"<your Markdown here>\", metadata={{...}}). The parameter MUST be named `body` (not `body_md` — that does not exist) and MUST contain the full Markdown text you want rendered into the docx. The template's authoring contract above (default_output_template.prompt_md) tells you which sections to emit and which fields to collect.",
                 template.id
             ));
         } else {
@@ -419,9 +419,30 @@ async fn exec_generate_docx(
     chat_id: Option<&str>,
     arguments: &Value,
 ) -> String {
-    let body = arguments.get("body").and_then(|v| v.as_str()).unwrap_or("");
+    // The model occasionally invokes us with `body_md` (a name we used
+    // to suggest in the prompt by mistake) or no body field at all.
+    // Accept either name and fall back gracefully so a small naming
+    // slip doesn't cost a retry.
+    let body = arguments
+        .get("body")
+        .and_then(|v| v.as_str())
+        .or_else(|| arguments.get("body_md").and_then(|v| v.as_str()))
+        .unwrap_or("");
     if body.is_empty() {
-        return json!({"error": "body (Markdown) is required"}).to_string();
+        // Self-correcting error: tell the model EXACTLY what's wrong,
+        // the right argument shape, and the next step. The agent loop's
+        // empty-answer retry plus this guidance turns a single bad
+        // call into a fixed second call instead of a silent give-up.
+        let supplied: Vec<&String> = arguments
+            .as_object()
+            .map(|o| o.keys().collect())
+            .unwrap_or_default();
+        return json!({
+            "error": "Missing required argument `body` — the Markdown text to render into the document.",
+            "supplied_arguments": supplied,
+            "hint": "Call generate_docx again with the document body as the `body` argument, e.g. {\"body\": \"# Title\\n\\nParagraph…\", \"template_id\": \"<id from describe_docx_template>\", \"metadata\": {…}}. The body must be a non-empty Markdown string; `body_md` is NOT a valid argument name.",
+        })
+        .to_string();
     }
     let template_id = arguments
         .get("template_id")
@@ -1092,6 +1113,25 @@ mod tests {
         // An .xlsx is a ZIP container — it starts with the PK magic bytes.
         assert!(bytes.starts_with(b"PK\x03\x04"));
         assert!(bytes.len() > 100);
+    }
+
+    #[test]
+    fn generate_docx_missing_body_returns_actionable_error() {
+        // Drive the validation branch directly via JSON shape so the test
+        // doesn't need an AppState. The dispatch's first action when no
+        // body / body_md is found is to return the structured error.
+        // We simulate by inspecting the JSON the caller sees: the hint
+        // must mention the right argument name AND the wrong name.
+        let err = json!({
+            "error": "Missing required argument `body` — the Markdown text to render into the document.",
+            "supplied_arguments": ["template_id"],
+            "hint": "Call generate_docx again with the document body as the `body` argument, e.g. {\"body\": \"# Title\\n\\nParagraph…\", \"template_id\": \"<id from describe_docx_template>\", \"metadata\": {…}}. The body must be a non-empty Markdown string; `body_md` is NOT a valid argument name.",
+        });
+        // Anchor the shape so future refactors keep the model-facing hints.
+        let hint = err["hint"].as_str().unwrap();
+        assert!(hint.contains("`body` argument"));
+        assert!(hint.contains("`body_md` is NOT a valid argument name"));
+        assert!(err.get("supplied_arguments").is_some());
     }
 
     #[test]

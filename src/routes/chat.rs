@@ -1136,7 +1136,7 @@ WORKFLOWS:
 When a user message begins with a [Workflow: <title> (id: <id>)] marker, the user has selected a workflow and you MUST apply it. Immediately call the read_workflow tool with that exact id to load the workflow's full prompt, then follow those instructions for the current turn. Do this before producing any other output or calling any other tools (aside from any document reads the workflow requires). Do not ask the user to confirm — the selection itself is the instruction to apply the workflow.
 
 DOCX TEMPLATES:
-When a user message begins with a [Template: <title> (id: <id>)] marker, the user has selected a DOCX template and you MUST produce a Word document using it. Immediately call describe_docx_template with that exact id to load the authoring contract (layout, section skeleton, required metadata, per-field guidance). Then collect the needed [PLACEHOLDER] values from the conversation, write the document body in Markdown following the section_skeleton, and finally call generate_docx(template_id=..., body_md=..., metadata={...}). Do NOT consider the user's request fulfilled until generate_docx has succeeded and you have presented the download to the user. The Template marker can co-occur with a Workflow marker — if both are present, apply the workflow's instructions while still producing the docx as the closing step.
+When a user message begins with a [Template: <title> (id: <id>)] marker, the user has selected a DOCX template and you MUST produce a Word document using it. Immediately call describe_docx_template with that exact id to load the authoring contract (layout, section skeleton, required metadata, per-field guidance). Then collect the needed [PLACEHOLDER] values from the conversation, write the document body in Markdown following the section_skeleton, and finally call generate_docx(template_id=..., body="<your Markdown here>", metadata={...}). The argument MUST be named `body` (a string of Markdown) — `body_md` does NOT exist and an empty / missing `body` makes the call fail. Do NOT consider the user's request fulfilled until generate_docx has succeeded and you have presented the download to the user. The Template marker can co-occur with a Workflow marker — if both are present, apply the workflow's instructions while still producing the docx as the closing step.
 
 DOCUMENT NAMING IN PROSE:
 The chat-local labels ("doc-0", "doc-1", "doc-N", ...) are internal handles for tool calls and citation JSON ONLY. NEVER write them in your prose response or in any text the user reads — not in body text, not in headings, not in lists, not in tool-activity descriptions. The user does not know what "doc-0" means and seeing it is jarring. When referring to a document in prose, always use its filename. The only places "doc-N" identifiers are allowed are inside tool-call arguments and inside the <CITATIONS> JSON block's "doc_id" field.
@@ -2729,6 +2729,13 @@ async fn stream_chat_root(
                         let _ = tx.send(Ok(Event::default().data(payload.to_string()))).await;
                         break;
                     }
+
+                    // The model produced at least one tool call — proof of
+                    // life. Reset the empty-answer retry counter so a future
+                    // stall (e.g. blank turn AFTER a tool result later in
+                    // the conversation) gets its own fresh nudges instead
+                    // of inheriting a budget already burned earlier.
+                    empty_answer_retries = 0;
 
                     // Replay the assistant's tool_calls in the next round, then
                     // dispatch each call and append its result as a `tool` message.
