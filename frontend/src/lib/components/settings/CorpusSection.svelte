@@ -527,8 +527,8 @@
             {#each hits as hit (hit.id)}
               <li class="flex items-center gap-3 px-3 py-2 border border-(--color-surface-200) rounded-(--radius-md)">
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm text-(--color-text-primary) truncate">{hit.title}</p>
-                  <p class="text-xs text-(--color-text-secondary) font-mono truncate">{hit.sub}</p>
+                  <p class="text-sm text-(--color-text-primary) truncate" title={hit.title}>{hit.title}</p>
+                  <p class="text-xs text-(--color-text-secondary) font-mono truncate" title={hit.sub}>{hit.sub}</p>
                   {#if indexJobs[hit.id]?.state === 'running'}
                     <div class="mt-2">
                       <Progress value={null} size="sm" />
