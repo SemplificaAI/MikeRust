@@ -142,16 +142,16 @@
     error: '',
   })
 
-  async function openPreview(hit: Hit) {
+  async function openPreview(identifier: string, fallbackTitle: string) {
     preview.open = true
     preview.loading = true
-    preview.title = hit.title
+    preview.title = fallbackTitle
     preview.text = ''
     preview.sourceUrl = ''
     preview.error = ''
     try {
-      const r = await genericCorpusApi(corpus.id).preview(hit.id)
-      preview.title = r.title || hit.title
+      const r = await genericCorpusApi(corpus.id).preview(identifier)
+      preview.title = r.title || fallbackTitle
       preview.text = r.text
       preview.sourceUrl = r.source_url ?? ''
     } catch (e) {
@@ -586,7 +586,7 @@
                   size="sm"
                   variant="ghost"
                   label={t('Corpora.viewText')}
-                  onclick={() => openPreview(hit)}
+                  onclick={() => openPreview(hit.id, hit.title)}
                 >
                   <Eye size={14} />
                 </IconButton>
@@ -628,6 +628,16 @@
                 </p>
               </div>
               <Badge tone={doc.status === 'ready' ? 'success' : 'neutral'} size="xs">{doc.status}</Badge>
+              {#if doc.corpus_identifier}
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  label={t('Corpora.viewText')}
+                  onclick={() => openPreview(doc.corpus_identifier!, doc.filename)}
+                >
+                  <Eye size={14} />
+                </IconButton>
+              {/if}
               <IconButton label={t('Corpora.removeDoc')} size="sm" variant="danger"
                 onclick={() => removeDoc(doc)}>
                 <Trash2 size={14} />
