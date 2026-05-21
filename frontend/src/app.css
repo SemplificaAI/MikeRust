@@ -226,21 +226,56 @@ body {
   transform-box: fill-box;
   transform-origin: center;
 }
-/* While MikeRust is busy, the bottom-right square pulses small→large→small. */
-.mike-logo-thinking .mike-logo-corner,
-.mike-logo-docx .mike-logo-corner,
-.mike-logo-upload .mike-logo-corner {
-  animation: mike-logo-pulse 1.3s ease-in-out infinite;
+/*
+ * Three-phase pulse over the same 2.1s cycle:
+ *   phase 1 [0%-33%]  — cells 5, 6, 8, 9 (the bottom-right 2×2 quad)
+ *   phase 2 [33%-66%] — cell 9 alone (the corner spark)
+ *   phase 3 [66%-100%]— all nine cells together
+ * Each cell rests at scale(0.78) and peaks at scale(1.08) only during
+ * the phase(s) it belongs to; the keyframes are aligned so the corner
+ * (which participates in every phase) stays in sync with the quad and
+ * the full board when they join.
+ */
+.mike-logo-thinking .mike-logo-tier-corner,
+.mike-logo-docx     .mike-logo-tier-corner,
+.mike-logo-upload   .mike-logo-tier-corner {
+  animation: mike-logo-pulse-corner 2.1s ease-in-out infinite;
 }
-@keyframes mike-logo-pulse {
-  0%, 100% { transform: scale(0.78); }
-  50% { transform: scale(1.08); }
+.mike-logo-thinking .mike-logo-tier-quad,
+.mike-logo-docx     .mike-logo-tier-quad,
+.mike-logo-upload   .mike-logo-tier-quad {
+  animation: mike-logo-pulse-quad   2.1s ease-in-out infinite;
+}
+.mike-logo-thinking .mike-logo-tier-rest,
+.mike-logo-docx     .mike-logo-tier-rest,
+.mike-logo-upload   .mike-logo-tier-rest {
+  animation: mike-logo-pulse-rest   2.1s ease-in-out infinite;
+}
+/* Cell 9 — pulses in all three phases. */
+@keyframes mike-logo-pulse-corner {
+  0%,    8%,    25%,
+  41.5%, 58.5%,
+  75%,   91.5%, 100% { transform: scale(0.78); }
+  16.5%, 50%,   83%  { transform: scale(1.08); }
+}
+/* Cells 5, 6, 8 — pulse with the quad in phase 1 and again with everyone in phase 3. */
+@keyframes mike-logo-pulse-quad {
+  0%,    8%,    25%,
+  75%,   91.5%, 100% { transform: scale(0.78); }
+  16.5%, 83%         { transform: scale(1.08); }
+}
+/* Cells 1, 2, 3, 4, 7 — quiet until phase 3, then pulse once with the full board. */
+@keyframes mike-logo-pulse-rest {
+  0%,    75%,   91.5%, 100% { transform: scale(0.78); }
+  83%                       { transform: scale(1.08); }
 }
 /* Activity colour: rust (default) → blue (docx) → green (upload). */
 .mike-logo-docx { filter: hue-rotate(198deg) saturate(1.05); }
 .mike-logo-upload { filter: hue-rotate(95deg) saturate(0.95); }
 @media (prefers-reduced-motion: reduce) {
-  .mike-logo-corner { animation: none; }
+  .mike-logo-tier-corner,
+  .mike-logo-tier-quad,
+  .mike-logo-tier-rest { animation: none; }
 }
 
 /* ── Citation pills ──────────────────────────────────────────────── */
