@@ -166,6 +166,12 @@ pub async fn mask_pii(
         let total = chunks.len();
         let tasks = vec![SchemaTask::Entities(owned_labels)];
         let mut all_entities: Vec<ExtractedEntity> = Vec::new();
+        let pass_started_at = std::time::Instant::now();
+        tracing::info!(
+            "[ner] PII pass started — {} chunk(s) over {} chars",
+            total,
+            text_owned.len()
+        );
         for (i, chunk) in chunks.iter().enumerate() {
             // Tick BEFORE the inference so the UI shows "1/N starting"
             // immediately rather than after the first chunk finishes
@@ -174,6 +180,13 @@ pub async fn mask_pii(
                 cb(i + 1, total);
             }
             let chunk_text = &text_owned[chunk.start..chunk.end];
+            let chunk_started_at = std::time::Instant::now();
+            tracing::info!(
+                "[ner] chunk {}/{} → extracting ({} chars)",
+                i + 1,
+                total,
+                chunk.end - chunk.start
+            );
             // gliner2-rs `extract` takes (text, tasks, Option<params>).
             // We pass `None` so the engine uses its default
             // InferenceParams (threshold 0.5, flat_ner false). Future
@@ -181,8 +194,20 @@ pub async fn mask_pii(
             let (entities, _r, _c) = engine
                 .extract(chunk_text, &tasks, None)
                 .map_err(|e| anyhow!("gliner2 extract failed on chunk: {e:?}"))?;
+            tracing::info!(
+                "[ner] chunk {}/{} ✓ {} entities in {:?}",
+                i + 1,
+                total,
+                entities.len(),
+                chunk_started_at.elapsed()
+            );
             all_entities.extend(entities);
         }
+        tracing::info!(
+            "[ner] PII pass done — {} entities total in {:?}",
+            all_entities.len(),
+            pass_started_at.elapsed()
+        );
         Ok(redact_by_text(&text_owned, &all_entities))
     })
     .await
