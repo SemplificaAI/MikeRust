@@ -57,31 +57,31 @@
   let workflow = $state<WorkflowRef | null>(null)
   let template = $state<TemplateRef | null>(null)
 
-  // PII protection state. The per-file checkbox toggles
-  // `f.piiProtected`; the first time the user turns one on (in any
-  // chat, app-wide) we surface a disclaimer explaining the blackbox
-  // nature of GLiNER2 and pointing at edito-pdf.com / Omissis for
-  // production-grade redaction. Acknowledgement is sticky in
-  // localStorage — the user sees it once until they clear the
-  // browser cache or open a fresh install.
-  const PII_ACK_KEY = 'mikerust:pii-disclaimer-ack'
+  // PII protection state. The disclaimer fires on the first PII
+  // toggle after the user OPENS a chat — any chat, new or old. As
+  // soon as they switch to a different chat the ack resets and the
+  // warning fires again on the next toggle. That keeps the user
+  // honest about the blackbox caveat for each new conversation;
+  // it's a session-style confirmation, not a one-time onboarding.
+  let piiAcked = $state(false)
   let piiDisclaimerOpen = $state(false)
   let pendingPiiFile = $state<FileRef | null>(null)
 
-  function piiAcked(): boolean {
-    try {
-      return localStorage.getItem(PII_ACK_KEY) === '1'
-    } catch {
-      return false
-    }
-  }
+  // Reset the ack whenever the active chat changes (including
+  // null → some id when a fresh chat is selected for the first
+  // time). Reading `chatStore.activeId` inside an effect makes the
+  // dependency tracked: each switch triggers a fresh ack window.
+  $effect(() => {
+    void chatStore.activeId
+    piiAcked = false
+  })
 
   function applyPiiToggle(f: FileRef, next: boolean) {
     files = files.map((x) => (x === f ? { ...x, piiProtected: next } : x))
   }
 
   function onPiiToggle(f: FileRef, next: boolean) {
-    if (next && !piiAcked()) {
+    if (next && !piiAcked) {
       pendingPiiFile = f
       piiDisclaimerOpen = true
       return
@@ -90,11 +90,7 @@
   }
 
   function ackPiiDisclaimer() {
-    try {
-      localStorage.setItem(PII_ACK_KEY, '1')
-    } catch {
-      /* private mode etc. — the disclaimer just shows again next time */
-    }
+    piiAcked = true
     if (pendingPiiFile) {
       applyPiiToggle(pendingPiiFile, true)
       pendingPiiFile = null
