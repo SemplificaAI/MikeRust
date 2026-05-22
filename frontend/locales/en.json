@@ -528,6 +528,16 @@
     "addTagsPlural": "Add tags…",
     "autoGenerate": "Auto-generate"
   },
+  "ChatInput": {
+    "pii": {
+      "tooltip": "Strip personal data (names, emails, fiscal codes, IBAN…) from this file before it reaches the model",
+      "disclaimerTitle": "Heads up about PII protection",
+      "disclaimerBody": "PII protection runs a black-box AI model that scans the file's extracted text and replaces personal-data spans (names, emails, fiscal codes, IBAN, …) with placeholders before the document is sent to the model. The detector can be imprecise: some entities may slip through unfiltered and reach the LLM anyway.",
+      "omissisHintPrefix": "For production-grade, audited redaction we recommend Omissis, available at ",
+      "omissisHintSuffix": ".",
+      "acknowledge": "I understand, continue"
+    }
+  },
   "DocViewer": {
     "citation": "Citation",
     "trackedChange": "Tracked Change",

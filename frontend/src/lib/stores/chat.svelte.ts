@@ -49,7 +49,12 @@ function toOutgoing(m: ChatMessage): OutgoingMessage {
     ...(m.workflow ? { workflow: m.workflow } : {}),
     ...(m.template ? { template: m.template } : {}),
     ...(m.files && m.files.length
-      ? { files: m.files.map((f) => ({ document_id: f.document_id })) }
+      ? {
+          files: m.files.map((f) => ({
+            document_id: f.document_id,
+            ...(f.piiProtected ? { pii_protected: true } : {}),
+          })),
+        }
       : {}),
   }
 }

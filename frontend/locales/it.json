@@ -528,6 +528,16 @@
     "addTagsPlural": "Aggiungi tag…",
     "autoGenerate": "Genera automaticamente"
   },
+  "ChatInput": {
+    "pii": {
+      "tooltip": "Rimuovi i dati personali (nomi, email, codici fiscali, IBAN…) da questo file prima che arrivi al modello",
+      "disclaimerTitle": "Avviso sulla protezione PII",
+      "disclaimerBody": "La protezione PII usa un modello AI blackbox che analizza il testo estratto dal file e sostituisce i dati personali (nomi, email, codici fiscali, IBAN, …) con segnaposto prima che il documento sia inviato al modello. Il rilevamento può essere impreciso: alcune entità potrebbero sfuggire al filtro e raggiungere comunque l'LLM.",
+      "omissisHintPrefix": "Per una redazione di livello produttivo e auditata consigliamo Omissis, disponibile su ",
+      "omissisHintSuffix": ".",
+      "acknowledge": "Ho capito, continua"
+    }
+  },
   "DocViewer": {
     "citation": "Citazione",
     "trackedChange": "Modifica tracciata",

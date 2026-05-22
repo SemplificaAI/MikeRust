@@ -1188,5 +1188,15 @@
     "done": "Traducción completada",
     "error": "Error de traducción",
     "progress": "Traduciendo… {done}/{total}"
+  },
+  "ChatInput": {
+    "pii": {
+      "tooltip": "Quita los datos personales (nombres, correos, códigos fiscales, IBAN…) de este archivo antes de que llegue al modelo",
+      "disclaimerTitle": "Aviso sobre la protección de PII",
+      "disclaimerBody": "La protección PII usa un modelo de IA de caja negra que analiza el texto extraído del archivo y sustituye los datos personales (nombres, correos, códigos fiscales, IBAN…) por marcadores antes de que el documento se envíe al modelo. La detección puede ser imprecisa: algunas entidades podrían escapar al filtro y llegar de todos modos al LLM.",
+      "omissisHintPrefix": "Para una redacción de nivel productivo y auditada recomendamos Omissis, disponible en ",
+      "omissisHintSuffix": ".",
+      "acknowledge": "Entendido, continuar"
+    }
   }
 }

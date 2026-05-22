@@ -7,6 +7,7 @@
 <script lang="ts">
   import Button from '$lib/components/ui/Button.svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
+  import Modal from '$lib/components/ui/Modal.svelte'
   import PickerModal from '$lib/components/ui/PickerModal.svelte'
   import type { PickerItem } from '$lib/components/ui/PickerModal.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
@@ -52,6 +53,56 @@
   let files = $state<FileRef[]>([])
   let workflow = $state<WorkflowRef | null>(null)
   let template = $state<TemplateRef | null>(null)
+
+  // PII protection state. The per-file checkbox toggles
+  // `f.piiProtected`; the first time the user turns one on (in any
+  // chat, app-wide) we surface a disclaimer explaining the blackbox
+  // nature of GLiNER2 and pointing at edito-pdf.com / Omissis for
+  // production-grade redaction. Acknowledgement is sticky in
+  // localStorage — the user sees it once until they clear the
+  // browser cache or open a fresh install.
+  const PII_ACK_KEY = 'mikerust:pii-disclaimer-ack'
+  let piiDisclaimerOpen = $state(false)
+  let pendingPiiFile = $state<FileRef | null>(null)
+
+  function piiAcked(): boolean {
+    try {
+      return localStorage.getItem(PII_ACK_KEY) === '1'
+    } catch {
+      return false
+    }
+  }
+
+  function applyPiiToggle(f: FileRef, next: boolean) {
+    files = files.map((x) => (x === f ? { ...x, piiProtected: next } : x))
+  }
+
+  function onPiiToggle(f: FileRef, next: boolean) {
+    if (next && !piiAcked()) {
+      pendingPiiFile = f
+      piiDisclaimerOpen = true
+      return
+    }
+    applyPiiToggle(f, next)
+  }
+
+  function ackPiiDisclaimer() {
+    try {
+      localStorage.setItem(PII_ACK_KEY, '1')
+    } catch {
+      /* private mode etc. — the disclaimer just shows again next time */
+    }
+    if (pendingPiiFile) {
+      applyPiiToggle(pendingPiiFile, true)
+      pendingPiiFile = null
+    }
+    piiDisclaimerOpen = false
+  }
+
+  function cancelPiiDisclaimer() {
+    pendingPiiFile = null
+    piiDisclaimerOpen = false
+  }
   let project = $state<{ id: string; name: string; domain?: string } | null>(null)
 
   // A chat that lives in a project auto-attaches that project: the chip
@@ -280,10 +331,29 @@
     <div class="flex flex-wrap gap-1.5 px-3 pt-3">
       {#each files as f (f.document_id)}
         <Badge tone="neutral">
-          {f.filename ?? f.document_id}
-          <button class="ml-1" aria-label="Remove" onclick={() => (files = files.filter((x) => x !== f))}>
-            <X size={10} />
-          </button>
+          <span class="inline-flex items-center gap-1.5">
+            <label
+              class="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide
+                     cursor-pointer select-none"
+              title={t('ChatInput.pii.tooltip')}
+            >
+              PII
+              <input
+                type="checkbox"
+                class="h-3 w-3 accent-(--color-brand-500) cursor-pointer"
+                checked={f.piiProtected ?? false}
+                onchange={(e) => onPiiToggle(f, (e.currentTarget as HTMLInputElement).checked)}
+              />
+            </label>
+            <span class="truncate max-w-48">{f.filename ?? f.document_id}</span>
+            <button
+              class="ml-0.5"
+              aria-label={t('Common.delete')}
+              onclick={() => (files = files.filter((x) => x !== f))}
+            >
+              <X size={10} />
+            </button>
+          </span>
         </Badge>
       {/each}
       {#if project}
@@ -423,6 +493,38 @@
     {/if}
   </div>
 </div>
+
+<!-- One-shot PII disclaimer: fires the first time the user turns
+     on the per-file PII checkbox; acknowledgement is sticky in
+     localStorage so they don't see it every time. Cancel reverts
+     the pending toggle; Acknowledge applies it and remembers the ack. -->
+<Modal
+  bind:open={piiDisclaimerOpen}
+  size="md"
+  title={t('ChatInput.pii.disclaimerTitle')}
+  onclose={cancelPiiDisclaimer}
+>
+  <div class="space-y-3 text-sm text-(--color-text-primary) leading-relaxed">
+    <p>{t('ChatInput.pii.disclaimerBody')}</p>
+    <p class="text-(--color-text-secondary)">
+      {t('ChatInput.pii.omissisHintPrefix')}
+      <a
+        href="https://edito-pdf.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-(--color-brand-600) underline hover:text-(--color-brand-700)"
+      >edito-pdf.com</a>{t('ChatInput.pii.omissisHintSuffix')}
+    </p>
+  </div>
+  {#snippet footer()}
+    <Button size="sm" variant="ghost" onclick={cancelPiiDisclaimer}>
+      {t('Common.cancel')}
+    </Button>
+    <Button size="sm" onclick={ackPiiDisclaimer}>
+      {t('ChatInput.pii.acknowledge')}
+    </Button>
+  {/snippet}
+</Modal>
 
 <PickerModal
   bind:open={pickerOpen}

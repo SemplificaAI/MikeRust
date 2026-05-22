@@ -28,6 +28,11 @@ export interface FileRef {
   document_id: string
   /** client-side only — for rendering the attachment chip. */
   filename?: string
+  /** When true, the backend runs the file's extracted text through
+   *  GLiNER2 PII redaction (`crate::ner::mask_pii`) before stuffing
+   *  it into the LLM payload. Toggled by the per-file checkbox in
+   *  the chat composer chip. Default false. */
+  piiProtected?: boolean
 }
 
 /**
@@ -72,5 +77,6 @@ export interface OutgoingMessage {
   content: string
   workflow?: WorkflowRef
   template?: TemplateRef
-  files?: { document_id: string }[]
+  /** Per-file flags travel snake_case to match the Rust handler. */
+  files?: { document_id: string; pii_protected?: boolean }[]
 }
