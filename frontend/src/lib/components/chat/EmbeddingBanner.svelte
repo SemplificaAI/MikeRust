@@ -58,6 +58,14 @@
   // lifecycle matters more than the (often parallel) embedding work.
   // Otherwise fall back to the embedding-pipeline status.
   const message = $derived.by(() => {
+    if (ner?.state === 'downloading') {
+      const mb = Math.round((ner.downloaded / 1_048_576) * 10) / 10
+      if (ner.total && ner.total > 0) {
+        const totalMb = Math.round((ner.total / 1_048_576) * 10) / 10
+        return `${t('NerStatus.downloading', { file: ner.file })} (${mb}/${totalMb} MB)`
+      }
+      return `${t('NerStatus.downloading', { file: ner.file })} (${mb} MB)`
+    }
     if (ner?.state === 'loading') return t('NerStatus.loadingModel')
     if (ner?.state === 'failed') return t('NerStatus.failed', { error: ner.error })
     if (model?.state === 'downloading') {

@@ -1207,6 +1207,7 @@
   },
   "NerStatus": {
     "loadingModel": "PII-Modell (GLiNER2) wird geladen — der erste Start lädt ~500 MB herunter",
-    "failed": "PII-Modell-Fehler: {error}"
+    "failed": "PII-Modell-Fehler: {error}",
+    "downloading": "PII-Modell wird heruntergeladen — {file}"
   }
 }

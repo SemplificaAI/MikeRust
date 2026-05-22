@@ -53,6 +53,7 @@ export type ModelStatus =
  */
 export type NerStatus =
   | { state: 'idle' | 'loading' | 'ready' | 'unavailable' }
+  | { state: 'downloading'; downloaded: number; total: number | null; file: string }
   | { state: 'failed'; error: string }
 
 export const syncApi = {

@@ -662,7 +662,8 @@
     "failedTitle": "Caricamento modello fallito"
   },
   "NerStatus": {
-    "loadingModel": "Caricamento modello PII (GLiNER2) — al primo utilizzo scarica ~500 MB",
+    "downloading": "Download modello PII — {file}",
+    "loadingModel": "Caricamento modello PII (GLiNER2) — inizializzazione sessioni ONNX",
     "failed": "Modello PII fallito: {error}"
   },
   "DocxTemplates": {

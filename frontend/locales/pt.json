@@ -1207,6 +1207,7 @@
   },
   "NerStatus": {
     "loadingModel": "A carregar o modelo PII (GLiNER2) — na primeira execução transfere ~500 MB",
-    "failed": "Falha do modelo PII: {error}"
+    "failed": "Falha do modelo PII: {error}",
+    "downloading": "A transferir o modelo PII — {file}"
   }
 }

@@ -1207,6 +1207,7 @@
   },
   "NerStatus": {
     "loadingModel": "Chargement du modèle PII (GLiNER2) — le premier lancement télécharge ~500 Mo",
-    "failed": "Échec du modèle PII : {error}"
+    "failed": "Échec du modèle PII : {error}",
+    "downloading": "Téléchargement du modèle PII — {file}"
   }
 }

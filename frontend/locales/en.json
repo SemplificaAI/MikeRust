@@ -662,7 +662,8 @@
     "failedTitle": "Embedding model failed to load"
   },
   "NerStatus": {
-    "loadingModel": "Loading PII model (GLiNER2) — first run downloads ~500 MB",
+    "downloading": "Downloading PII model — {file}",
+    "loadingModel": "Loading PII model (GLiNER2) — building ONNX sessions",
     "failed": "PII model failed: {error}"
   },
   "DocxTemplates": {
