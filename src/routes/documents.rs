@@ -44,6 +44,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/{id}/text", get(display_document))
         .route("/{id}/download", get(download_document))
         .route("/{id}/url", get(get_document_url))
+        .route("/{id}/transcript", get(get_document_transcript))
         .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
 }
 
@@ -583,4 +584,311 @@ async fn delete_document(
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
     Ok(Json(json!({ "ok": true })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /document/:id/transcript
+//
+// Joins the indexed chunks of a document back into a single body of
+// text. For audio documents transcribed via whisper.cpp, each whisper
+// segment is stamped with a `[T MM:SS]\n` marker (mirror of the
+// `[Page N]\n` PDF marker) at index time; we parse those markers out,
+// dedupe by start_ms (chunks overlap by ~200 tokens, so the same
+// segment appears in multiple chunks), and return both the
+// concatenated text and a structured segment list with timestamps.
+//
+// Non-audio documents return `segments: []` and `text` = chunks joined
+// in chunk_index order with overlap stripped via longest-suffix /
+// longest-prefix overlap heuristic. Useful for "show me the indexed
+// content of this PDF" preview too, not just audio.
+//
+// Permissions: enforced via the `user_id` predicate on doc_chunks.
+// ---------------------------------------------------------------------------
+async fn get_document_transcript(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+) -> ApiResult {
+    // Ownership guard: confirm the document exists and is owned by
+    // this user before touching doc_chunks. The chunks table is
+    // partition-keyed by user_id so the SELECT below is already safe,
+    // but the explicit check gives us a clean 404 vs an empty body.
+    let owner: Option<(String,)> = sqlx::query_as(
+        "SELECT id FROM documents WHERE id = ? AND user_id = ?",
+    )
+    .bind(&id)
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    if owner.is_none() {
+        return Err(err(StatusCode::NOT_FOUND, "Document not found"));
+    }
+
+    // Chunks ordered by chunk_index. We project just the text + page
+    // because that's all the transcript join needs; embeddings stay
+    // server-side.
+    let rows: Vec<(i64, String, Option<i64>)> = sqlx::query_as(
+        "SELECT chunk_index, text, page FROM doc_chunks \
+         WHERE user_id = ? AND document_id = ? \
+         ORDER BY chunk_index ASC",
+    )
+    .bind(&auth.user_id)
+    .bind(&id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    if rows.is_empty() {
+        return Ok(Json(json!({
+            "text": "",
+            "segments": Vec::<Value>::new(),
+            "duration_ms": 0u64,
+        })));
+    }
+
+    // Parse `[T MM:SS]` or `[T HH:MM:SS]` segment markers out of each
+    // chunk's text. Returns Vec<(start_ms, segment_text)>. Markers we
+    // can't parse are skipped silently — the surrounding text just
+    // becomes part of the previous segment.
+    let mut segments: std::collections::BTreeMap<u64, String> =
+        std::collections::BTreeMap::new();
+    let mut any_audio_marker = false;
+    for (_idx, text, _page) in &rows {
+        for seg in extract_audio_segments(text) {
+            any_audio_marker = true;
+            // First occurrence wins; later overlapping chunks usually
+            // truncate the segment at their window edge.
+            segments.entry(seg.start_ms).or_insert(seg.text);
+        }
+    }
+
+    if any_audio_marker {
+        // Audio document — return segments with sequential end_ms
+        // computed from the next segment's start (last segment has
+        // end = start + 0 fallback; the viewer treats end_ms <=
+        // start_ms as "play to end of file").
+        let entries: Vec<(u64, String)> = segments.into_iter().collect();
+        let mut segs_json = Vec::with_capacity(entries.len());
+        let mut joined = String::new();
+        for (i, (start_ms, text)) in entries.iter().enumerate() {
+            let end_ms = entries
+                .get(i + 1)
+                .map(|(next_start, _)| *next_start)
+                .unwrap_or(*start_ms);
+            segs_json.push(json!({
+                "start_ms": start_ms,
+                "end_ms": end_ms,
+                "text": text,
+            }));
+            if !joined.is_empty() {
+                joined.push('\n');
+            }
+            joined.push_str(&format!(
+                "[T {:02}:{:02}]\n{}",
+                start_ms / 60_000,
+                (start_ms / 1000) % 60,
+                text
+            ));
+        }
+        let duration_ms = entries.last().map(|(s, _)| *s).unwrap_or(0);
+        Ok(Json(json!({
+            "text": joined,
+            "segments": segs_json,
+            "duration_ms": duration_ms,
+        })))
+    } else {
+        // Non-audio document — join chunks in chunk_index order with
+        // a simple longest-common-overlap trim so the ~200-token
+        // overlap between adjacent chunks doesn't duplicate paragraphs
+        // in the rendered preview.
+        let mut joined = String::new();
+        for (_idx, text, _page) in rows {
+            if joined.is_empty() {
+                joined.push_str(&text);
+            } else {
+                let overlap = longest_overlap(&joined, &text, 256);
+                if overlap > 0 {
+                    joined.push_str(&text[overlap..]);
+                } else {
+                    joined.push('\n');
+                    joined.push_str(&text);
+                }
+            }
+        }
+        Ok(Json(json!({
+            "text": joined,
+            "segments": Vec::<Value>::new(),
+            "duration_ms": 0u64,
+        })))
+    }
+}
+
+/// A single whisper segment parsed from a chunk's text.
+struct AudioSegment {
+    start_ms: u64,
+    text: String,
+}
+
+/// Scan `chunk_text` for `[T MM:SS]` or `[T HH:MM:SS]` markers and
+/// return the segment after each (up to the next marker or end of
+/// string). Tolerant of CRLF, surrounding whitespace, and the marker
+/// being mid-chunk (the chunker's overlap can place a marker anywhere).
+fn extract_audio_segments(chunk_text: &str) -> Vec<AudioSegment> {
+    let bytes = chunk_text.as_bytes();
+    // Find every `[T ` occurrence; for each, parse `(\d{1,2}:)?\d{1,2}:\d{2}\]`.
+    let mut markers: Vec<(usize, usize, u64)> = Vec::new(); // (marker_start, marker_end_exclusive, start_ms)
+    let mut i = 0;
+    while i + 4 <= bytes.len() {
+        if bytes[i] == b'[' && bytes[i + 1] == b'T' && bytes[i + 2] == b' ' {
+            let inner_start = i + 3;
+            let mut j = inner_start;
+            // Read digits and colons up to ']'.
+            while j < bytes.len() && bytes[j] != b']' {
+                let c = bytes[j];
+                if !(c.is_ascii_digit() || c == b':' || c == b' ') {
+                    break;
+                }
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b']' {
+                if let Ok(time_str) = std::str::from_utf8(&bytes[inner_start..j]) {
+                    if let Some(ms) = parse_ts(time_str.trim()) {
+                        markers.push((i, j + 1, ms));
+                    }
+                }
+                i = j + 1;
+                continue;
+            }
+        }
+        i += 1;
+    }
+    if markers.is_empty() {
+        return Vec::new();
+    }
+    let mut out = Vec::with_capacity(markers.len());
+    for (k, (_start, end, ms)) in markers.iter().enumerate() {
+        let next = markers.get(k + 1).map(|(s, _, _)| *s).unwrap_or(bytes.len());
+        let text = chunk_text[*end..next].trim().to_string();
+        if !text.is_empty() {
+            out.push(AudioSegment {
+                start_ms: *ms,
+                text,
+            });
+        }
+    }
+    out
+}
+
+/// Parse `MM:SS` or `HH:MM:SS` into milliseconds. Returns None on
+/// malformed input.
+fn parse_ts(s: &str) -> Option<u64> {
+    let parts: Vec<&str> = s.split(':').collect();
+    let (h, m, sec) = match parts.len() {
+        2 => (0u64, parts[0].parse::<u64>().ok()?, parts[1].parse::<u64>().ok()?),
+        3 => (
+            parts[0].parse::<u64>().ok()?,
+            parts[1].parse::<u64>().ok()?,
+            parts[2].parse::<u64>().ok()?,
+        ),
+        _ => return None,
+    };
+    Some(((h * 3600) + (m * 60) + sec) * 1000)
+}
+
+/// Longest suffix of `a` that is a prefix of `b`, capped at `cap`. Used
+/// to deduplicate chunk-overlap when joining non-audio chunks for the
+/// preview. Linear-ish on the overlap window — fine for our chunk
+/// sizes (~800 tokens, overlap ~200).
+///
+/// Anything below `MIN_OVERLAP` is treated as a no-match: a real chunk
+/// seam shares hundreds of characters (200-token overlap ≈ 800 bytes
+/// for typical Italian/English text), while a single-letter "match"
+/// is just an accidental seam of unrelated text and would garble the
+/// preview if we trusted it.
+fn longest_overlap(a: &str, b: &str, cap: usize) -> usize {
+    const MIN_OVERLAP: usize = 16;
+    let limit = cap.min(a.len()).min(b.len());
+    if limit < MIN_OVERLAP {
+        return 0;
+    }
+    let a_tail = &a[a.len() - limit..];
+    let a_bytes = a_tail.as_bytes();
+    let b_bytes = b.as_bytes();
+    for k in (MIN_OVERLAP..=limit).rev() {
+        if a_bytes[limit - k..] == b_bytes[..k]
+            && b.is_char_boundary(k)
+            && a_tail.is_char_boundary(limit - k)
+        {
+            return k;
+        }
+    }
+    0
+}
+
+#[cfg(test)]
+mod transcript_tests {
+    use super::*;
+
+    #[test]
+    fn parse_ts_handles_mm_ss() {
+        assert_eq!(parse_ts("14:32"), Some(14 * 60_000 + 32_000));
+    }
+
+    #[test]
+    fn parse_ts_handles_hh_mm_ss() {
+        assert_eq!(parse_ts("01:14:32"), Some(3600_000 + 14 * 60_000 + 32_000));
+    }
+
+    #[test]
+    fn extract_segments_simple() {
+        let chunk = "[T 00:00]\nBuongiorno.\n[T 00:05]\nIl mio nome è Mario.";
+        let segs = extract_audio_segments(chunk);
+        assert_eq!(segs.len(), 2);
+        assert_eq!(segs[0].start_ms, 0);
+        assert_eq!(segs[0].text, "Buongiorno.");
+        assert_eq!(segs[1].start_ms, 5_000);
+        assert_eq!(segs[1].text, "Il mio nome è Mario.");
+    }
+
+    #[test]
+    fn extract_segments_handles_hms() {
+        let chunk = "[T 01:00:05]\nSecondo capitolo.";
+        let segs = extract_audio_segments(chunk);
+        assert_eq!(segs.len(), 1);
+        assert_eq!(segs[0].start_ms, 3600_000 + 5_000);
+    }
+
+    #[test]
+    fn extract_segments_skips_non_audio() {
+        let chunk = "[Page 3]\nNormal PDF text without any time markers.";
+        assert!(extract_audio_segments(chunk).is_empty());
+    }
+
+    #[test]
+    fn longest_overlap_finds_join_seam() {
+        let a = "the quick brown fox jumps over the lazy dog";
+        let b = "over the lazy dog and runs away";
+        assert_eq!(longest_overlap(a, b, 64), "over the lazy dog".len());
+    }
+
+    #[test]
+    fn longest_overlap_no_match_returns_zero() {
+        // Accidental single-char tail/head match ("…d" / "d…") is
+        // below the 16-byte minimum and must not be reported as a
+        // seam — otherwise the preview would silently merge
+        // unrelated text.
+        let a = "completely unrelated";
+        let b = "different content";
+        assert_eq!(longest_overlap(a, b, 64), 0);
+    }
+
+    #[test]
+    fn longest_overlap_ignores_short_accidental_match() {
+        // 8-char common substring at the boundary is still below the
+        // 16-byte floor — should be treated as no seam.
+        let a = "lorem ipsum abcdefg X";
+        let b = "abcdefg Y next paragraph";
+        assert_eq!(longest_overlap(a, b, 64), 0);
+    }
 }
