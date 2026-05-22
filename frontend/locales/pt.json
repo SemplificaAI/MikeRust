@@ -539,7 +539,9 @@
     "collapse": "Recolher a vista do documento",
     "expand": "Expandir a vista do documento",
     "audio": {
-      "transcriptHint": "Os carimbos das citações incluem o deslocamento de áudio (ex. [T 14:32]). Clique numa pílula de citação para posicionar o reprodutor."
+      "transcriptHint": "Os carimbos das citações incluem o deslocamento de áudio (ex. [T 14:32]). Clique numa pílula de citação para posicionar o reprodutor.",
+      "downloadingModel": "A transferir o modelo de transcrição ({model})…",
+      "modelDownloadFailed": "Não foi possível transferir o modelo de transcrição"
     }
   },
   "DocumentSupport": {

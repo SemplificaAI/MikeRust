@@ -539,7 +539,9 @@
     "collapse": "Collapse document view",
     "expand": "Expand document view",
     "audio": {
-      "transcriptHint": "Citation timestamps carry the audio offset (e.g. [T 14:32]). Click a citation pill to seek the player to that point."
+      "transcriptHint": "Citation timestamps carry the audio offset (e.g. [T 14:32]). Click a citation pill to seek the player to that point.",
+      "downloadingModel": "Downloading transcription model ({model})…",
+      "modelDownloadFailed": "Could not download the transcription model"
     }
   },
   "DocumentSupport": {

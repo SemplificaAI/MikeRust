@@ -539,7 +539,9 @@
     "collapse": "Contraer la vista del documento",
     "expand": "Expandir la vista del documento",
     "audio": {
-      "transcriptHint": "Las marcas de tiempo de las citas incluyen el desplazamiento de audio (p. ej. [T 14:32]). Haz clic en una píldora de cita para posicionar el reproductor."
+      "transcriptHint": "Las marcas de tiempo de las citas incluyen el desplazamiento de audio (p. ej. [T 14:32]). Haz clic en una píldora de cita para posicionar el reproductor.",
+      "downloadingModel": "Descargando el modelo de transcripción ({model})…",
+      "modelDownloadFailed": "No se ha podido descargar el modelo de transcripción"
     }
   },
   "DocumentSupport": {

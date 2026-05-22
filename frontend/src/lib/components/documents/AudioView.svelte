@@ -21,7 +21,9 @@
   import { onDestroy } from 'svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { documentsApi, type TranscriptSegment } from '$lib/api/documents'
+  import { syncApi, type WhisperStatus } from '$lib/api/data-sources'
   import Spinner from '$lib/components/ui/Spinner.svelte'
+  import Progress from '$lib/components/ui/Progress.svelte'
 
   interface Props {
     /** Bytes blob of the original audio file. */
@@ -49,6 +51,8 @@
   let loadingTranscript = $state(false)
   let transcriptError = $state<string | null>(null)
   let activeStartMs = $state<number | null>(null)
+  let whisperStatus = $state<WhisperStatus | null>(null)
+  let whisperPollTimer: ReturnType<typeof setInterval> | null = null
 
   // Refresh the object URL only when the blob identity changes. A
   // citation re-click just bumps `revision` — we don't want to
@@ -86,8 +90,33 @@
       })
   })
 
+  // Poll the whisper bootstrap status while the AudioView is mounted.
+  // Cheap (~1 lock-free read on the backend per tick); we stop when
+  // the state stabilises to ready/unavailable so a steady-state
+  // browser tab doesn't keep hitting the endpoint indefinitely.
+  async function pollWhisper() {
+    try {
+      const s = await syncApi.whisperStatus()
+      whisperStatus = s
+      if (s.state === 'ready' || s.state === 'unavailable') {
+        if (whisperPollTimer != null) {
+          clearInterval(whisperPollTimer)
+          whisperPollTimer = null
+        }
+      }
+    } catch {
+      /* poll best-effort; ignore network blips */
+    }
+  }
+  void pollWhisper()
+  whisperPollTimer = setInterval(pollWhisper, 2000)
+
   onDestroy(() => {
     if (url) URL.revokeObjectURL(url)
+    if (whisperPollTimer != null) {
+      clearInterval(whisperPollTimer)
+      whisperPollTimer = null
+    }
   })
 
   /** Parse the first `[T MM:SS]` / `[T HH:MM:SS]` marker in a string.
@@ -176,6 +205,22 @@
 </script>
 
 <div class="h-full min-h-0 flex flex-col bg-(--color-surface-0)">
+  {#if whisperStatus?.state === 'downloading'}
+    {@const dl = whisperStatus}
+    <div class="shrink-0 px-4 py-3 border-b border-(--color-surface-200) bg-(--color-info-50)">
+      <Progress
+        label={i18n.t('DocViewer.audio.downloadingModel', { model: dl.model_id })}
+        value={dl.total ? dl.downloaded / dl.total : null}
+        showPercent={!!dl.total}
+        size="sm"
+      />
+    </div>
+  {:else if whisperStatus?.state === 'failed'}
+    <div class="shrink-0 px-4 py-3 border-b border-(--color-surface-200) bg-(--color-danger-50) text-xs text-(--color-danger-700)">
+      {i18n.t('DocViewer.audio.modelDownloadFailed')} — {whisperStatus.error}
+    </div>
+  {/if}
+
   <div class="shrink-0 flex flex-col gap-2 p-4 border-b border-(--color-surface-200)">
     <div class="text-sm font-medium text-(--color-text-primary) truncate" title={filename}>
       {filename}

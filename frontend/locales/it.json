@@ -539,7 +539,9 @@
     "collapse": "Comprimi la vista documento",
     "expand": "Espandi la vista documento",
     "audio": {
-      "transcriptHint": "I timestamp delle citazioni includono il riferimento audio (es. [T 14:32]). Clicca una pillola di citazione per posizionare il player."
+      "transcriptHint": "I timestamp delle citazioni includono il riferimento audio (es. [T 14:32]). Clicca una pillola di citazione per posizionare il player.",
+      "downloadingModel": "Download del modello di trascrizione ({model}) in corso…",
+      "modelDownloadFailed": "Impossibile scaricare il modello di trascrizione"
     }
   },
   "DocumentSupport": {

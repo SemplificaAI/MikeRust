@@ -44,6 +44,17 @@ export type ModelStatus =
   | { state: 'downloading'; downloaded: number; total: number; file: string }
   | { state: 'failed'; error: string }
 
+/**
+ * Whisper GGML bootstrap status. The `path` field surfaces on `ready`
+ * so the UI can show where the model lives (and let a power user
+ * delete it). `total` may be null until the response headers arrive.
+ */
+export type WhisperStatus =
+  | { state: 'idle' | 'unavailable' }
+  | { state: 'downloading'; downloaded: number; total: number | null; model_id: string }
+  | { state: 'ready'; path: string }
+  | { state: 'failed'; error: string }
+
 export const syncApi = {
   listFolders: () => api<SyncFolder[]>('/sync/folders'),
 
@@ -66,6 +77,12 @@ export const syncApi = {
     api<SyncedFile[]>(`/sync/folders/${encodeURIComponent(id)}/files`),
 
   modelStatus: () => api<ModelStatus>('/sync/model-status'),
+
+  /** Whisper.cpp GGML bootstrap snapshot. Returns
+   *  `{ state: "unavailable" }` when the backend wasn't built with
+   *  the `audio-transcription` feature — the audio renderer can use
+   *  the same poll loop everywhere and just hide the banner. */
+  whisperStatus: () => api<WhisperStatus>('/sync/whisper-status'),
 }
 
 // ── EUR-Lex corpus ───────────────────────────────────────────────────

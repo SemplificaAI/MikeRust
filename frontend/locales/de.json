@@ -539,7 +539,9 @@
     "collapse": "Dokumentansicht einklappen",
     "expand": "Dokumentansicht ausklappen",
     "audio": {
-      "transcriptHint": "Die Zeitstempel der Zitate enthalten den Audio-Versatz (z. B. [T 14:32]). Klicken Sie auf eine Zitat-Pille, um den Player dorthin zu spulen."
+      "transcriptHint": "Die Zeitstempel der Zitate enthalten den Audio-Versatz (z. B. [T 14:32]). Klicken Sie auf eine Zitat-Pille, um den Player dorthin zu spulen.",
+      "downloadingModel": "Transkriptionsmodell ({model}) wird heruntergeladen…",
+      "modelDownloadFailed": "Transkriptionsmodell konnte nicht heruntergeladen werden"
     }
   },
   "DocumentSupport": {

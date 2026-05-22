@@ -539,7 +539,9 @@
     "collapse": "Réduire la vue du document",
     "expand": "Agrandir la vue du document",
     "audio": {
-      "transcriptHint": "Les horodatages des citations incluent le décalage audio (ex. [T 14:32]). Cliquez sur une pastille de citation pour positionner le lecteur."
+      "transcriptHint": "Les horodatages des citations incluent le décalage audio (ex. [T 14:32]). Cliquez sur une pastille de citation pour positionner le lecteur.",
+      "downloadingModel": "Téléchargement du modèle de transcription ({model})…",
+      "modelDownloadFailed": "Impossible de télécharger le modèle de transcription"
     }
   },
   "DocumentSupport": {

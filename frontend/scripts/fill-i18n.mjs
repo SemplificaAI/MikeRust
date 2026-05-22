@@ -73,6 +73,8 @@ const T = {
   'Settings.atLeastOneDomain': { fr: 'Au moins un domaine doit rester activé', de: 'Mindestens eine Domäne muss aktiv bleiben', es: 'Al menos un dominio debe permanecer activo', pt: 'Pelo menos um domínio deve permanecer ativo' },
 
   'DocViewer.audio.transcriptHint': { fr: "Les horodatages des citations incluent le décalage audio (ex. [T 14:32]). Cliquez sur une pastille de citation pour positionner le lecteur.", de: "Die Zeitstempel der Zitate enthalten den Audio-Versatz (z. B. [T 14:32]). Klicken Sie auf eine Zitat-Pille, um den Player dorthin zu spulen.", es: "Las marcas de tiempo de las citas incluyen el desplazamiento de audio (p. ej. [T 14:32]). Haz clic en una píldora de cita para posicionar el reproductor.", pt: "Os carimbos das citações incluem o deslocamento de áudio (ex. [T 14:32]). Clique numa pílula de citação para posicionar o reprodutor." },
+  'DocViewer.audio.downloadingModel': { fr: "Téléchargement du modèle de transcription ({model})…", de: "Transkriptionsmodell ({model}) wird heruntergeladen…", es: "Descargando el modelo de transcripción ({model})…", pt: "A transferir o modelo de transcrição ({model})…" },
+  'DocViewer.audio.modelDownloadFailed': { fr: "Impossible de télécharger le modèle de transcription", de: "Transkriptionsmodell konnte nicht heruntergeladen werden", es: "No se ha podido descargar el modelo de transcripción", pt: "Não foi possível transferir o modelo de transcrição" },
 
   'Workflows.restoredToast': { fr: '« {title} » restauré', de: '„{title}“ wiederhergestellt', es: '«{title}» restaurado', pt: '“{title}” restaurado' },
   'Workflows.hiddenToast': { fr: '« {title} » masqué', de: '„{title}“ ausgeblendet', es: '«{title}» ocultado', pt: '“{title}” ocultado' },
