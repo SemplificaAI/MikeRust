@@ -1196,7 +1196,10 @@
       "disclaimerBody": "La protection PII utilise un modèle d'IA boîte noire qui analyse le texte extrait du fichier et remplace les données personnelles (noms, e-mails, codes fiscaux, IBAN…) par des espaces réservés avant que le document ne soit envoyé au modèle. La détection peut être imprécise : certaines entités peuvent échapper au filtre et être tout de même transmises au LLM.",
       "omissisHintPrefix": "Pour une rédaction de niveau production et auditée, nous recommandons Omissis, disponible sur ",
       "omissisHintSuffix": ".",
-      "acknowledge": "J'ai compris, continuer"
+      "acknowledge": "J'ai compris, continuer",
+      "statusLoading": "Chargement du modèle PII… le premier lancement télécharge ~500 Mo depuis HuggingFace, puis initialise la session ONNX.",
+      "statusFailed": "Impossible de charger le modèle PII",
+      "statusUnavailable": "Protection PII demandée mais cette version de MikeRust a été compilée sans la fonction ner-pii — le document sera envoyé sans expurgation."
     }
   }
 }

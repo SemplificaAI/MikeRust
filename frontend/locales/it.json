@@ -535,7 +535,10 @@
       "disclaimerBody": "La protezione PII usa un modello AI blackbox che analizza il testo estratto dal file e sostituisce i dati personali (nomi, email, codici fiscali, IBAN, …) con segnaposto prima che il documento sia inviato al modello. Il rilevamento può essere impreciso: alcune entità potrebbero sfuggire al filtro e raggiungere comunque l'LLM.",
       "omissisHintPrefix": "Per una redazione di livello produttivo e auditata consigliamo Omissis, disponibile su ",
       "omissisHintSuffix": ".",
-      "acknowledge": "Ho capito, continua"
+      "acknowledge": "Ho capito, continua",
+      "statusLoading": "Caricamento modello PII… al primo utilizzo scarica ~500 MB da HuggingFace, poi inizializza la sessione ONNX.",
+      "statusFailed": "Impossibile caricare il modello PII",
+      "statusUnavailable": "Protezione PII richiesta ma questa build di MikeRust è stata compilata senza la feature ner-pii — il documento sarà inviato senza redazione."
     }
   },
   "DocViewer": {

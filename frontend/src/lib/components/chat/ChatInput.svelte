@@ -8,12 +8,15 @@
   import Button from '$lib/components/ui/Button.svelte'
   import Badge from '$lib/components/ui/Badge.svelte'
   import Modal from '$lib/components/ui/Modal.svelte'
+  import Progress from '$lib/components/ui/Progress.svelte'
   import PickerModal from '$lib/components/ui/PickerModal.svelte'
   import type { PickerItem } from '$lib/components/ui/PickerModal.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { modelsStore } from '$lib/stores/models.svelte'
   import { composerPrefill } from '$lib/stores/composer.svelte'
   import { documentsApi } from '$lib/api/documents'
+  import { openExternal } from '$lib/tauri/commands'
+  import { syncApi, type NerStatus } from '$lib/api/data-sources'
   import { workflowsApi } from '$lib/api/workflows'
   import { templatesApi } from '$lib/api/templates'
   import { projectsApi } from '$lib/api/projects'
@@ -103,6 +106,53 @@
     pendingPiiFile = null
     piiDisclaimerOpen = false
   }
+
+  // PII engine status — polled while any attached file has PII
+  // protection on, so the user sees a banner during the multi-
+  // minute first-run download / engine load instead of a silent
+  // wait at send time. Polling stops as soon as the snapshot
+  // reaches `ready` or `unavailable` so a steady-state composer
+  // doesn't keep hitting the endpoint forever.
+  let nerStatus = $state<NerStatus | null>(null)
+  let nerPollTimer: ReturnType<typeof setInterval> | null = null
+
+  const piiActive = $derived(files.some((f) => f.piiProtected))
+
+  async function pollNer() {
+    try {
+      const s = await syncApi.nerStatus()
+      nerStatus = s
+      // Stop the moment the engine reports ready (cached, fast
+      // from now on) or the build doesn't carry the feature
+      // (nothing the poll could tell us would change). Keep
+      // polling on `idle` (user hasn't sent yet — we want to catch
+      // the transition to `loading`) and `failed` (user may retry,
+      // and the next ensure_engine flips back to loading).
+      if (s.state === 'ready' || s.state === 'unavailable') {
+        if (nerPollTimer != null) {
+          clearInterval(nerPollTimer)
+          nerPollTimer = null
+        }
+      }
+    } catch {
+      /* best-effort poll */
+    }
+  }
+
+  $effect(() => {
+    // Start polling when piiActive flips from false to true (and
+    // there's no timer yet); stop when the user removes the last
+    // PII-protected file.
+    if (piiActive && nerPollTimer == null) {
+      void pollNer()
+      nerPollTimer = setInterval(pollNer, 1500)
+    }
+    if (!piiActive && nerPollTimer != null) {
+      clearInterval(nerPollTimer)
+      nerPollTimer = null
+      nerStatus = null
+    }
+  })
   let project = $state<{ id: string; name: string; domain?: string } | null>(null)
 
   // A chat that lives in a project auto-attaches that project: the chip
@@ -377,6 +427,24 @@
     </div>
   {/if}
 
+  {#if piiActive && nerStatus?.state === 'loading'}
+    <div class="px-3 pt-2">
+      <Progress
+        label={t('ChatInput.pii.statusLoading')}
+        value={null}
+        size="sm"
+      />
+    </div>
+  {:else if piiActive && nerStatus?.state === 'failed'}
+    <div class="px-3 pt-2 text-xs text-(--color-danger-600)">
+      {t('ChatInput.pii.statusFailed')} — {nerStatus.error}
+    </div>
+  {:else if piiActive && nerStatus?.state === 'unavailable'}
+    <div class="px-3 pt-2 text-xs text-(--color-warning-700)">
+      {t('ChatInput.pii.statusUnavailable')}
+    </div>
+  {/if}
+
   <textarea
     bind:value={text}
     onkeydown={onKey}
@@ -508,12 +576,11 @@
     <p>{t('ChatInput.pii.disclaimerBody')}</p>
     <p class="text-(--color-text-secondary)">
       {t('ChatInput.pii.omissisHintPrefix')}
-      <a
-        href="https://edito-pdf.com"
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
         class="text-(--color-brand-600) underline hover:text-(--color-brand-700)"
-      >edito-pdf.com</a>{t('ChatInput.pii.omissisHintSuffix')}
+        onclick={() => { void openExternal('https://edito-pdf.com') }}
+      >edito-pdf.com</button>{t('ChatInput.pii.omissisHintSuffix')}
     </p>
   </div>
   {#snippet footer()}

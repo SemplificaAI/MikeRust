@@ -1196,7 +1196,10 @@
       "disclaimerBody": "Der PII-Schutz nutzt ein KI-Blackbox-Modell, das den extrahierten Text der Datei analysiert und personenbezogene Daten (Namen, E-Mails, Steuernummern, IBAN…) durch Platzhalter ersetzt, bevor das Dokument an das Modell gesendet wird. Die Erkennung kann ungenau sein: einige Entitäten könnten den Filter passieren und trotzdem an das LLM gelangen.",
       "omissisHintPrefix": "Für eine auditierte Redaktion in Produktionsqualität empfehlen wir Omissis, verfügbar unter ",
       "omissisHintSuffix": ".",
-      "acknowledge": "Verstanden, fortfahren"
+      "acknowledge": "Verstanden, fortfahren",
+      "statusLoading": "PII-Modell wird geladen… der erste Start lädt ~500 MB von HuggingFace herunter und initialisiert dann die ONNX-Sitzung.",
+      "statusFailed": "PII-Modell konnte nicht geladen werden",
+      "statusUnavailable": "PII-Schutz angefordert, aber dieser MikeRust-Build wurde ohne das ner-pii-Feature kompiliert — das Dokument wird unredigiert gesendet."
     }
   }
 }

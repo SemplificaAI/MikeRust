@@ -1196,7 +1196,10 @@
       "disclaimerBody": "La protección PII usa un modelo de IA de caja negra que analiza el texto extraído del archivo y sustituye los datos personales (nombres, correos, códigos fiscales, IBAN…) por marcadores antes de que el documento se envíe al modelo. La detección puede ser imprecisa: algunas entidades podrían escapar al filtro y llegar de todos modos al LLM.",
       "omissisHintPrefix": "Para una redacción de nivel productivo y auditada recomendamos Omissis, disponible en ",
       "omissisHintSuffix": ".",
-      "acknowledge": "Entendido, continuar"
+      "acknowledge": "Entendido, continuar",
+      "statusLoading": "Cargando modelo PII… el primer arranque descarga ~500 MB de HuggingFace y luego inicializa la sesión ONNX.",
+      "statusFailed": "No se ha podido cargar el modelo PII",
+      "statusUnavailable": "Protección PII solicitada pero esta versión de MikeRust se ha compilado sin la función ner-pii — el documento se enviará sin redactar."
     }
   }
 }

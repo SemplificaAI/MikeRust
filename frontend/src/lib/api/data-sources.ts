@@ -44,6 +44,17 @@ export type ModelStatus =
   | { state: 'downloading'; downloaded: number; total: number; file: string }
   | { state: 'failed'; error: string }
 
+/**
+ * GLiNER2 PII engine bootstrap snapshot. Polled by the chat
+ * composer while at least one attached file has PII protection on
+ * so the user sees an indeterminate "Loading PII model…" stripe
+ * rather than a silent multi-minute wait the first time the model
+ * is downloaded from HuggingFace.
+ */
+export type NerStatus =
+  | { state: 'idle' | 'loading' | 'ready' | 'unavailable' }
+  | { state: 'failed'; error: string }
+
 export const syncApi = {
   listFolders: () => api<SyncFolder[]>('/sync/folders'),
 
@@ -66,6 +77,11 @@ export const syncApi = {
     api<SyncedFile[]>(`/sync/folders/${encodeURIComponent(id)}/files`),
 
   modelStatus: () => api<ModelStatus>('/sync/model-status'),
+
+  /** GLiNER2 PII engine bootstrap snapshot. Returns
+   *  `{ state: "unavailable" }` outside the `ner-pii` build, so the
+   *  frontend can poll uniformly. */
+  nerStatus: () => api<NerStatus>('/sync/ner-status'),
 }
 
 // ── EUR-Lex corpus ───────────────────────────────────────────────────

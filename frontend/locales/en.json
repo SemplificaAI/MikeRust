@@ -535,7 +535,10 @@
       "disclaimerBody": "PII protection runs a black-box AI model that scans the file's extracted text and replaces personal-data spans (names, emails, fiscal codes, IBAN, …) with placeholders before the document is sent to the model. The detector can be imprecise: some entities may slip through unfiltered and reach the LLM anyway.",
       "omissisHintPrefix": "For production-grade, audited redaction we recommend Omissis, available at ",
       "omissisHintSuffix": ".",
-      "acknowledge": "I understand, continue"
+      "acknowledge": "I understand, continue",
+      "statusLoading": "Loading PII model… first run downloads ~500 MB from HuggingFace, then loads the ONNX session.",
+      "statusFailed": "Could not load the PII model",
+      "statusUnavailable": "PII protection requested but this build of MikeRust was compiled without the ner-pii feature — the document will be sent unredacted."
     }
   },
   "DocViewer": {
