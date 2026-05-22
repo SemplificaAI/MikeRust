@@ -8,6 +8,7 @@ pub mod http_client;
 pub mod llm;
 pub mod mcp;
 pub mod mikeprj;
+pub mod ner;
 pub mod pdf;
 pub mod presets;
 pub mod routes;
@@ -107,6 +108,32 @@ fn ensure_fastembed_cache_dir() {
     tracing::info!("[rag] fastembed cache pinned to {}", path.display());
 }
 
+/// Pin `hf-hub`'s cache (used by `gliner2_inference` and any other
+/// HuggingFace downloader we add later) under
+/// `~/mikerust-data/gliner2/` so the ~500 MB GLiNER2 weights live
+/// next to the rest of our heavy artefacts instead of leaking into
+/// the user's `~/.cache/huggingface/` directory. Honours an existing
+/// `HF_HOME` env var so power users keep control.
+#[cfg(feature = "ner-pii")]
+fn ensure_hf_cache_dir() {
+    if std::env::var("HF_HOME").is_ok() {
+        return;
+    }
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| ".".to_string());
+    let path = std::path::PathBuf::from(home)
+        .join("mikerust-data")
+        .join("gliner2");
+    let _ = std::fs::create_dir_all(&path);
+    // SAFETY: single-threaded process startup, same as
+    // ensure_fastembed_cache_dir above.
+    unsafe {
+        std::env::set_var("HF_HOME", &path);
+    }
+    tracing::info!("[ner] HF cache pinned to {}", path.display());
+}
+
 /// Install a panic hook that logs the panic through `tracing::error!`
 /// before the default behaviour (write to stderr) fires. This is the
 /// minimum viable observability: every panic ends up in the same
@@ -149,6 +176,8 @@ pub async fn run_server_with_channels(
     install_panic_hook();
     load_dotenv();
     ensure_fastembed_cache_dir();
+    #[cfg(feature = "ner-pii")]
+    ensure_hf_cache_dir();
     // Point ort's `load-dynamic` loader at our vendored
     // `libs/onnxruntime/<platform>/` DLL before any embedding code
     // touches the runtime. Must happen pre-AppState::new (which
@@ -156,6 +185,24 @@ pub async fn run_server_with_channels(
     // time fastembed initialises its first session.
     #[cfg(feature = "rag")]
     crate::embeddings::service::ensure_onnxruntime_dylib_path();
+    // Initialise the global ort runtime once. fastembed creates its
+    // own `Session` via `EnvironmentBuilder` so this is a no-op for
+    // that path, but gliner2-rs *requires* an explicit `ort::init()`
+    // before any engine load — see SemplificaAI/gliner2-rs README.
+    // Safe to call when the `rag` feature is off too: ort the crate
+    // is still pulled in via the `ner-pii` feature's transitive
+    // dependency, so the symbol is in scope.
+    #[cfg(any(feature = "rag", feature = "ner-pii"))]
+    {
+        if let Err(e) = ort::init().with_name("MikeRust").commit() {
+            // Non-fatal: a re-init from a different code path or
+            // a feature-flag combination that double-initialises
+            // would just produce a hard error. We log and let the
+            // engine-specific loaders surface their own failures
+            // when the runtime is actually invoked.
+            tracing::warn!("[ort] init() returned {e:?} — continuing");
+        }
+    }
 
     let mut state = AppState::new().await?;
     state.biometric_tx = biometric_tx;
