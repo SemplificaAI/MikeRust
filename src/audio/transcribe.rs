@@ -14,8 +14,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
 
+use super::bootstrap::ensure_default_model;
 use super::decode::{decode_to_pcm_16khz_mono, DecodedAudio};
-use super::model::resolve_model_path;
 
 /// Per-segment slice of the transcript with millisecond timestamps —
 /// what the document viewer needs to scrub the `<audio>` element to
@@ -47,13 +47,27 @@ pub struct TranscriptionResult {
 /// Top-level entry point used by `crate::sync::scanner::extract_text_dispatch`.
 /// Decodes the audio, runs whisper.cpp, returns the marker-annotated
 /// transcript ready for the existing chunker/embedder pipeline.
-pub fn transcribe_audio(bytes: &[u8], ext: &str) -> Result<TranscriptionResult> {
-    let model_path = resolve_model_path()?
-        .ok_or_else(|| anyhow!(
-            "no GGML model on disk — set WHISPER_MODEL_PATH or wait for \
-             first-use download (see docs/whisper-mike-plan.md §4)"
-        ))?;
+///
+/// First-use path triggers a HuggingFace download of the GGML weights
+/// via `bootstrap::ensure_default_model`; subsequent calls find the
+/// file in `<cache_dir>/<model_id>.bin` and return immediately. The
+/// download status is observable on `GET /sync/whisper-status` for
+/// the UI's progress bar.
+pub async fn transcribe_audio(bytes: &[u8], ext: &str) -> Result<TranscriptionResult> {
+    let model_path = ensure_default_model()
+        .await
+        .context("whisper model bootstrap")?;
 
+    let bytes_owned = bytes.to_vec();
+    let ext_owned = ext.to_string();
+    // Heavy CPU work — keep it off the tokio runtime threads so other
+    // requests stay responsive while a long file transcribes.
+    tokio::task::spawn_blocking(move || run_pass(&bytes_owned, &ext_owned, &model_path))
+        .await
+        .map_err(|e| anyhow!("transcription task join: {e:?}"))?
+}
+
+fn run_pass(bytes: &[u8], ext: &str, model_path: &PathBuf) -> Result<TranscriptionResult> {
     let DecodedAudio {
         samples,
         sample_rate: _,
@@ -61,7 +75,7 @@ pub fn transcribe_audio(bytes: &[u8], ext: &str) -> Result<TranscriptionResult> 
     } = decode_to_pcm_16khz_mono(bytes, ext)
         .context("audio decode failed")?;
 
-    let ctx = get_or_load_context(&model_path)
+    let ctx = get_or_load_context(model_path)
         .with_context(|| format!("loading whisper model {}", model_path.display()))?;
 
     let mut state = ctx.create_state().context("whisper state init failed")?;

@@ -251,7 +251,7 @@ async fn process_one(
         path.display(),
         bytes.len()
     );
-    let (text, skip_reason) = extract_text_dispatch(path, &bytes)?;
+    let (text, skip_reason) = extract_text_dispatch(path, &bytes).await?;
     let extract_ms = t_extract.elapsed().as_millis();
     if let Some(reason) = skip_reason {
         tracing::info!(
@@ -389,7 +389,7 @@ async fn upsert_synced_file(
 /// Public so the document-upload handler (`/single-documents` with
 /// `cache=true`) can extract on the same code path the folder scanner
 /// uses, instead of duplicating the per-format dispatch.
-pub fn extract_text_dispatch(path: &Path, bytes: &[u8]) -> Result<(String, Option<String>)> {
+pub async fn extract_text_dispatch(path: &Path, bytes: &[u8]) -> Result<(String, Option<String>)> {
     let ext = path
         .extension()
         .and_then(|e| e.to_str())
@@ -463,7 +463,7 @@ pub fn extract_text_dispatch(path: &Path, bytes: &[u8]) -> Result<(String, Optio
         // way they treat PDFs (with their `[Page N]` markers).
         #[cfg(feature = "audio-transcription")]
         "wav" | "mp3" | "ogg" | "flac" | "m4a" | "aac" => {
-            match crate::audio::transcribe_audio(bytes, &ext) {
+            match crate::audio::transcribe_audio(bytes, &ext).await {
                 Ok(t) => Ok((t.text, None)),
                 Err(e) => Ok((
                     String::new(),
@@ -492,7 +492,16 @@ mod tests {
     use std::path::PathBuf;
 
     fn dispatch(name: &str, bytes: &[u8]) -> (String, Option<String>) {
-        extract_text_dispatch(&PathBuf::from(name), bytes).unwrap()
+        // The dispatcher became async to allow the audio branch to
+        // await the GGML model bootstrap; for the existing format
+        // tests (rtf/xlsx/etc.) we just drive it on a one-off
+        // current-thread runtime so the test functions stay sync.
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("test runtime");
+        rt.block_on(extract_text_dispatch(&PathBuf::from(name), bytes))
+            .unwrap()
     }
 
     #[test]

@@ -43,6 +43,12 @@ pub fn router() -> Router<Arc<AppState>> {
         // scan to render a progress bar for the one-shot model fetch
         // (~280 MB on first run).
         .route("/model-status", get(model_status))
+        // Whisper GGML bootstrap status — polled by the audio renderer
+        // to show a download progress bar on first use. Returns
+        // `{ state: "unavailable" }` when the `audio-transcription`
+        // feature isn't compiled in, so the frontend can use the same
+        // poll loop in every build.
+        .route("/whisper-status", get(whisper_status))
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +345,51 @@ async fn model_status(
 
 #[cfg(not(feature = "rag"))]
 async fn model_status(
+    State(_): State<Arc<AppState>>,
+    _: AuthUser,
+) -> ApiResult {
+    Ok(Json(json!({ "state": "unavailable" })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /sync/whisper-status
+// Mirrors /sync/model-status for the whisper.cpp GGML bootstrap.
+// Returns `{ state: "unavailable" }` when the audio-transcription
+// feature isn't compiled in — the frontend uses the same polling
+// loop everywhere; renders the progress bar only on `downloading`.
+// ---------------------------------------------------------------------------
+#[cfg(feature = "audio-transcription")]
+async fn whisper_status(
+    State(_): State<Arc<AppState>>,
+    _: AuthUser,
+) -> ApiResult {
+    use crate::audio::{bootstrap, WhisperStatus};
+    let snapshot = bootstrap().status().await;
+    Ok(Json(match snapshot {
+        WhisperStatus::Idle => json!({ "state": "idle" }),
+        WhisperStatus::Downloading {
+            downloaded,
+            total,
+            model_id,
+        } => json!({
+            "state": "downloading",
+            "downloaded": downloaded,
+            "total": total,
+            "model_id": model_id,
+        }),
+        WhisperStatus::Ready { path } => json!({
+            "state": "ready",
+            "path": path.to_string_lossy(),
+        }),
+        WhisperStatus::Failed { error } => json!({
+            "state": "failed",
+            "error": error,
+        }),
+    }))
+}
+
+#[cfg(not(feature = "audio-transcription"))]
+async fn whisper_status(
     State(_): State<Arc<AppState>>,
     _: AuthUser,
 ) -> ApiResult {

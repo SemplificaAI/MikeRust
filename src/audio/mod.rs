@@ -25,8 +25,10 @@
 
 #![cfg(feature = "audio-transcription")]
 
+pub mod bootstrap;
 pub mod decode;
 pub mod model;
 pub mod transcribe;
 
+pub use bootstrap::{bootstrap, ensure_default_model, WhisperBootstrap, WhisperStatus};
 pub use transcribe::{transcribe_audio, TranscriptionResult, TranscriptSegment};

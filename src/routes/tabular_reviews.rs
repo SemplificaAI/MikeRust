@@ -604,6 +604,7 @@ async fn load_document_text(state: &AppState, user_id: &str, doc_id: &str) -> Op
     let bytes = storage.get(&key).await.ok()?;
     let path = std::path::Path::new(&key);
     crate::sync::scanner::extract_text_dispatch(path, &bytes)
+        .await
         .ok()
         .map(|(text, _)| text)
         .filter(|t| !t.trim().is_empty())

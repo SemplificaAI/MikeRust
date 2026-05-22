@@ -240,7 +240,7 @@ async fn upload_document(
             // the absolute path of the binary we just wrote is the
             // right thing to feed it (pdfium also needs an on-disk
             // path for PDFs).
-            match crate::sync::scanner::extract_text_dispatch(&bin_abs, &data) {
+            match crate::sync::scanner::extract_text_dispatch(&bin_abs, &data).await {
                 Ok((text, skip_reason)) => {
                     if let Some(reason) = skip_reason {
                         tracing::info!(
