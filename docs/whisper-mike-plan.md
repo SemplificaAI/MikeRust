@@ -61,6 +61,32 @@ from quotes via `strip_page_markers` (rename to
 `strip_locality_markers`?), and the viewer uses them to scrub the
 `<audio>` element to the cited timestamp.
 
+## 2.1 Build prerequisite on Windows ARM64
+
+`whisper-rs-sys` uses `bindgen` at build time, which needs a
+`libclang.dll` matching the **target** architecture. On a Snapdragon
+X Elite dev machine the default LLVM install (`C:\Program Files\
+LLVM\`) ships **x86-64** binaries — bindgen rejects it for an ARM64
+target with:
+
+```
+Unable to find libclang: invalid DLL (x86-64)
+```
+
+Options to unblock `cargo build --features audio-transcription` on
+ARM64:
+
+1. **Recommended** — install the ARM64 LLVM build from
+   <https://github.com/llvm/llvm-project/releases> (`LLVM-<ver>-
+   woa64.exe`). Set `LIBCLANG_PATH=C:\Program Files\LLVM-ARM64\bin`
+   before the cargo invocation. Side-by-side with the x64 install
+   is fine — different folders.
+2. **Workaround** — target `x86_64-pc-windows-msvc` and rely on
+   Prism emulation at runtime. Builds work, transcription works,
+   but x64 native code under emulation costs ~25 % CPU per pass.
+3. Until either is in place, the default build (no feature flag)
+   stays clean — no consumer is impacted.
+
 ## 3. Dependencies (Cargo.toml)
 
 Add behind a new `audio-transcription` feature so the 142 MB+ model

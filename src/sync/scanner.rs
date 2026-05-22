@@ -456,6 +456,29 @@ pub fn extract_text_dispatch(path: &Path, bytes: &[u8]) -> Result<(String, Optio
             String::new(),
             Some("PDF support not compiled in this build".to_string()),
         )),
+        // Audio formats — transcribed via whisper.cpp when the
+        // `audio-transcription` feature is on. The transcript carries
+        // `[T MM:SS]` markers at each whisper segment boundary so the
+        // existing chunker + citation builder treat audio the same
+        // way they treat PDFs (with their `[Page N]` markers).
+        #[cfg(feature = "audio-transcription")]
+        "wav" | "mp3" | "ogg" | "flac" | "m4a" | "aac" => {
+            match crate::audio::transcribe_audio(bytes, &ext) {
+                Ok(t) => Ok((t.text, None)),
+                Err(e) => Ok((
+                    String::new(),
+                    Some(format!("audio transcription failed: {e}")),
+                )),
+            }
+        }
+        #[cfg(not(feature = "audio-transcription"))]
+        "wav" | "mp3" | "ogg" | "flac" | "m4a" | "aac" => Ok((
+            String::new(),
+            Some(
+                "audio transcription not compiled in this build (enable `audio-transcription` feature)"
+                    .to_string(),
+            ),
+        )),
         other => Ok((
             String::new(),
             Some(format!("format not supported: {other}")),
