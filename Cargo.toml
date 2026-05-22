@@ -143,6 +143,34 @@ calamine = "0.26"
 rust_xlsxwriter = "0.79"
 
 # ------------------------------------------------------------------
+# Audio transcription — whisper.cpp via whisper-rs.
+#
+# Gated behind the `audio-transcription` feature: pulls a ~30s C++
+# compile on first build (whisper.cpp is vendored + bindgen'd) and a
+# 142 MB+ GGML model at first transcription. Default builds keep the
+# audio path absent and the binary slim.
+#
+# Pipeline (see docs/whisper-mike-plan.md):
+#   symphonia → PCM s16/f32 → rubato resample to 16 kHz mono f32
+#                                 → whisper-rs WhisperContext
+#                                 → segments with timestamps
+# Output threads back through the regular text-extraction switch in
+# src/sync/scanner.rs::extract_text_dispatch, with `[T MM:SS]\n`
+# locality markers mirroring the existing `[Page N]\n` PDF markers.
+# ------------------------------------------------------------------
+whisper-rs = { version = "0.13", optional = true, default-features = false, features = ["whisper-cpp-tracing"] }
+symphonia  = { version = "0.5",  optional = true, default-features = false, features = [
+    "mp3",
+    "vorbis",
+    "ogg",
+    "wav",
+    "flac",
+    "isomp4",
+    "aac",
+] }
+rubato     = { version = "0.16", optional = true }
+
+# ------------------------------------------------------------------
 # HTTP client — LLM API calls + MCP client + SSE streaming
 # ------------------------------------------------------------------
 reqwest = { version = "0.12", features = ["json", "stream"] }
@@ -202,6 +230,18 @@ rag = [
     "dep:zerocopy",
     "dep:walkdir",
     "dep:ignore",
+]
+# Audio transcription via whisper.cpp (whisper-rs binding) plus
+# symphonia + rubato for decoding and 16 kHz resampling. Opt-in:
+# the first build pulls in a vendored C++ compile (~30s on a clean
+# checkout) and the runtime requires a GGML model file under
+# `%USERPROFILE%/mikerust-data/whisper/`. See
+# `docs/whisper-mike-plan.md` for the pipeline shape and the
+# model-bootstrap UX.
+audio-transcription = [
+    "dep:whisper-rs",
+    "dep:symphonia",
+    "dep:rubato",
 ]
 # Hardware-accelerated embedding inference via ONNX Runtime execution
 # providers (EPs). All are strictly opt-in — the default `rag` build
