@@ -112,6 +112,13 @@ pub const GLINER2_WINDOW_CHARS: usize = 2000;
 /// cost meaningfully.
 pub const GLINER2_OVERLAP_CHARS: usize = 200;
 
+/// Progress callback: `(current_chunk, total_chunks)`. Called inside
+/// the blocking worker every time a chunk inference completes; the
+/// chat send path uses it to emit `pii_redact_progress` SSE events
+/// so the UI can render `n / N` against a long document.
+/// `Send + Sync + 'static` to cross the `spawn_blocking` boundary.
+pub type ProgressFn = Arc<dyn Fn(usize, usize) + Send + Sync + 'static>;
+
 /// Convenience pipeline: extract PII spans across every chunk of the
 /// input text, dedupe across overlap regions, then run the upstream
 /// `mask_pii_text` once on the *original* text so the offsets stay
@@ -128,6 +135,7 @@ pub const GLINER2_OVERLAP_CHARS: usize = 200;
 pub async fn mask_pii(
     text: &str,
     labels: Option<&[&str]>,
+    progress: Option<ProgressFn>,
 ) -> Result<String> {
     let engine = ensure_engine().await?;
     let owned_labels: Vec<String> = labels
@@ -155,9 +163,16 @@ pub async fn mask_pii(
                 GLINER2_OVERLAP_CHARS,
             );
         }
+        let total = chunks.len();
         let tasks = vec![SchemaTask::Entities(owned_labels)];
         let mut all_entities: Vec<ExtractedEntity> = Vec::new();
-        for chunk in &chunks {
+        for (i, chunk) in chunks.iter().enumerate() {
+            // Tick BEFORE the inference so the UI shows "1/N starting"
+            // immediately rather than after the first chunk finishes
+            // (per-chunk latency can be hundreds of ms each).
+            if let Some(cb) = &progress {
+                cb(i + 1, total);
+            }
             let chunk_text = &text_owned[chunk.start..chunk.end];
             // gliner2-rs `extract` takes (text, tasks, Option<params>).
             // We pass `None` so the engine uses its default

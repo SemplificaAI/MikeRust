@@ -874,6 +874,7 @@ async fn load_attached_docs(
     document_ids: &[String],
     vision_ok: bool,
     pii_protected_ids: &std::collections::HashSet<String>,
+    sse_tx: &tokio::sync::mpsc::Sender<Result<axum::response::sse::Event, std::convert::Infallible>>,
 ) -> Vec<DocPayload> {
     let mut out = Vec::new();
     for doc_id in document_ids {
@@ -932,6 +933,7 @@ async fn load_attached_docs(
                     text,
                     pii_protected_ids.contains(doc_id),
                     &filename,
+                    sse_tx,
                 )
                 .await;
                 out.push(DocPayload {
@@ -1080,6 +1082,7 @@ async fn load_attached_docs(
                     t,
                     pii_protected_ids.contains(doc_id),
                     &filename,
+                    sse_tx,
                 )
                 .await,
             );
@@ -1096,21 +1099,96 @@ async fn load_attached_docs(
 }
 
 /// If `protected` is true AND the `ner-pii` feature is built in,
-/// run `text` through GLiNER2 + `mask_pii_text` and return the
-/// redacted copy. Otherwise return `text` unchanged. Failures (model
-/// load, inference) are logged and the original text flows through
-/// — the user already saw the "blackbox, may miss things"
-/// disclaimer when they ticked the box, the safer-by-default option
-/// here is "don't break the chat over an inference glitch". The
-/// caller is responsible for the per-doc decision; this helper is
-/// just the plumbing.
-async fn maybe_redact_pii(text: String, protected: bool, filename: &str) -> String {
+/// run `text` through GLiNER2 and return the redacted copy.
+/// Emits `pii_redact_*` SSE events on `sse_tx` so the chat UI can
+/// render a tool step with `n / N` chunk progress while a long
+/// document is being processed (the engine is single-threaded per
+/// session and a 100-page PDF can take 10-30 s).
+/// On failure (model load, inference) the original text flows
+/// through and the failure is logged — the user already saw the
+/// blackbox disclaimer; breaking the chat over an inference glitch
+/// would be worse.
+async fn maybe_redact_pii(
+    text: String,
+    protected: bool,
+    filename: &str,
+    #[allow(unused_variables)] sse_tx: &tokio::sync::mpsc::Sender<
+        Result<axum::response::sse::Event, std::convert::Infallible>,
+    >,
+) -> String {
     if !protected {
         return text;
     }
     #[cfg(feature = "ner-pii")]
     {
-        match crate::ner::mask_pii(&text, None).await {
+        use axum::response::sse::Event;
+        // Bridge channel: spawn_blocking worker → tokio task that
+        // forwards each (current, total) tick as a pii_redact_progress
+        // SSE event. Bounded(16) so a stuck client never bloats memory.
+        let (prog_tx, mut prog_rx) =
+            tokio::sync::mpsc::channel::<(usize, usize)>(16);
+        let filename_owned = filename.to_string();
+        let sse_tx_clone = sse_tx.clone();
+        let forwarder = tokio::spawn(async move {
+            // First tick that arrives carries `total`; we emit the
+            // `start` event from it (we don't know the total until
+            // chunks are computed inside the blocking pass).
+            let mut sent_start = false;
+            while let Some((current, total)) = prog_rx.recv().await {
+                if !sent_start {
+                    let _ = sse_tx_clone
+                        .send(Ok(Event::default().data(
+                            json!({
+                                "type": "pii_redact_start",
+                                "filename": filename_owned,
+                                "total": total,
+                            })
+                            .to_string(),
+                        )))
+                        .await;
+                    sent_start = true;
+                }
+                let _ = sse_tx_clone
+                    .send(Ok(Event::default().data(
+                        json!({
+                            "type": "pii_redact_progress",
+                            "filename": filename_owned,
+                            "current": current,
+                            "total": total,
+                        })
+                        .to_string(),
+                    )))
+                    .await;
+            }
+            // Final done event whatever the outcome — even if no
+            // progress arrived (e.g. spawn_blocking failed before
+            // the first chunk), so the UI doesn't leave a dangling
+            // "loading" step.
+            let _ = sse_tx_clone
+                .send(Ok(Event::default().data(
+                    json!({
+                        "type": "pii_redact_done",
+                        "filename": filename_owned,
+                    })
+                    .to_string(),
+                )))
+                .await;
+        });
+
+        let progress_cb: crate::ner::ProgressFn = std::sync::Arc::new(
+            move |current: usize, total: usize| {
+                // try_send so a slow consumer never blocks the
+                // blocking worker; dropped progress ticks aren't
+                // critical — the UI smooths over them.
+                let _ = prog_tx.try_send((current, total));
+            },
+        );
+        let result = crate::ner::mask_pii(&text, None, Some(progress_cb)).await;
+        // Drop the closure (and with it `prog_tx`) so the forwarder
+        // sees EOF and emits the `done` event.
+        let _ = forwarder.await;
+
+        match result {
             Ok(masked) => {
                 tracing::info!(
                     "[chat] PII redaction applied to {filename}: {} → {} chars",
@@ -2545,6 +2623,15 @@ async fn stream_chat_root(
         .unwrap_or_default();
     let kb_top_k = if doc_ids.is_empty() { 8 } else { 6 };
 
+    // SSE channel hoisted up so PII redaction inside load_attached_docs
+    // can emit per-chunk progress events on the same stream the rest
+    // of the chat turn will use. The spawn block below also owns a
+    // clone (rendered text deltas, citations, tool calls). Buffered
+    // capacity 64 covers both pre- and post-spawn writes — events
+    // queue up until the client connects to the SSE response.
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(64);
+    let tx_for_redact = tx.clone();
+
     // Discover MCP, load attached docs, retrieve KB chunks, and pull
     // a library inventory in parallel. The inventory is what tells the
     // model "the user has the GDPR and AI Act in their indexed library"
@@ -2552,7 +2639,14 @@ async fn stream_chat_root(
     // via semantic match — without it, the model defaults to "I don't
     // have access to your synced documents."
     let (attached_docs, mcp_servers, kb_chunks, library_inventory) = tokio::join!(
-        load_attached_docs(&state, &auth.user_id, &doc_ids, vision_ok, &pii_protected_ids),
+        load_attached_docs(
+            &state,
+            &auth.user_id,
+            &doc_ids,
+            vision_ok,
+            &pii_protected_ids,
+            &tx_for_redact,
+        ),
         discover_mcp_for_user(&state, &auth.user_id),
         retrieve_kb_chunks(&state, &auth.user_id, &chat_id, &last_user_query, kb_top_k),
         list_indexed_corpus_docs(&state, &auth.user_id),
@@ -2713,7 +2807,9 @@ async fn stream_chat_root(
     )
     .await;
 
-    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(64);
+    // tx, rx were created above (before tokio::join!) so PII
+    // redaction could emit progress events. Re-use them here for the
+    // streaming task.
     let state_clone = state.clone();
     let chat_id_clone = chat_id.clone();
     // Move retrieved KB chunks into the spawned task so the post-stream
