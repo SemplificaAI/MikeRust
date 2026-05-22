@@ -63,4 +63,28 @@ export const documentsApi = {
    */
   kbBytes: (path: string) =>
     api<Blob>('/sync/kb-doc', { asBlob: true, query: { path } }),
+
+  /**
+   * Re-join a document's indexed chunks back into the original body.
+   * Audio docs return per-segment `[T MM:SS]`-marked text alongside a
+   * structured `segments` array with millisecond timestamps; the
+   * AudioView uses those to render a clickable transcript that seeks
+   * the `<audio>` element on click. Non-audio docs return
+   * `segments: []` and `text` = joined chunks with overlap stripped —
+   * useful as a generic "what got indexed" preview.
+   */
+  transcript: (id: string) =>
+    api<TranscriptResponse>(`/document/${encodeURIComponent(id)}/transcript`),
+}
+
+export interface TranscriptSegment {
+  start_ms: number
+  end_ms: number
+  text: string
+}
+
+export interface TranscriptResponse {
+  text: string
+  segments: TranscriptSegment[]
+  duration_ms: number
 }

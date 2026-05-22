@@ -394,7 +394,9 @@
             <AudioView
               blob={loaded.blob}
               filename={activeTab.title}
+              docId={activeTab.docId}
               quote={activeTab.quote}
+              startMs={activeTab.startMs}
               revision={docViewer.revision}
             />
           {:else}

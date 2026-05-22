@@ -24,6 +24,11 @@ export interface Citation {
   kbPath?: string
   /** Page number, or a `"41-42"` range for a quote crossing a page break. */
   page?: number | string
+  /** Audio offset (ms) for citations into a whisper-transcribed file —
+   *  set when the cited chunk text carries a `[T MM:SS]` segment marker.
+   *  Lets AudioView seek the `<audio>` element directly without parsing
+   *  the marker out of the quote text. */
+  startMs?: number
   /** The exact quoted passage (used to highlight inside the viewer). */
   quote: string
 }
@@ -53,6 +58,11 @@ export function toCitation(raw: Record<string, unknown>): Citation {
   const label = raw.doc_id ?? raw.docId
   const kbPathRaw = raw.path
   const kbPath = typeof kbPathRaw === 'string' && kbPathRaw.trim() ? kbPathRaw : undefined
+  const startMsRaw = raw.start_ms ?? raw.startMs
+  const startMs =
+    typeof startMsRaw === 'number' && Number.isFinite(startMsRaw) && startMsRaw >= 0
+      ? Math.floor(startMsRaw)
+      : undefined
   return {
     ref,
     scope: scopeForRef(ref),
@@ -63,6 +73,7 @@ export function toCitation(raw: Record<string, unknown>): Citation {
       typeof pageRaw === 'number' || typeof pageRaw === 'string'
         ? (pageRaw as number | string)
         : undefined,
+    ...(startMs !== undefined ? { startMs } : {}),
     quote: String(raw.quote ?? ''),
   }
 }

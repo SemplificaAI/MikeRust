@@ -34,6 +34,9 @@ export interface ViewerTab {
   trackedPolicy: TrackedPolicy
   /** Page hint (number) or `"41-42"` range string. */
   page?: number | string
+  /** Audio offset (ms) — set when opening a citation into a whisper-
+   *  transcribed file so AudioView can seek the player directly. */
+  startMs?: number
   /** Source label for the citation header card. */
   citationSource?: string
 }
@@ -46,6 +49,7 @@ interface OpenOptions {
   mode?: ViewerMode
   quote?: string
   page?: number | string
+  startMs?: number
   citationSource?: string
 }
 
@@ -72,6 +76,7 @@ function createDocViewer() {
       existing.quote = opts.quote
       if (opts.mode !== 'tracked') existing.trackedPolicy = 'show'
       existing.page = opts.page
+      existing.startMs = opts.startMs
       existing.citationSource = opts.citationSource
       activeId = existing.id
       revision++
@@ -89,6 +94,7 @@ function createDocViewer() {
         quote: opts.quote,
         trackedPolicy: 'show',
         page: opts.page,
+        startMs: opts.startMs,
         citationSource: opts.citationSource,
       }
       tabs = [...tabs, tab]
@@ -143,6 +149,7 @@ function createDocViewer() {
         mode: 'citation',
         quote: c.quote,
         page: c.page,
+        ...(c.startMs !== undefined ? { startMs: c.startMs } : {}),
         citationSource: c.source,
       })
     },
