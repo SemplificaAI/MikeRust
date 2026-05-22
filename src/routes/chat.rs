@@ -1116,6 +1116,11 @@ async fn maybe_redact_pii(
         Result<axum::response::sse::Event, std::convert::Infallible>,
     >,
 ) -> String {
+    tracing::info!(
+        "[chat] maybe_redact_pii({filename}) — protected={} ner-pii-built-in={}",
+        protected,
+        cfg!(feature = "ner-pii")
+    );
     if !protected {
         return text;
     }
@@ -2406,12 +2411,12 @@ async fn stream_chat_root(
             }
         }
     }
-    if !pii_protected_ids.is_empty() {
-        tracing::info!(
-            "[chat] {} attachment(s) flagged for PII redaction before LLM payload assembly",
-            pii_protected_ids.len()
-        );
-    }
+    tracing::info!(
+        "[chat] payload parsed — attachments={} pii_protected={} (ner-pii built-in: {})",
+        doc_ids.len(),
+        pii_protected_ids.len(),
+        cfg!(feature = "ner-pii"),
+    );
 
     // Stamp this chat onto any newly attached cache documents so
     // chat-deletion can sweep their on-disk files (see migration

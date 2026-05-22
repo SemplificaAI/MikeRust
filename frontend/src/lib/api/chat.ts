@@ -192,6 +192,10 @@ export function streamChat(
       messages: payload.messages.length,
       model: payload.model ?? '(backend default)',
       attachedFiles: payload.messages.reduce((n, m) => n + (m.files?.length ?? 0), 0),
+      piiProtectedFiles: payload.messages.reduce(
+        (n, m) => n + (m.files?.filter((f) => f.pii_protected).length ?? 0),
+        0,
+      ),
     })
     let res: Response
     try {

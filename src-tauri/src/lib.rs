@@ -42,6 +42,7 @@ pub fn run() {
         .with(tracing_subscriber::fmt::layer())
         .try_init();
 
+
     // Biometric channel: axum sends requests, Tauri processes them with HWND
     let (bio_tx, mut bio_rx) = mpsc::channel::<mike::BiometricRequest>(4);
 

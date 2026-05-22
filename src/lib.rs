@@ -178,6 +178,18 @@ pub async fn run_server_with_channels(
     ensure_fastembed_cache_dir();
     #[cfg(feature = "ner-pii")]
     ensure_hf_cache_dir();
+
+    // One-shot startup line so a "PII not redacting" report can be
+    // diagnosed from the dev log without having to read cargo args:
+    // the bool here is the ACTUAL state of each feature in this
+    // binary, evaluated at compile time inside the mike crate.
+    tracing::info!(
+        "[startup] features compiled in: rag={} pdf={} ner-pii={} audio-transcription={}",
+        cfg!(feature = "rag"),
+        cfg!(feature = "pdf"),
+        cfg!(feature = "ner-pii"),
+        cfg!(feature = "audio-transcription"),
+    );
     // Point ort's `load-dynamic` loader at our vendored
     // `libs/onnxruntime/<platform>/` DLL before any embedding code
     // touches the runtime. Must happen pre-AppState::new (which
