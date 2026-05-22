@@ -43,6 +43,12 @@ pub fn router() -> Router<Arc<AppState>> {
         // scan to render a progress bar for the one-shot model fetch
         // (~280 MB on first run).
         .route("/model-status", get(model_status))
+        // Live status of the GLiNER2 PII engine — Idle / Loading /
+        // Ready / Failed. Polled by the chat composer while a file is
+        // flagged PII-protected so the user sees a "loading PII
+        // model…" stripe instead of a silent multi-minute hang on
+        // first use.
+        .route("/ner-status", get(ner_status))
 }
 
 // ---------------------------------------------------------------------------
@@ -339,6 +345,37 @@ async fn model_status(
 
 #[cfg(not(feature = "rag"))]
 async fn model_status(
+    State(_): State<Arc<AppState>>,
+    _: AuthUser,
+) -> ApiResult {
+    Ok(Json(json!({ "state": "unavailable" })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /sync/ner-status
+// Mirrors /sync/model-status for the GLiNER2 PII engine bootstrap.
+// `unavailable` when the `ner-pii` feature isn't compiled in — the
+// frontend can use the same polling loop in every build.
+// ---------------------------------------------------------------------------
+#[cfg(feature = "ner-pii")]
+async fn ner_status(
+    State(_): State<Arc<AppState>>,
+    _: AuthUser,
+) -> ApiResult {
+    use crate::ner::NerStatus;
+    Ok(Json(match crate::ner::status().await {
+        NerStatus::Idle => json!({ "state": "idle" }),
+        NerStatus::Loading => json!({ "state": "loading" }),
+        NerStatus::Ready => json!({ "state": "ready" }),
+        NerStatus::Failed { error } => json!({
+            "state": "failed",
+            "error": error,
+        }),
+    }))
+}
+
+#[cfg(not(feature = "ner-pii"))]
+async fn ner_status(
     State(_): State<Arc<AppState>>,
     _: AuthUser,
 ) -> ApiResult {

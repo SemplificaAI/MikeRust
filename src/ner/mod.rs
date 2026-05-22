@@ -27,5 +27,8 @@
 pub mod engine;
 pub mod labels;
 
-pub use engine::{extract_entities, mask_pii, Entity};
+pub use engine::{
+    extract_entities, mask_pii, status, Entity, NerStatus, GLINER2_OVERLAP_CHARS,
+    GLINER2_WINDOW_CHARS,
+};
 pub use labels::default_pii_labels;

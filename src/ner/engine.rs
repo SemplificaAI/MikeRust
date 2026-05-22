@@ -16,11 +16,44 @@
 
 use anyhow::{anyhow, Context, Result};
 use std::sync::{Arc, OnceLock};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use gliner2_inference::{mask_pii_text, Gliner2Engine, ModelType, SchemaTask};
 
 use super::labels::default_pii_labels;
+
+/// Coarse-grained snapshot of where the GLiNER2 engine is in its
+/// lifecycle. The crate's `from_pretrained` is synchronous and
+/// doesn't surface byte-level download progress (the hf-hub client
+/// is buried inside it), so we publish four states instead of a
+/// `downloaded/total` pair — sufficient for the UI to show an
+/// indeterminate "Loading PII model…" stripe and to distinguish
+/// "still busy" from "ready, your inference will be fast".
+#[derive(Debug, Clone)]
+pub enum NerStatus {
+    /// No call has hit `ensure_engine` yet.
+    Idle,
+    /// `from_pretrained` is in flight: HF download (first run only)
+    /// + ort session build. May take 30-180 s the very first time,
+    /// ≤1 s on every subsequent process start (HF cache hit).
+    Loading,
+    /// Engine is in memory; subsequent `mask_pii` calls jump
+    /// straight to inference.
+    Ready,
+    /// Loading raised an error. UI shows the message; the next
+    /// `ensure_engine` call resets to Loading and tries again.
+    Failed { error: String },
+}
+
+/// Public reader used by the `/sync/ner-status` route.
+pub async fn status() -> NerStatus {
+    status_cell().read().await.clone()
+}
+
+fn status_cell() -> &'static RwLock<NerStatus> {
+    static CELL: OnceLock<RwLock<NerStatus>> = OnceLock::new();
+    CELL.get_or_init(|| RwLock::new(NerStatus::Idle))
+}
 
 /// A single PII / named-entity span. `start` / `end` are byte
 /// offsets into the original text (`text[start..end]` is verbatim
@@ -63,13 +96,32 @@ pub async fn extract_entities(
         .map_err(|e| anyhow!("ner task join: {e:?}"))?
 }
 
-/// Convenience pipeline: extract PII spans, then run the upstream
-/// `mask_pii_text` to produce a redacted copy of `text` with every
-/// span replaced by `[LABEL]` (e.g. `[PERSON]`, `[EMAIL]`). Overlap
-/// resolution + score priority is handled by gliner2-rs.
+/// GLiNER2's context window (characters). Documents longer than this
+/// would be silently truncated by the model — we chunk client-side
+/// and stitch entity spans back into a single redaction pass over
+/// the original full text.
+pub const GLINER2_WINDOW_CHARS: usize = 2000;
+
+/// Overlap between adjacent chunks. Catches entities that straddle a
+/// chunk boundary (e.g. a name split in two by an unlucky cut). A
+/// 200-char overlap is generous given typical PII spans (5-60 chars)
+/// and survives most boundary cases without inflating the inference
+/// cost meaningfully.
+pub const GLINER2_OVERLAP_CHARS: usize = 200;
+
+/// Convenience pipeline: extract PII spans across every chunk of the
+/// input text, dedupe across overlap regions, then run the upstream
+/// `mask_pii_text` once on the *original* text so the offsets stay
+/// authoritative. Output: a redacted copy of `text` with every span
+/// replaced by `[LABEL]` (e.g. `[PERSON]`, `[EMAIL]`).
 ///
 /// `labels = None` uses the canonical PII set; pass a custom subset
 /// to narrow the redaction (e.g. `&["fiscal_code","iban"]` only).
+///
+/// Long documents (PDFs of dozens of pages, audio transcripts of an
+/// hour) safely route through this entry point — chunking is
+/// transparent. The whole pass runs on `spawn_blocking` so the tokio
+/// runtime stays responsive while a several-MB document is processed.
 pub async fn mask_pii(
     text: &str,
     labels: Option<&[&str]>,
@@ -86,14 +138,152 @@ pub async fn mask_pii(
     let text_owned = text.to_string();
 
     tokio::task::spawn_blocking(move || {
+        let chunks = chunk_for_window(
+            &text_owned,
+            GLINER2_WINDOW_CHARS,
+            GLINER2_OVERLAP_CHARS,
+        );
+        if chunks.len() > 1 {
+            tracing::info!(
+                "[ner] chunking {} chars into {} windows of {} (overlap {})",
+                text_owned.len(),
+                chunks.len(),
+                GLINER2_WINDOW_CHARS,
+                GLINER2_OVERLAP_CHARS,
+            );
+        }
         let tasks = vec![SchemaTask::Entities(owned_labels)];
-        let (entities, _r, _c) = engine
-            .extract(&text_owned, &tasks)
-            .map_err(|e| anyhow!("gliner2 extract failed: {e:?}"))?;
-        Ok(mask_pii_text(&text_owned, &entities))
+        let mut all_entities = Vec::new();
+        for chunk in &chunks {
+            let chunk_text = &text_owned[chunk.start..chunk.end];
+            let (entities, _r, _c) = engine
+                .extract(chunk_text, &tasks)
+                .map_err(|e| anyhow!("gliner2 extract failed on chunk: {e:?}"))?;
+            // gliner2-rs `ExtractedEntity` carries `start_char` /
+            // `end_char` byte offsets into the chunk; shift into
+            // global text coordinates so `mask_pii_text` over the
+            // ORIGINAL text below sees the right spans.
+            for mut e in entities {
+                e.start_char += chunk.start;
+                e.end_char += chunk.start;
+                all_entities.push(e);
+            }
+        }
+        // Dedupe across overlap regions: same span detected at the
+        // tail of one chunk and the head of the next. `mask_pii_text`
+        // already dedupes by overlap-and-score on its own input, so
+        // we just hand it the union — it picks the highest-score
+        // representative per region.
+        Ok(mask_pii_text(&text_owned, &all_entities))
     })
     .await
     .map_err(|e| anyhow!("ner mask task join: {e:?}"))?
+}
+
+/// One chunk window, in **byte** offsets into the source text.
+/// `start..end` is always on UTF-8 char boundaries and the chunk
+/// length never exceeds `window` chars.
+#[derive(Debug, Clone, Copy)]
+struct Chunk {
+    start: usize,
+    end: usize,
+}
+
+/// Split `text` into chunks of at most `window` characters with
+/// `overlap` characters of slide between adjacent chunks. We split
+/// at the nearest UTF-8 char boundary so a multi-byte character is
+/// never cut in half — `engine.extract` would otherwise panic on
+/// an invalid borrow.
+///
+/// For single-window inputs the returned slice is `[(0, text.len())]`
+/// and the caller skips the stitching path entirely.
+fn chunk_for_window(text: &str, window: usize, overlap: usize) -> Vec<Chunk> {
+    debug_assert!(window > overlap, "overlap must be strictly less than window");
+    if text.is_empty() {
+        return Vec::new();
+    }
+    if text.chars().count() <= window {
+        return vec![Chunk { start: 0, end: text.len() }];
+    }
+
+    // Walk char boundaries in steps of (window - overlap). Each
+    // chunk covers `window` chars from its start, until we run out
+    // of text. We track char positions and convert to byte offsets
+    // by walking `char_indices` — keeps everything boundary-safe.
+    let stride = window - overlap;
+    let mut out = Vec::new();
+    let total_chars = text.chars().count();
+    let mut start_char = 0usize;
+    while start_char < total_chars {
+        let end_char = (start_char + window).min(total_chars);
+        let start_byte = char_pos_to_byte(text, start_char);
+        let end_byte = char_pos_to_byte(text, end_char);
+        out.push(Chunk { start: start_byte, end: end_byte });
+        if end_char == total_chars {
+            break;
+        }
+        start_char += stride;
+    }
+    out
+}
+
+/// Convert a char index into the corresponding byte offset. Linear
+/// scan — fine at our chunk sizes (~2000 chars), well below any
+/// hot path.
+fn char_pos_to_byte(text: &str, char_pos: usize) -> usize {
+    if char_pos == 0 {
+        return 0;
+    }
+    text.char_indices()
+        .nth(char_pos)
+        .map(|(b, _)| b)
+        .unwrap_or(text.len())
+}
+
+#[cfg(test)]
+mod chunk_tests {
+    use super::*;
+
+    #[test]
+    fn short_text_single_chunk() {
+        let text = "Mario Rossi, mario@example.com";
+        let chunks = chunk_for_window(text, 2000, 200);
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, text.len());
+    }
+
+    #[test]
+    fn long_text_chunks_with_overlap() {
+        let text = "a".repeat(5000);
+        let chunks = chunk_for_window(&text, 2000, 200);
+        // 5000 chars, stride 1800: starts at 0, 1800, 3600 → 3 chunks.
+        assert_eq!(chunks.len(), 3);
+        assert_eq!(chunks[0].start, 0);
+        assert_eq!(chunks[0].end, 2000);
+        assert_eq!(chunks[1].start, 1800);
+        assert_eq!(chunks[1].end, 3800);
+        assert_eq!(chunks[2].start, 3600);
+        assert_eq!(chunks[2].end, 5000);
+    }
+
+    #[test]
+    fn respects_utf8_boundaries() {
+        // 4-byte emoji at every position — char_count == 1000,
+        // byte_len == 4000. Window of 500 chars produces chunks
+        // aligned on char boundaries, never on a byte mid-emoji.
+        let emoji = "🚀".repeat(1000);
+        let chunks = chunk_for_window(&emoji, 500, 50);
+        for c in &chunks {
+            assert!(emoji.is_char_boundary(c.start));
+            assert!(emoji.is_char_boundary(c.end));
+        }
+    }
+
+    #[test]
+    fn empty_text_returns_no_chunks() {
+        assert!(chunk_for_window("", 2000, 200).is_empty());
+    }
 }
 
 fn run_pass(
@@ -136,6 +326,9 @@ async fn ensure_engine() -> Result<Arc<Gliner2Engine>> {
     let cell = CELL.get_or_init(|| Mutex::new(None));
     let mut guard = cell.lock().await;
     if let Some(engine) = guard.as_ref() {
+        // Already loaded by a previous call — make sure the status
+        // reflects that even if the lifecycle code was edited later.
+        *status_cell().write().await = NerStatus::Ready;
         return Ok(engine.clone());
     }
     tracing::info!(
@@ -143,19 +336,31 @@ async fn ensure_engine() -> Result<Arc<Gliner2Engine>> {
         PII_MODEL_ID,
         PII_MODEL_VARIANT
     );
+    *status_cell().write().await = NerStatus::Loading;
     // `from_pretrained` is sync (downloads via hf-hub + builds the
     // ort session). We hold the mutex for the load — it's a one-time
     // cost per process; concurrent first-callers naturally serialise
     // and the second one finds the engine already cached.
-    let engine = Gliner2Engine::from_pretrained(
+    let result = Gliner2Engine::from_pretrained(
         PII_MODEL_ID,
         Some(PII_MODEL_VARIANT),
         ModelType::HuggingFace,
     )
     .with_context(|| {
         format!("loading GLiNER2 model {PII_MODEL_ID} ({PII_MODEL_VARIANT})")
-    })?;
-    let arc = Arc::new(engine);
-    *guard = Some(arc.clone());
-    Ok(arc)
+    });
+    match result {
+        Ok(engine) => {
+            let arc = Arc::new(engine);
+            *guard = Some(arc.clone());
+            *status_cell().write().await = NerStatus::Ready;
+            Ok(arc)
+        }
+        Err(e) => {
+            let msg = format!("{e:#}");
+            *status_cell().write().await =
+                NerStatus::Failed { error: msg.clone() };
+            Err(e)
+        }
+    }
 }
