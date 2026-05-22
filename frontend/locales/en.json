@@ -537,7 +537,10 @@
     "closeAll": "Close all",
     "unsupported": "This file format cannot be previewed. Use Download to open it.",
     "collapse": "Collapse document view",
-    "expand": "Expand document view"
+    "expand": "Expand document view",
+    "audio": {
+      "transcriptHint": "Citation timestamps carry the audio offset (e.g. [T 14:32]). Click a citation pill to seek the player to that point."
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "What gets indexed",

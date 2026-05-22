@@ -537,7 +537,10 @@
     "closeAll": "Cerrar todo",
     "unsupported": "Este formato de archivo no se puede previsualizar. Usa Descargar para abrirlo.",
     "collapse": "Contraer la vista del documento",
-    "expand": "Expandir la vista del documento"
+    "expand": "Expandir la vista del documento",
+    "audio": {
+      "transcriptHint": "Las marcas de tiempo de las citas incluyen el desplazamiento de audio (p. ej. [T 14:32]). Haz clic en una píldora de cita para posicionar el reproductor."
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Qué se indexa",

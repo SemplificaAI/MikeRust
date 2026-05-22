@@ -537,7 +537,10 @@
     "closeAll": "Chiudi tutto",
     "unsupported": "Questo formato di file non può essere visualizzato. Usa Scarica per aprirlo.",
     "collapse": "Comprimi la vista documento",
-    "expand": "Espandi la vista documento"
+    "expand": "Espandi la vista documento",
+    "audio": {
+      "transcriptHint": "I timestamp delle citazioni includono il riferimento audio (es. [T 14:32]). Clicca una pillola di citazione per posizionare il player."
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Cosa viene indicizzato",

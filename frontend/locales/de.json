@@ -537,7 +537,10 @@
     "closeAll": "Alle schließen",
     "unsupported": "Dieses Dateiformat kann nicht in der Vorschau angezeigt werden. Verwenden Sie zum Öffnen „Herunterladen“.",
     "collapse": "Dokumentansicht einklappen",
-    "expand": "Dokumentansicht ausklappen"
+    "expand": "Dokumentansicht ausklappen",
+    "audio": {
+      "transcriptHint": "Die Zeitstempel der Zitate enthalten den Audio-Versatz (z. B. [T 14:32]). Klicken Sie auf eine Zitat-Pille, um den Player dorthin zu spulen."
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Was indexiert wird",

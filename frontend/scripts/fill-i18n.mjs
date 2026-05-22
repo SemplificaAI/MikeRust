@@ -72,6 +72,8 @@ const T = {
   'Settings.enabledDomainsError': { fr: 'Impossible de mettre à jour les domaines', de: 'Domänen konnten nicht aktualisiert werden', es: 'No se han podido actualizar los dominios', pt: 'Não foi possível atualizar os domínios' },
   'Settings.atLeastOneDomain': { fr: 'Au moins un domaine doit rester activé', de: 'Mindestens eine Domäne muss aktiv bleiben', es: 'Al menos un dominio debe permanecer activo', pt: 'Pelo menos um domínio deve permanecer ativo' },
 
+  'DocViewer.audio.transcriptHint': { fr: "Les horodatages des citations incluent le décalage audio (ex. [T 14:32]). Cliquez sur une pastille de citation pour positionner le lecteur.", de: "Die Zeitstempel der Zitate enthalten den Audio-Versatz (z. B. [T 14:32]). Klicken Sie auf eine Zitat-Pille, um den Player dorthin zu spulen.", es: "Las marcas de tiempo de las citas incluyen el desplazamiento de audio (p. ej. [T 14:32]). Haz clic en una píldora de cita para posicionar el reproductor.", pt: "Os carimbos das citações incluem o deslocamento de áudio (ex. [T 14:32]). Clique numa pílula de citação para posicionar o reprodutor." },
+
   'Workflows.restoredToast': { fr: '« {title} » restauré', de: '„{title}“ wiederhergestellt', es: '«{title}» restaurado', pt: '“{title}” restaurado' },
   'Workflows.hiddenToast': { fr: '« {title} » masqué', de: '„{title}“ ausgeblendet', es: '«{title}» ocultado', pt: '“{title}” ocultado' },
   'Workflows.updateError': { fr: 'Impossible de mettre à jour le workflow', de: 'Workflow konnte nicht aktualisiert werden', es: 'No se pudo actualizar el flujo de trabajo', pt: 'Não foi possível atualizar o fluxo de trabalho' },

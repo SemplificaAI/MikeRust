@@ -12,11 +12,12 @@
   import DocxView from './DocxView.svelte'
   import SheetView from './SheetView.svelte'
   import TextView from './TextView.svelte'
+  import AudioView from './AudioView.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { X, Download, Quote, PanelRightClose, PanelRightOpen, Check } from 'lucide-svelte'
 
-  type RendererKind = 'pdf' | 'docx' | 'sheet' | 'md' | 'rtf' | 'text' | 'unsupported'
+  type RendererKind = 'pdf' | 'docx' | 'sheet' | 'md' | 'rtf' | 'text' | 'audio' | 'unsupported'
 
   interface Loaded {
     kind: RendererKind
@@ -53,6 +54,11 @@
       return 'sheet'
     if (ext === 'md' || ext === 'markdown') return 'md'
     if (ext === 'rtf' || t.includes('rtf')) return 'rtf'
+    if (
+      t.startsWith('audio/') ||
+      ['wav', 'mp3', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)
+    )
+      return 'audio'
     if (t.startsWith('text/') || ['txt', 'log'].includes(ext)) return 'text'
     // A PDF rendition with a stale extension still sniffs as PDF above;
     // anything left is genuinely unknown.
@@ -384,6 +390,13 @@
             <TextView text={loaded.text} kind="rtf" quote={activeTab.quote} revision={docViewer.revision} />
           {:else if loaded.kind === 'text'}
             <TextView text={loaded.text} kind="plain" quote={activeTab.quote} revision={docViewer.revision} />
+          {:else if loaded.kind === 'audio'}
+            <AudioView
+              blob={loaded.blob}
+              filename={activeTab.title}
+              quote={activeTab.quote}
+              revision={docViewer.revision}
+            />
           {:else}
             <p class="text-sm text-(--color-text-secondary) p-8 text-center">
               {i18n.t('DocViewer.unsupported')}

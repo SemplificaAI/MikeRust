@@ -537,7 +537,10 @@
     "closeAll": "Fechar tudo",
     "unsupported": "Este formato de ficheiro não pode ser pré-visualizado. Use Transferir para o abrir.",
     "collapse": "Recolher a vista do documento",
-    "expand": "Expandir a vista do documento"
+    "expand": "Expandir a vista do documento",
+    "audio": {
+      "transcriptHint": "Os carimbos das citações incluem o deslocamento de áudio (ex. [T 14:32]). Clique numa pílula de citação para posicionar o reprodutor."
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "O que é indexado",

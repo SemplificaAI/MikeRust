@@ -34,9 +34,11 @@
     ChevronDown,
   } from 'lucide-svelte'
 
-  /** Formats the backend can ingest (plus images for multimodal models). */
+  /** Formats the backend can ingest (plus images for multimodal models,
+   *  plus audio files transcribed via whisper.cpp when the backend is
+   *  built with `--features audio-transcription`). */
   const UPLOAD_ACCEPT =
-    '.pdf,.docx,.doc,.rtf,.xlsx,.xls,.xlsb,.ods,.csv,.txt,.md,.png,.jpg,.jpeg,.tiff'
+    '.pdf,.docx,.doc,.rtf,.xlsx,.xls,.xlsb,.ods,.csv,.txt,.md,.png,.jpg,.jpeg,.tiff,.wav,.mp3,.ogg,.flac,.m4a,.aac'
 
   interface Props {
     streaming: boolean
