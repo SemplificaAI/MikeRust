@@ -650,6 +650,7 @@
       "insurance": "Assurance",
       "ip": "Propriété intellectuelle",
       "compliance": "Conformité",
+      "gdpr": "RGPD",
       "pa": "Administration publique",
       "others": "Autre"
     }

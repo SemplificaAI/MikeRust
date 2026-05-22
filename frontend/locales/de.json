@@ -650,6 +650,7 @@
       "insurance": "Versicherung",
       "ip": "IP",
       "compliance": "Compliance",
+      "gdpr": "DSGVO",
       "pa": "Öffentliche Verwaltung",
       "others": "Sonstige"
     }

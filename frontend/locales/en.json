@@ -780,6 +780,7 @@
       "insurance": "Insurance",
       "ip": "IP",
       "compliance": "Compliance",
+      "gdpr": "GDPR",
       "pa": "Public Administration",
       "others": "Others"
     }
