@@ -1601,6 +1601,56 @@ fn letters_only(s: &str) -> String {
     out
 }
 
+/// Parse the first `[T MM:SS]` or `[T HH:MM:SS]` marker in `s` into
+/// milliseconds. Returns `None` when no marker is present (PDF chunk,
+/// DOCX chunk, etc.) — the citation just won't carry a `start_ms`
+/// field, and the AudioView will fall back to parsing the marker out
+/// of the quote text (or no-op for non-audio citations).
+fn first_audio_marker_ms(s: &str) -> Option<u64> {
+    // Locate `[T ` then read `(\d+:)?\d+:\d{2}\]`. Linear scan — the
+    // marker is always near the start of the chunk in practice, but we
+    // don't assume.
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i + 4 <= bytes.len() {
+        if bytes[i] == b'[' && bytes[i + 1] == b'T' && bytes[i + 2] == b' ' {
+            let inner_start = i + 3;
+            let mut j = inner_start;
+            while j < bytes.len() && bytes[j] != b']' {
+                let c = bytes[j];
+                if !(c.is_ascii_digit() || c == b':' || c == b' ') {
+                    break;
+                }
+                j += 1;
+            }
+            if j < bytes.len() && bytes[j] == b']' {
+                if let Ok(time_str) = std::str::from_utf8(&bytes[inner_start..j]) {
+                    let parts: Vec<&str> = time_str.trim().split(':').collect();
+                    let parsed = match parts.len() {
+                        2 => parts[0]
+                            .parse::<u64>()
+                            .ok()
+                            .zip(parts[1].parse::<u64>().ok())
+                            .map(|(m, s)| (0u64, m, s)),
+                        3 => parts[0]
+                            .parse::<u64>()
+                            .ok()
+                            .zip(parts[1].parse::<u64>().ok())
+                            .zip(parts[2].parse::<u64>().ok())
+                            .map(|((h, m), s)| (h, m, s)),
+                        _ => None,
+                    };
+                    if let Some((h, m, s)) = parsed {
+                        return Some(((h * 3600) + (m * 60) + s) * 1000);
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
 fn strip_page_markers(quote: &str) -> String {
     let mut out = String::with_capacity(quote.len());
     let bytes = quote.as_bytes();
@@ -3702,6 +3752,21 @@ async fn stream_chat_root(
                             if let Some(p) = kb.page {
                                 obj.insert("page".into(), Value::Number(p.into()));
                             }
+                        }
+                        // Audio start_ms: when the chunk text carries a
+                        // `[T MM:SS]` / `[T HH:MM:SS]` marker (i.e. the
+                        // chunk came from an audio transcription via
+                        // whisper.cpp), stamp the parsed offset on the
+                        // citation so the AudioView player can seek
+                        // directly to it. The frontend already falls
+                        // back to parsing the marker out of the quote
+                        // text — this just gives it a faster, more
+                        // robust structured field.
+                        if let Some(start_ms) = first_audio_marker_ms(&kb.text) {
+                            obj.insert(
+                                "start_ms".into(),
+                                Value::Number(start_ms.into()),
+                            );
                         }
                     } else {
                         obj.insert("source".into(), Value::String("attached".to_string()));
