@@ -18,7 +18,7 @@ use anyhow::{anyhow, Context, Result};
 use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
-use gliner2_inference::{Gliner2Engine, ModelType, SchemaTask};
+use gliner2_inference::{mask_pii_text, Gliner2Engine, ModelType, SchemaTask};
 
 use super::labels::default_pii_labels;
 
@@ -61,6 +61,39 @@ pub async fn extract_entities(
     tokio::task::spawn_blocking(move || run_pass(engine, &text_owned, owned_labels))
         .await
         .map_err(|e| anyhow!("ner task join: {e:?}"))?
+}
+
+/// Convenience pipeline: extract PII spans, then run the upstream
+/// `mask_pii_text` to produce a redacted copy of `text` with every
+/// span replaced by `[LABEL]` (e.g. `[PERSON]`, `[EMAIL]`). Overlap
+/// resolution + score priority is handled by gliner2-rs.
+///
+/// `labels = None` uses the canonical PII set; pass a custom subset
+/// to narrow the redaction (e.g. `&["fiscal_code","iban"]` only).
+pub async fn mask_pii(
+    text: &str,
+    labels: Option<&[&str]>,
+) -> Result<String> {
+    let engine = ensure_engine().await?;
+    let owned_labels: Vec<String> = labels
+        .map(|l| l.iter().map(|s| s.to_string()).collect())
+        .unwrap_or_else(|| {
+            default_pii_labels()
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
+        });
+    let text_owned = text.to_string();
+
+    tokio::task::spawn_blocking(move || {
+        let tasks = vec![SchemaTask::Entities(owned_labels)];
+        let (entities, _r, _c) = engine
+            .extract(&text_owned, &tasks)
+            .map_err(|e| anyhow!("gliner2 extract failed: {e:?}"))?;
+        Ok(mask_pii_text(&text_owned, &entities))
+    })
+    .await
+    .map_err(|e| anyhow!("ner mask task join: {e:?}"))?
 }
 
 fn run_pass(

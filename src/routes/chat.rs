@@ -873,6 +873,7 @@ async fn load_attached_docs(
     user_id: &str,
     document_ids: &[String],
     vision_ok: bool,
+    pii_protected_ids: &std::collections::HashSet<String>,
 ) -> Vec<DocPayload> {
     let mut out = Vec::new();
     for doc_id in document_ids {
@@ -927,9 +928,15 @@ async fn load_attached_docs(
                     "[chat] using cached text for {filename}: {} chars",
                     text.len()
                 );
+                let final_text = maybe_redact_pii(
+                    text,
+                    pii_protected_ids.contains(doc_id),
+                    &filename,
+                )
+                .await;
                 out.push(DocPayload {
                     filename: filename.clone(),
-                    text: Some(text),
+                    text: Some(final_text),
                     images: Vec::new(),
                 });
                 continue;
@@ -1065,6 +1072,18 @@ async fn load_attached_docs(
             }
         }
 
+        // Apply PII redaction before the chars count log so the
+        // log line reflects what actually goes to the LLM.
+        if let Some(t) = payload.text.take() {
+            payload.text = Some(
+                maybe_redact_pii(
+                    t,
+                    pii_protected_ids.contains(doc_id),
+                    &filename,
+                )
+                .await,
+            );
+        }
         let chars = payload.text.as_deref().map(|t| t.len()).unwrap_or(0);
         tracing::info!(
             "[chat] loaded doc {filename}: text={} chars, images={}",
@@ -1074,6 +1093,48 @@ async fn load_attached_docs(
         out.push(payload);
     }
     out
+}
+
+/// If `protected` is true AND the `ner-pii` feature is built in,
+/// run `text` through GLiNER2 + `mask_pii_text` and return the
+/// redacted copy. Otherwise return `text` unchanged. Failures (model
+/// load, inference) are logged and the original text flows through
+/// — the user already saw the "blackbox, may miss things"
+/// disclaimer when they ticked the box, the safer-by-default option
+/// here is "don't break the chat over an inference glitch". The
+/// caller is responsible for the per-doc decision; this helper is
+/// just the plumbing.
+async fn maybe_redact_pii(text: String, protected: bool, filename: &str) -> String {
+    if !protected {
+        return text;
+    }
+    #[cfg(feature = "ner-pii")]
+    {
+        match crate::ner::mask_pii(&text, None).await {
+            Ok(masked) => {
+                tracing::info!(
+                    "[chat] PII redaction applied to {filename}: {} → {} chars",
+                    text.len(),
+                    masked.len()
+                );
+                return masked;
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "[chat] PII redaction failed for {filename}: {e:#} — \
+                     sending ORIGINAL text to LLM"
+                );
+            }
+        }
+    }
+    #[cfg(not(feature = "ner-pii"))]
+    {
+        tracing::warn!(
+            "[chat] {filename} flagged for PII protection but `ner-pii` feature \
+             is not compiled — sending ORIGINAL text to LLM"
+        );
+    }
+    text
 }
 
 /// Mike's original legal-assistant system prompt, adapted from upstream
@@ -2238,8 +2299,15 @@ async fn stream_chat_root(
         })
         .unwrap_or_default();
 
-    // Collect document_ids from message-level attachments.
+    // Collect document_ids from message-level attachments. Also
+    // record which attachments the user flagged with PII protection
+    // (the per-file checkbox in the chat composer). When the
+    // `ner-pii` feature is built in we'll run those docs' text
+    // through `crate::ner::mask_pii` before stuffing it into the
+    // LLM payload.
     let mut doc_ids: Vec<String> = Vec::new();
+    let mut pii_protected_ids: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     if let Some(arr) = body.get("messages").and_then(|v| v.as_array()) {
         for m in arr {
             if let Some(files) = m.get("files").and_then(|v| v.as_array()) {
@@ -2248,10 +2316,23 @@ async fn stream_chat_root(
                         if !doc_ids.iter().any(|x| x == id) {
                             doc_ids.push(id.to_string());
                         }
+                        let pii = f
+                            .get("pii_protected")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false);
+                        if pii {
+                            pii_protected_ids.insert(id.to_string());
+                        }
                     }
                 }
             }
         }
+    }
+    if !pii_protected_ids.is_empty() {
+        tracing::info!(
+            "[chat] {} attachment(s) flagged for PII redaction before LLM payload assembly",
+            pii_protected_ids.len()
+        );
     }
 
     // Stamp this chat onto any newly attached cache documents so
@@ -2471,7 +2552,7 @@ async fn stream_chat_root(
     // via semantic match — without it, the model defaults to "I don't
     // have access to your synced documents."
     let (attached_docs, mcp_servers, kb_chunks, library_inventory) = tokio::join!(
-        load_attached_docs(&state, &auth.user_id, &doc_ids, vision_ok),
+        load_attached_docs(&state, &auth.user_id, &doc_ids, vision_ok, &pii_protected_ids),
         discover_mcp_for_user(&state, &auth.user_id),
         retrieve_kb_chunks(&state, &auth.user_id, &chat_id, &last_user_query, kb_top_k),
         list_indexed_corpus_docs(&state, &auth.user_id),

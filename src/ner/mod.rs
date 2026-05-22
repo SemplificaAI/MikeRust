@@ -27,5 +27,5 @@
 pub mod engine;
 pub mod labels;
 
-pub use engine::{extract_entities, Entity};
+pub use engine::{extract_entities, mask_pii, Entity};
 pub use labels::default_pii_labels;
