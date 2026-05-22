@@ -93,6 +93,24 @@ walkdir = { version = "2", optional = true }
 ignore  = { version = "0.4", optional = true }
 
 # ------------------------------------------------------------------
+# Named-entity recognition / PII detection — GLiNER2 via gliner2-rs.
+#
+# Gated behind `ner-pii`: pulls the engine + the FP16 helper crate
+# from git (Apache-2.0). The model itself (`SemplificaAI/gliner2-
+# privacy-filter-PII-multi`) is downloaded on first use via the
+# crate's hf-hub dependency; HF_HOME is redirected to
+# %USERPROFILE%/mikerust-data/gliner2/ at server startup so the
+# weights live next to the other heavy artefacts (fastembed, whisper).
+#
+# ort 2.0.0-rc.9 is the same pin we already use for embeddings —
+# cargo dedupes the dependency tree to a single ort build. See
+# docs/gliner2-pii-plan.md for the pipeline shape and the
+# Gliner2Engine API the crate exposes.
+# ------------------------------------------------------------------
+gliner2_inference = { git = "https://github.com/SemplificaAI/gliner2-rs", tag = "v0.5.0", optional = true }
+half              = { version = "2.4", optional = true }
+
+# ------------------------------------------------------------------
 # Storage — local filesystem + optional S3/R2 fallback
 # ------------------------------------------------------------------
 aws-sdk-s3 = { version = "1", optional = true }
@@ -202,6 +220,17 @@ rag = [
     "dep:zerocopy",
     "dep:walkdir",
     "dep:ignore",
+]
+# Named-entity recognition / PII detection via GLiNER2. Opt-in: the
+# first build pulls gliner2-rs from git and the runtime downloads a
+# ~500 MB GGUF/ONNX model on first use. The same ort 2.0.0-rc.9 +
+# onnxruntime 1.20.0 DLL the `rag` feature already requires powers
+# the inference — no additional native deps. See
+# docs/gliner2-pii-plan.md.
+ner-pii = [
+    "dep:gliner2_inference",
+    "dep:half",
+    "dep:ort",
 ]
 # Hardware-accelerated embedding inference via ONNX Runtime execution
 # providers (EPs). All are strictly opt-in — the default `rag` build
