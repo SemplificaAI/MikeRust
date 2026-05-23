@@ -12,6 +12,306 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## 2026-05-23 — GLiNER2 PII redaction — end-to-end chat-attachment pipeline
+
+Per-file PII protection for chat attachments. When the user toggles
+the new "PII" checkbox on a file chip in the composer, the
+document's extracted text is run through a GLiNER2 zero-shot
+multilingual NER engine before being stuffed into the LLM payload —
+every detected person / email / address / phone / IBAN / fiscal-
+code / date span is replaced with `[LABEL]` so the cloud model
+never sees the original entities.
+
+### Pipeline
+
+```
+upload (docx/pdf/xlsx/rtf/txt)
+  → extract_text_dispatch        (sync/scanner.rs — pure-Rust, no LLM)
+  → cache <hash>.txt
+  → chat send (checkbox PII on)
+    → load_attached_docs
+      → maybe_redact_pii         (routes/chat.rs)
+        → crate::ner::mask_pii   (ner/engine.rs)
+          → chunk_for_window(2000 chars, 200 overlap)
+          → for each chunk: Gliner2Engine::extract(text, tasks, params)
+          → dedupe + sort entities longest-first
+          → source.replace(entity.text, "[LABEL]")
+  → DocPayload with masked text   → LLM
+```
+
+The masking is text-based and **global**: if the model flags
+"Mario" in one chunk, all occurrences of "Mario" in the document
+are replaced — safer-by-default than relying on offset alignment
+that gliner2-rs's `ExtractedEntity` doesn't currently expose at
+char level.
+
+### Added
+
+- `src/ner/{mod,engine,labels,bootstrap}.rs` — feature-gated module
+  behind the new `audio-transcription`-sibling `ner-pii` cargo
+  feature. `mike-tauri` bakes it in so dev builds carry the engine
+  out of the box.
+- `gliner2_inference = { git = "SemplificaAI/gliner2-rs", tag = "v0.5.0" }` —
+  the Rust binding around GLiNER2 ONNX inference, pinned to the
+  same `ort = "=2.0.0-rc.9"` MikeRust already uses for embeddings.
+  Cargo dedupes the runtime so a single onnxruntime DLL (1.20.0)
+  powers both passes.
+- `crate::ner::mask_pii(text, labels, progress)` — the public
+  entry. `labels = None` → 17-label default set
+  (`person`, `first name`, `last name`, `full name`,
+  `patient name`, `email`, `phone`, `address`, `location`,
+  `organization`, `date`, `date of birth`, `id_number`, `iban`,
+  `credit_card`, `ip_address`, `license_plate`); a caller passes a
+  subset to narrow the redaction. Threshold pinned at 0.2 for
+  high recall.
+- Chunking helper that splits at UTF-8 char boundaries (~2000
+  chars with 200-char overlap), never mid-multibyte — emoji and
+  accented characters survive intact.
+- `Gliner2Engine` singleton per process via
+  `OnceLock<Mutex<Option<Arc<…>>>>` — model loads once, every
+  later call is a session-state copy + inference pass.
+- Chat handler:
+  `routes/chat.rs::maybe_redact_pii(text, protected, filename, sse_tx)`
+  receives a per-document protected flag collected from
+  `OutgoingMessage.files[].pii_protected` and bridges the
+  blocking inference to the SSE stream for progress events.
+- Cargo dep + `ner-pii` feature flag + `mike-tauri` pulls it via
+  `features = ["pdf", "ner-pii"]`.
+
+### Notes
+
+- Adapted the engine wrapper to gliner2-rs v0.5's actual API after
+  finding the README example used a different shape than the
+  shipped code: `ExtractedEntity { text, label, score, start_tok,
+  end_tok }` exposes token offsets (not char), and `extract`
+  takes a third `Option<InferenceParams>` argument. Our `Entity`
+  type drops start/end and relies on the literal text for
+  global text replace.
+- `ort::init().with_name("MikeRust").commit()` is called once at
+  startup before any embedding or NER work — gliner2-rs requires
+  it. The call is a no-op when both `rag` and `ner-pii` are off.
+- The `HF_HOME` env var is redirected to
+  `%USERPROFILE%/mikerust-data/gliner2/` so the model weights live
+  next to the embedding cache and the Tauri watcher never sees
+  them.
+
+---
+
+## 2026-05-23 — PII model bootstrap — manual HF download with byte progress
+
+`gliner2-rs::Gliner2Engine::from_pretrained` uses `hf-hub`
+internally and exposes no byte-level download progress. The chat
+banner would sit at "Loading PII model…" for minutes on first run
+with nothing to show the user that 586 MB was actually moving.
+
+Replaced with our own HF resolver that streams each shard from
+`https://huggingface.co/<repo>/resolve/main/<variant>/<file>` and
+publishes `downloaded/total/file` ticks to a `Downloading` state
+the UI renders identically to the fastembed download bar.
+
+### Added
+
+- `src/ner/bootstrap.rs` (mirror of `src/audio/bootstrap.rs`):
+  - Singleton `NerBootstrap` with `Arc<RwLock<NerStatus>>` for
+    non-blocking status reads + `Mutex<()>` to serialise racing
+    first-callers (the second waiter sees the freshly-cached
+    files on re-check).
+  - `ensure_files(repo_id, variant)` HEAD-passes for the total
+    byte budget, then streams 8 ONNX shards + `tokenizer.json`
+    into `<HF_HOME>/mikerust-gliner2/<repo>--<repo>/<variant>/`
+    with 1 MB tick granularity and `.part` → atomic rename on
+    success.
+  - Variant auto-detection: respects `GLINER2_NO_IOBINDING=1`
+    env var (forces the non-iobinding ONNX variant the runtime
+    1.20.0 is happier with).
+- `NerStatus::Downloading { downloaded, total, file }` variant +
+  `/sync/ner-status` route extension serializing the bytes.
+- `EmbeddingBanner.svelte` extended to also poll
+  `/sync/ner-status` every 600 ms and render
+  *"Download modello PII — encoder_fp16.onnx (123.4/502.1 MB)"*
+  during the first run.
+
+### Why bypass `from_pretrained`?
+
+The crate's `from_pretrained` is sync, doesn't expose progress
+callbacks, and downloads into hf-hub's snapshot/blob/refs cache
+layout (not a flat directory). Replicating that layout from
+outside is fragile, and the user would have no visibility into
+the multi-minute first-time download. Our flat layout
+(`<dir>/<file>`) works directly with `Gliner2Engine::new(Gliner2Config { models_dir, … })`,
+which autodetects V1 vs V2 from the file presence — same engine,
+clean download UX.
+
+---
+
+## 2026-05-23 — PII redaction UX — chip checkbox, disclaimer modal, per-chunk progress
+
+Front-to-back UX for the user-controlled PII redaction. Every
+file chip in the chat composer gains a per-file PII toggle; a
+one-shot disclaimer modal warns about the blackbox nature of the
+detector the first time the user enables it in a chat; and a
+per-chunk progress step reports `(n / N)` inside the assistant's
+own response while the redaction is running.
+
+### Added — composer chip
+
+- `Badge` for each attached file now reads
+  `( PII [☐] filename ✕ )` — checkbox inserted before the
+  filename; clicking it toggles `FileRef.piiProtected`.
+- `OutgoingMessage.files[].pii_protected` (snake_case on the
+  wire) carries the per-file flag to the backend.
+
+### Added — disclaimer modal
+
+- First PII toggle in each chat opens a modal:
+  > "La protezione PII usa un modello AI blackbox che analizza il
+  > testo estratto dal file e sostituisce i dati personali (nomi,
+  > email, codici fiscali, IBAN, …) con segnaposto prima che il
+  > documento sia inviato al modello. Il rilevamento può essere
+  > impreciso: alcune entità potrebbero sfuggire al filtro e
+  > raggiungere comunque l'LLM."
+  >
+  > "Per una redazione di livello produttivo e auditata
+  > consigliamo Omissis, disponibile su edito-pdf.com."
+- Acknowledgement is per-chat (resets on every chat switch via
+  a `$effect` on `chatStore.activeId` — no localStorage). Cycling
+  through chats keeps the user honest about the blackbox caveat
+  on each new conversation.
+- Keyboard: **Enter** confirms (= applies the toggle + marks
+  acked); **Esc** cancels and visually un-checks the checkbox
+  (the browser's pre-intercept click would otherwise leave a
+  ghost-checked state while `piiProtected` stays false). Modal
+  listener wired only while open, so Enter in the textarea still
+  sends the message as before.
+- Link to <https://edito-pdf.com> opens in the system browser
+  via the existing `openExternal` Tauri command — not in the
+  embedded WebView.
+
+### Added — per-chunk progress
+
+- SSE events `pii_redact_start { filename, total }`,
+  `pii_redact_progress { filename, current, total }`,
+  `pii_redact_done { filename }` flow through the same chat
+  stream the rest of the turn uses. To make this work the
+  `(tx, rx)` channel had to be hoisted *above* the
+  `tokio::join!(load_attached_docs, …)` block: PII redaction
+  happens during that join, before the spawn task that normally
+  owns `tx`.
+- A bridge channel (`mpsc::channel<(usize, usize)>(16)`) carries
+  ticks from the `spawn_blocking` worker through to a forwarder
+  task that translates them into SSE events on the chat stream.
+  `try_send` on the worker side so a slow consumer never blocks
+  the inference.
+- `ChatStep` gains a `pii_redact` variant `{ filename, current,
+  total, done }`. Rendered by `ChatSteps.svelte` as a tool step
+  with spinner + "Redazione PII — file.pdf (3 / 17)" label;
+  flips to ✓ on `done`.
+- Status banner above the composer (the same component that
+  shows the embedding-model download) renders the PII bootstrap:
+  *"Download modello PII — encoder_fp16.onnx (123.4 / 502.1 MB)"*
+  while bytes are flowing, then *"Caricamento modello PII —
+  inizializzazione sessioni ONNX"* during the ort session
+  build, then disappears.
+
+### i18n
+
+- 13 new keys across all six locales via `fill-i18n.mjs`:
+  - `ChatInput.pii.tooltip/disclaimerTitle/disclaimerBody/omissisHintPrefix/omissisHintSuffix/acknowledge/statusLoading/statusFailed/statusUnavailable`
+  - `Assistant.stepPiiRedactStarting/stepPiiRedactProgress/stepPiiRedactDone`
+  - `NerStatus.downloading/loadingModel/failed`
+
+---
+
+## 2026-05-23 — PII tuning — labels, threshold, diagnostic logging
+
+A first round of empirical tuning after the pipeline started
+returning results on Italian medical text. Threshold dropped,
+labels broadened, every layer of the pipeline gained explicit
+tracing so future "PII didn't fire" reports can be debugged from
+log lines alone.
+
+### Changed
+
+- **Labels** moved from compound forms (`person_name`,
+  `fiscal_code`, `vat_number`) to natural-language GLiNER
+  conventions (`person`, `first name`, `last name`, `full
+  name`, `patient name`, `email`, `phone`, `id_number`).
+  The compound forms produced ~0 hits per chunk; the natural
+  forms surface several entities per paragraph. 17 labels in
+  the default set, with multiple framings of "person" so the
+  zero-shot model has more ways to find a given name.
+- **Threshold** lowered from `gliner2-rs` default 0.5 → 0.3 →
+  0.2. The safer-by-default redaction prefers over-masking
+  ("Madre" / "Padre" tagged as person false-positives) to
+  leaking ("ARWEN" missed because score < 0.3 → person name
+  sent unredacted to LLM).
+- `InferenceParams { threshold: 0.2, flat_ner: false }` passed
+  explicitly to every `engine.extract` call — previously the
+  None argument meant gliner2-rs picked its own default.
+
+### Added — observability across the pipeline
+
+- `[startup] features compiled in: rag=… pdf=… ner-pii=… audio-transcription=…`
+  one-shot at boot so "ner-pii didn't fire" can be triaged from
+  the dev log without reading cargo args.
+- `[chat] payload parsed — attachments=N pii_protected=M (ner-pii built-in: …)`
+  per request — confirms the per-file flag reaches the backend.
+- `[chat] maybe_redact_pii(filename) — protected=… ner-pii-built-in=…`
+  per attachment — confirms the redaction branch was entered.
+- `[ner] ensure_files entry — repo=… variant=… files_needed=…
+  HF_HOME=… GLINER2_NO_IOBINDING=…` per bootstrap call +
+  per-file `pre-check: <path> → EXISTS/missing` lines so a
+  cache-miss / cache-hit decision is fully transparent.
+- `[ner] PII pass started/done` framing every full redaction
+  pass with timing.
+- `[ner] chunk N/M → extracting (… chars)` and
+  `[ner] chunk N/M ✓ K entities in …ms` per chunk.
+- `[ner]     · entity label=… score=… text=…` for every entity
+  the model emits — so a "ARWEN missed but UNDÓMIEL caught"
+  triage is a one-grep job.
+- Frontend `[ChatInput] PII checkbox click`, `[ChatInput] PII
+  toggle <file> → <bool>`, `[ChatInput] send() called …`,
+  `[streamChat] request { piiProtectedFiles: N }` so the
+  toggle → payload → SSE chain is visible from the JS console
+  without backend access.
+
+### Considered and rejected — regex pre-pass
+
+Briefly shipped a deterministic regex pre-pass for the obvious
+high-precision patterns (email / fiscal code / IBAN / phone /
+IPv4 / date) and reverted it the same day at user direction:
+the pipeline is to remain **pure GLiNER zero-shot**, no
+hand-coded patterns. The trade-off accepted: gliner recall
+gaps on unusual names (e.g. fictional first names, foreign
+spellings, atypical fiscal layouts) may slip through to the
+LLM. The threshold drop to 0.2 + the expanded "person" label
+family widen the recall net within the model's own
+zero-shot framing.
+
+### Tests
+
+`cargo test --features ner-pii --lib transcript_tests chunk_tests` —
+all green (chunking + audio transcript helpers unaffected by
+ner work).
+
+`cargo check --features ner-pii` clean; `pnpm typecheck` 0/0/0.
+
+### Known caveats (documented inline)
+
+- Performance: 22-35 s per 2000-char chunk on Snapdragon X Elite
+  ARM64 CPU with the FP16 model. An 8-chunk file is ~3-5 min.
+  The QNN execution provider isn't compatible with the FP16
+  model (needs QDQ INT8); CPU is the baseline. Performance lap
+  back to QNN tracked separately.
+- Substring overmatch: `source.replace` is non-overlapping
+  left-to-right. Sorting longest-first prevents the obvious
+  pathological case ("Mario Rossi" before "Mario") but doesn't
+  rule out short tokens hitting unrelated substrings. Phase 2
+  may add tokenizer-aligned char offsets if substring leaks
+  become a real problem.
+
+---
+
 ## 2026-05-22 — New `gdpr` canonical domain (11 verticals)
 
 Added a dedicated `gdpr` professional vertical, distinct from
