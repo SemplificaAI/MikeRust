@@ -13,6 +13,40 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.3.0 — 2026-05-23 (installed-MSI storage path)
+
+### Fixed — "Could not load document" (Windows `os error 5`)
+
+Symptom in the installed MSI: uploading a document, opening the
+viewer, or reading the chat document cache surfaced
+"Could not load document — Accesso negato. (os error 5)" with the
+backend logging `ACCESS_DENIED` on file-system writes. Reproduced
+from `<home>/mikerust-data/mike-tauri.log` (v0.2.2 file logger) —
+the storage layer tried to `create_dir_all` `./data/storage/`, a
+cwd-relative path. For a developer running `cargo run` from the
+workspace root that resolves to `C:\Progetti\MikeRust\data\storage\`
+and works. For an MSI launched from a Start-menu shortcut the cwd
+is often `C:\Program Files\MikeRust\` (or `C:\Windows\System32` via
+"Run"), neither of which is writable by a non-admin user. The
+first `put` then failed with `os error 5` and `/document` /
+`/upload` returned HTTP 500.
+
+- [src/storage/mod.rs](src/storage/mod.rs) `LocalStorage::new()`
+  falls back to a new helper `default_storage_path()` instead of
+  `"./data/storage"`. The default now mirrors `db::default_db_url`:
+  `<USERPROFILE | HOME>/mikerust-data/storage/`. Same user-writable
+  directory the SQLite DB and the v0.2.5 PII cache already live
+  under, so a full backup is one folder copy. The
+  `STORAGE_PATH` env override is preserved for tests, fixtures,
+  and the standalone-backend dev story.
+
+### Installer artefacts
+
+- `dist/MikeRust_0.3.0_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.3.0_arm64.msi` — Windows ARM64
+
+---
+
 ## v0.2.7 — 2026-05-23 (patch — close the remaining PII bypasses)
 
 The v0.2.6 fix closed the inline-attached redaction path for

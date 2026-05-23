@@ -21,10 +21,35 @@ pub struct LocalStorage {
     base: PathBuf,
 }
 
+/// Default base directory for `LocalStorage` when `STORAGE_PATH` is
+/// unset. Mirrors `db::default_db_url` and `lib::ensure_data_dir`:
+/// everything we persist that isn't shipped read-only with the binary
+/// lives under `<home>/mikerust-data/`. The old default was
+/// `./data/storage`, a cwd-relative path that worked in `cargo run`
+/// (cwd = workspace root) but blew up the moment the user double-
+/// clicked the installed MSI — Windows resolves the relative path
+/// against the launch cwd (often `C:\Program Files\MikeRust\` for a
+/// shortcut, sometimes `C:\Windows\System32` when launched through
+/// "Run"), neither of which is writable by a non-admin user. The
+/// first storage `put` then failed with `os error 5` (ACCESS_DENIED)
+/// and the WebView surfaced it as "Could not load document — Accesso
+/// negato". Anchoring to `%USERPROFILE%` / `$HOME` puts the storage
+/// next to the SQLite DB so a backup is one folder copy.
+fn default_storage_path() -> String {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home)
+        .join("mikerust-data")
+        .join("storage")
+        .display()
+        .to_string()
+}
+
 impl LocalStorage {
     pub fn new() -> Result<Self> {
         let base = PathBuf::from(
-            std::env::var("STORAGE_PATH").unwrap_or_else(|_| "./data/storage".to_string()),
+            std::env::var("STORAGE_PATH").unwrap_or_else(|_| default_storage_path()),
         );
         std::fs::create_dir_all(&base)?;
         // Resolve the base once so `safe_path_under` can prefix-check
