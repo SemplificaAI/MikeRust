@@ -172,6 +172,26 @@ original, blind-rewritten Svelte frontend (`frontend/`).
 
 ## Quick start
 
+### Install a pre-built Windows release
+
+Each tagged release ships pre-built MSI installers for Windows x86_64
+and ARM64. They bundle the binary plus the matching `onnxruntime.dll`
+(1.20.0) and `pdfium.dll` under `<install>/libs/<lib>/win-<arch>/`, so
+the only post-install requirement is double-clicking the installer.
+
+```
+dist/MikeRust_<version>_x64.msi    # Windows x86_64
+dist/MikeRust_<version>_arm64.msi  # Windows ARM64 (Snapdragon X Elite)
+```
+
+Builds are produced by `scripts/build-release.ps1` and attached to
+the matching tag on
+[GitHub Releases](https://github.com/SemplificaAI/MikeRust/releases).
+Runtime logs land in `<home>/mikerust-data/mike-tauri.log` (see
+v0.2.2 entry in [HISTORY.md](HISTORY.md) for the rationale).
+
+### Build from source
+
 ```bash
 # 1. pdfium (PDF extraction)
 # Download from https://github.com/bblanchon/pdfium-binaries/releases

@@ -4509,7 +4509,7 @@ dependencies = [
 
 [[package]]
 name = "mike"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -4571,7 +4571,7 @@ dependencies = [
 
 [[package]]
 name = "mike-tauri"
-version = "0.2.6"
+version = "0.2.7"
 dependencies = [
  "anyhow",
  "dotenvy",
