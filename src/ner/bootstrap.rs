@@ -123,19 +123,40 @@ impl NerBootstrap {
         let dir = cache_dir(repo_id, variant)?;
         let files = v2_file_list();
 
+        tracing::info!(
+            "[ner] ensure_files entry — repo={repo_id} variant={variant} dir={} \
+             files_needed={} HF_HOME={:?} GLINER2_NO_IOBINDING={:?}",
+            dir.display(),
+            files.len(),
+            std::env::var("HF_HOME").ok(),
+            std::env::var("GLINER2_NO_IOBINDING").ok(),
+        );
+        for f in &files {
+            let p = dir.join(f);
+            tracing::info!(
+                "[ner]   pre-check: {} → {}",
+                p.display(),
+                if p.exists() { "EXISTS" } else { "missing" }
+            );
+        }
+
         // Fast path: every file already present.
         if files.iter().all(|f| dir.join(f).exists()) {
+            tracing::info!("[ner] cache hit — all {} files present, skipping download", files.len());
             *self.status.write().await = NerStatus::Loading;
             return Ok(dir);
         }
+        tracing::info!("[ner] cache miss — entering download path under lock");
 
         let _g = self.download_lock.lock().await;
 
         // Re-check under the lock; a peer may have just finished.
         if files.iter().all(|f| dir.join(f).exists()) {
+            tracing::info!("[ner] re-check under lock — peer completed, skipping download");
             *self.status.write().await = NerStatus::Loading;
             return Ok(dir);
         }
+        tracing::info!("[ner] confirmed under lock — proceeding to download phase");
 
         let client = reqwest::Client::builder()
             .user_agent(format!("mikerust/{}", env!("CARGO_PKG_VERSION")))

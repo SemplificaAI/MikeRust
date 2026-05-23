@@ -77,10 +77,21 @@
   })
 
   function applyPiiToggle(f: FileRef, next: boolean) {
-    files = files.map((x) => (x === f ? { ...x, piiProtected: next } : x))
+    files = files.map((x) =>
+      x.document_id === f.document_id ? { ...x, piiProtected: next } : x,
+    )
+    console.info(
+      '[ChatInput] PII toggle',
+      f.filename ?? f.document_id,
+      '→',
+      next,
+      '— files now:',
+      files.map((x) => ({ id: x.document_id, name: x.filename, pii: x.piiProtected ?? false })),
+    )
   }
 
   function onPiiToggle(f: FileRef, next: boolean) {
+    console.info('[ChatInput] PII checkbox click', { filename: f.filename, next, piiAcked })
     if (next && !piiAcked) {
       pendingPiiFile = f
       piiDisclaimerOpen = true
@@ -300,6 +311,16 @@
   )
 
   function send() {
+    console.warn('[ChatInput] send() called', {
+      files: files.map((f) => ({
+        id: f.document_id,
+        name: f.filename,
+        pii: f.piiProtected ?? false,
+      })),
+      workflow: workflow?.title,
+      template: template?.title,
+      project: project?.name,
+    })
     if (streaming || !text.trim()) return
     onsend(text, {
       files: files.length ? files : undefined,
