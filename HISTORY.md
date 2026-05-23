@@ -13,6 +13,43 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.2.3 — 2026-05-23 (patch)
+
+### Fixed — frontend → backend race on cold MSI launch
+
+Symptom: on a freshly installed MSI, opening MikeRust showed the Svelte
+"Impossibile raggiungere il backend — Network error: Failed to fetch"
+banner. The new v0.2.2 file logger
+(`<home>/mikerust-data/mike-tauri.log`) made the diagnosis instant: the
+backend actually started fine, bound `127.0.0.1:59209` and reported
+the URL via `api_base_url`, but only after ~1 s of preset loading
+(81 workflow presets + 30 column presets + 13 docx templates + 5
+model providers + DB migrations + `ort::init`). The WebView booted
+faster, fired its first `invoke('api_base_url')` while the backend
+was still loading presets, got back an empty string, and fell
+straight through to the hardcoded `http://127.0.0.1:3001` fallback —
+which was guaranteed to refuse the connection.
+
+- [frontend/src/lib/tauri/commands.ts](frontend/src/lib/tauri/commands.ts)
+  `getApiBaseUrl()` now polls `invoke('api_base_url')` with
+  exponential backoff (50 ms → 75 ms → 113 ms…, capped at 1 s) for
+  up to 30 s. Once the embedded axum task fires its `port_tx`, the
+  next `invoke` returns the real URL and the boot sequence
+  continues normally. The old fallback to
+  `VITE_API_BASE_URL` / `http://127.0.0.1:3001` still triggers when
+  `invoke` outright throws (i.e. the frontend is being served by
+  `vite dev` in a regular browser, not the Tauri WebView).
+- Cold-launch overhead on the happy path: 50 ms — the first poll
+  succeeds in the vast majority of cases, the loop only spins when
+  the backend is genuinely slow.
+
+### Installer artefacts
+
+- `dist/MikeRust_0.2.3_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.2.3_arm64.msi` — Windows ARM64
+
+---
+
 ## v0.2.2 — 2026-05-23 (patch)
 
 Two patch-level fixes targeted at the installed MSI experience that

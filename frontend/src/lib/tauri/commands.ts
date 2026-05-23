@@ -5,18 +5,41 @@ import { invoke } from '@tauri-apps/api/core'
 /**
  * Discover the axum backend base URL.
  *
- * The Tauri shell spawns the backend on a free port at startup and reports it
- * back via the `api_base_url` command. If we're not running inside Tauri (e.g.
- * `vite dev` opened in a regular browser for component dev), the command will
- * throw — fall through to the `VITE_API_BASE_URL` env var, then to the
- * canonical localhost default.
+ * The Tauri shell spawns the backend on a free port at startup and reports
+ * it back via the `api_base_url` command. The first `invoke` can race the
+ * backend startup: the WebView boots in ~100ms but mike's AppState (81
+ * workflow presets + 30 column presets + 13 docx templates + 5 model
+ * providers + DB migrations + ort init) takes ~1s to settle before
+ * `port_tx` fires. In that window the command returns an empty string and
+ * the old code immediately fell through to the `:3001` fallback, never
+ * retrying — that's the "Network error: Failed to fetch" the user saw on
+ * cold launch even though the backend was about to start a few hundred
+ * ms later.
+ *
+ * Now we poll with exponential backoff up to 30 s: 50 ms, 75 ms, 113 ms…
+ * capped at 1 s. The backend almost always reports its port within the
+ * first second, so on the happy path this adds one or two extra IPC
+ * round-trips. If we're not running inside Tauri (e.g. `vite dev`
+ * opened in a regular browser for component dev), the very first
+ * `invoke` throws — we bail out of the loop immediately to the
+ * `VITE_API_BASE_URL` env var, then to the canonical localhost
+ * default.
  */
 export async function getApiBaseUrl(): Promise<string> {
-  try {
-    const u = await invoke<string>('api_base_url')
+  const START = Date.now()
+  const MAX_WAIT_MS = 30_000
+  let delay = 50
+  while (Date.now() - START < MAX_WAIT_MS) {
+    let u: string
+    try {
+      u = await invoke<string>('api_base_url')
+    } catch {
+      // Not in Tauri context — no point polling.
+      break
+    }
     if (u) return u
-  } catch {
-    // not in Tauri context, fall through
+    await new Promise((resolve) => setTimeout(resolve, delay))
+    delay = Math.min(Math.round(delay * 1.5), 1000)
   }
   return import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:3001'
 }

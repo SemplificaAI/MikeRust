@@ -1,7 +1,7 @@
 {
   "name": "mikerust-frontend",
   "private": true,
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "MikeRust frontend — clean-room Svelte 5 rewrite",
   "license": "AGPL-3.0-only",
   "type": "module",
