@@ -164,15 +164,7 @@ pub async fn mask_pii(
                 .map(|s| s.to_string())
                 .collect()
         });
-    // First pass: deterministic regex masking. Guarantees that
-    // emails / fiscal codes / IBANs / phones / IPs / dd-mm-yyyy
-    // dates are redacted even when the zero-shot gliner pass misses
-    // them. We run gliner on the already-regex-masked text so the
-    // model spends its budget on context-dependent entities (person
-    // names, addresses, organisations) instead of patterns we can
-    // catch reliably with a regex.
-    let regex_pre = super::regex_masks::redact(text);
-    let text_owned = regex_pre;
+    let text_owned = text.to_string();
 
     tokio::task::spawn_blocking(move || {
         let chunks = chunk_for_window(
