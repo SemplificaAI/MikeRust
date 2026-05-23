@@ -1,7 +1,8 @@
 # History
 
-Release notes for MikeRust. No semantic-version tags yet — entries are
-grouped by the date the work landed on `main` (Europe/Rome), most recent
+Release notes for MikeRust. Tagged releases (`v0.1.0` and later) collect
+the work into shippable semver bumps; the entries between tags are
+ordered by the date the work landed on `main` (Europe/Rome), most recent
 first. Each entry follows a light Keep-a-Changelog shape (Added /
 Changed / Fixed / Docs / Removed) so contributors can skim by intent.
 
@@ -9,6 +10,29 @@ Commits referenced are short SHAs; run `git log <sha>` for the full
 diff. For the upstream-sync audit trail (which fixes were ported from
 `willchen96/mike` and which we declined), see
 [`docs/UPSTREAM_SYNC.md`](docs/UPSTREAM_SYNC.md).
+
+---
+
+## v0.2.1 — 2026-05-23
+
+First semver bump since `v0.1.0`. Twenty-nine commits between the two
+tags, headlined by the entire **GLiNER2 PII redaction vertical** and a
+**chat-stream live-progress refactor** that closes the long-PDF "silent
+wait" UX gap. Also: lean MSI installers for x64 + arm64 (down from
+161 MB to ~24 MB after fixing the `gliner2_inference v0.5.1` ort
+default-feature cascade), and the Italian terminology of the PII rows
+was corrected from *Redazione* to *Anonimizzazione*. The themed
+entries below collect the per-topic detail.
+
+### Installer artefacts
+
+- `dist/MikeRust_0.2.1_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.2.1_arm64.msi` — Windows ARM64
+
+Both ship the matching `onnxruntime.dll` 1.20.0 + `pdfium.dll` under
+`resources/libs/{onnxruntime,pdfium}/win-<arch>/` (loaded dynamically
+at runtime — see `libs/onnxruntime/README.md` for the version pin
+rationale).
 
 ---
 
