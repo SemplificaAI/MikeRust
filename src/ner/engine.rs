@@ -27,7 +27,7 @@ use gliner2_inference::{
 /// Italian medical text that suppresses most hits. 0.3 is the
 /// "show me everything reasonable, I'll over-mask rather than leak"
 /// trade-off the safer-by-default redaction needs.
-const PII_THRESHOLD: f32 = 0.3;
+const PII_THRESHOLD: f32 = 0.2;
 
 use super::labels::default_pii_labels;
 
@@ -164,7 +164,15 @@ pub async fn mask_pii(
                 .map(|s| s.to_string())
                 .collect()
         });
-    let text_owned = text.to_string();
+    // First pass: deterministic regex masking. Guarantees that
+    // emails / fiscal codes / IBANs / phones / IPs / dd-mm-yyyy
+    // dates are redacted even when the zero-shot gliner pass misses
+    // them. We run gliner on the already-regex-masked text so the
+    // model spends its budget on context-dependent entities (person
+    // names, addresses, organisations) instead of patterns we can
+    // catch reliably with a regex.
+    let regex_pre = super::regex_masks::redact(text);
+    let text_owned = regex_pre;
 
     tokio::task::spawn_blocking(move || {
         let chunks = chunk_for_window(

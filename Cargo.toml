@@ -109,6 +109,11 @@ ignore  = { version = "0.4", optional = true }
 # ------------------------------------------------------------------
 gliner2_inference = { git = "https://github.com/SemplificaAI/gliner2-rs", tag = "v0.5.0", optional = true }
 half              = { version = "2.4", optional = true }
+# Deterministic regex pre-pass that runs before gliner2 — guarantees
+# email / CF / IBAN / phone / IP / dd-mm-yyyy redaction even when
+# zero-shot misses. `regex` is already transitive (parquet, etc.)
+# so making it direct doesn't add binary size.
+regex             = { version = "1", optional = true }
 
 # ------------------------------------------------------------------
 # Storage — local filesystem + optional S3/R2 fallback
@@ -230,6 +235,7 @@ rag = [
 ner-pii = [
     "dep:gliner2_inference",
     "dep:half",
+    "dep:regex",
     "dep:ort",
 ]
 # Hardware-accelerated embedding inference via ONNX Runtime execution

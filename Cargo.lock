@@ -4542,6 +4542,7 @@ dependencies = [
  "quick-xml 0.37.5",
  "rand 0.9.4",
  "rand_core 0.6.4",
+ "regex",
  "reqwest 0.12.28",
  "rtf-parser",
  "rust_xlsxwriter",

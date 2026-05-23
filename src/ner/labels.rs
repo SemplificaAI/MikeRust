@@ -22,13 +22,29 @@ pub fn default_pii_labels() -> &'static [&'static str] {
     // ~0 hits per chunk on Italian medical text; the short forms
     // surface several entities per paragraph.
     &[
+        // Person-name variants — gliner zero-shot recall for given
+        // names is fragile, so we hand it multiple framings of the
+        // same concept. Empirically (HISTORY 2026-05-23 medical
+        // transcripts) "person" alone caught surnames but missed
+        // given names; "first name" + "last name" + "full name"
+        // together close the gap.
         "person",
+        "first name",
+        "last name",
+        "full name",
+        "patient name",
+        // Contact + identity
         "email",
         "phone",
         "address",
         "location",
         "organization",
+        // Time references
         "date",
+        "date of birth",
+        // Identifiers (also covered by the regex pre-pass, but kept
+        // here for the gliner gate in case the regex misses an
+        // unusual layout)
         "id_number",
         "iban",
         "credit_card",

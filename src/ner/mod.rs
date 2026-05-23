@@ -27,6 +27,7 @@
 pub mod bootstrap;
 pub mod engine;
 pub mod labels;
+pub mod regex_masks;
 
 pub use engine::{
     extract_entities, mask_pii, status, Entity, NerStatus, ProgressFn,
