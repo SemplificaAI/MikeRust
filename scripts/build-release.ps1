@@ -192,9 +192,24 @@ function New-ResourcesOverlay {
     # copy-dylibs step again, re-emitting the same 617 MB CUDA EP DLL
     # we just deleted. Silencing pnpm here keeps cargo a true no-op so
     # the swept DLLs stay swept and the bundler ships a lean MSI.
+    # Bundle JSON-driven config registries alongside the binary.
+    # The runtime `crate::presets::*_dir` resolvers walk ancestors of
+    # the executable looking for `config/<dir>/`, so dropping the
+    # bundled JSON at `<install>/config/...` lets the installed app
+    # find them without an env-var override. The walker happily
+    # recurses into per-domain subfolders (workflow-presets/legal/,
+    # workflow-presets/insurance/, …) — the glob source preserves
+    # the relative subpath under each root. `corpora-plugins/` is
+    # deliberately excluded: the plugin system reads its own dir
+    # via a separate resolver and shouldn't conflict, and pre-built
+    # installs don't ship third-party plugins anyway.
     $resources = [ordered]@{
         ("../libs/pdfium/win-$Arch/pdfium.dll")             = "libs/pdfium/win-$Arch/pdfium.dll"
         ("../libs/onnxruntime/win-$Arch/onnxruntime.dll")   = "libs/onnxruntime/win-$Arch/onnxruntime.dll"
+        "../config/workflow-presets/**/*.json"              = "config/workflow-presets/"
+        "../config/column-presets/**/*.json"                = "config/column-presets/"
+        "../config/docx-templates/**/*.json"                = "config/docx-templates/"
+        "../config/model.json"                              = "config/model.json"
     }
     $obj = @{
         build  = @{ beforeBuildCommand = '' }

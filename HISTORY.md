@@ -13,6 +13,45 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.3.1 — 2026-05-24 (installed-MSI ships config registries)
+
+### Fixed — empty workflow / column / docx-template picker on installed MSI
+
+Symptom: opening the workflow picker in the installed app showed
+"None"; the column-preset auto-match dropdown was empty; the
+docx-template registry surfaced no system templates; and the model
+catalogue dropdown only listed manually-saved providers. Backend
+warnings in `mike-tauri.log` confirmed the loaders fell through to
+the cwd-relative `./config/<dir>/` fallback after the ancestor
+walker found nothing — the MSI shipped only the binary + `libs/`,
+no `config/` tree.
+
+- [scripts/build-release.ps1](scripts/build-release.ps1)'s
+  `New-ResourcesOverlay` now bundles four extra JSON sources via
+  glob patterns:
+  - `config/workflow-presets/**/*.json` →
+    `<install>/config/workflow-presets/…` (preserves the per-domain
+    subfolders: compliance / finance / insurance / legal / medical / pa)
+  - `config/column-presets/**/*.json` →
+    `<install>/config/column-presets/…`
+  - `config/docx-templates/**/*.json` →
+    `<install>/config/docx-templates/…`
+  - `config/model.json` → `<install>/config/model.json`
+- The existing `crate::presets::presets_dir` ancestor walker now
+  finds them at `<exe_dir>/config/<dir>/` without any code change —
+  the resolver was already prepared for this layout, the MSI just
+  wasn't shipping the files.
+- `config/corpora-plugins/` is deliberately *not* bundled: the
+  plugin system uses its own resolver and pre-built installs don't
+  ship third-party plugins.
+
+### Installer artefacts
+
+- `dist/MikeRust_0.3.1_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.3.1_arm64.msi` — Windows ARM64
+
+---
+
 ## v0.3.0 — 2026-05-23 (installed-MSI storage path)
 
 ### Fixed — "Could not load document" (Windows `os error 5`)
