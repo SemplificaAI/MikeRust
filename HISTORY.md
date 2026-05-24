@@ -13,7 +13,7 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
-## v0.3.3 — 2026-05-24 (generate_docx — strip chat-citation markers)
+## v0.3.4 — 2026-05-24 (generate_docx — strip chat-citation markers)
 
 ### Fixed — exported .docx peppered with unresolvable `[c104]` pills
 
@@ -46,8 +46,8 @@ section the user is happy with; the inline markers were dead weight.
   this note is the user-facing documentation.
 
 ### Installer artefacts
-- Not built in this commit — accumulated for the next release the
-  user decides to ship.
+- `dist/MikeRust_0.3.4_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.3.4_arm64.msi` — Windows ARM64
 
 ---
 
