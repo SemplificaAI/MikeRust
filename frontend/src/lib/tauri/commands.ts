@@ -56,6 +56,21 @@ export async function openExternal(url: string): Promise<void> {
 }
 
 /**
+ * Open a *file path* with the OS's default associated application.
+ * Backed by the `open_external_path` Tauri command, which validates
+ * the path against the user's MikeRust storage root before launching
+ * — see src-tauri/src/lib.rs for the security model. Used by the
+ * DocViewerPanel "Open in Word" button so the user can run Word's
+ * native track-changes accept/reject workflow on a model-generated
+ * docx. The path must be the absolute path returned by the backend
+ * (`GET /document/:id/file_path`); fabricating one client-side will
+ * fail the prefix check on the Rust side.
+ */
+export async function openExternalPath(path: string): Promise<void> {
+  await invoke('open_external_path', { path })
+}
+
+/**
  * Open the native folder picker. Returns the chosen absolute path, or
  * null if the user cancelled or we are not running inside Tauri.
  */

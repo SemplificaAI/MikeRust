@@ -542,7 +542,37 @@
     "closeAll": "Alle schließen",
     "unsupported": "Dieses Dateiformat kann nicht in der Vorschau angezeigt werden. Verwenden Sie zum Öffnen „Herunterladen“.",
     "collapse": "Dokumentansicht einklappen",
-    "expand": "Dokumentansicht ausklappen"
+    "expand": "Dokumentansicht ausklappen",
+    "decision": {
+      "groupLabel": "Dokumententscheidung",
+      "accept": "Akzeptieren",
+      "reject": "Ablehnen",
+      "acceptTooltip": "Dieses Dokument im Chat-Kontext behalten",
+      "rejectTooltip": "Diese Version ablehnen: wird durch Zusammenfassung + Begründung ersetzt",
+      "rejectedBadge": "Abgelehnt"
+    },
+    "openExternal": {
+      "label": "In Word öffnen",
+      "tooltip": "Datei mit der Standard-App für .docx öffnen (Word / LibreOffice)",
+      "error": "Datei konnte nicht geöffnet werden: {err}"
+    },
+    "accept": {
+      "error": "Entscheidung konnte nicht aktualisiert werden: {err}"
+    },
+    "reject": {
+      "title": "«{file}» ablehnen",
+      "intro": "Erklären Sie, warum Sie diese Version ablehnen möchten. Das Modell wird diese Notiz in nachfolgenden Runden verwenden, um denselben Fehler nicht zu wiederholen.",
+      "reasonLabel": "Grund für die Ablehnung",
+      "placeholder": "z. B. der Anamnese-Abschnitt führt die bekannten Allergien des Patienten nicht korrekt auf…",
+      "minHint": "Mindestens {n} Zeichen.",
+      "confirm": "Zusammenfassung erstellen & ablehnen",
+      "generating": "Zusammenfassung wird erstellt…",
+      "yourReason": "Ihr Grund",
+      "summaryLabel": "Zusammenfassung der abgelehnten Version",
+      "summaryExplain": "Diese Zusammenfassung + Ihr Grund werden in den nachfolgenden Runden anstelle des vollständigen Dokuments verwendet.",
+      "done": "Schließen",
+      "error": "Ablehnung fehlgeschlagen: {err}"
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Was indexiert wird",

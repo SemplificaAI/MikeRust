@@ -555,7 +555,37 @@
     "closeAll": "Close all",
     "unsupported": "This file format cannot be previewed. Use Download to open it.",
     "collapse": "Collapse document view",
-    "expand": "Expand document view"
+    "expand": "Expand document view",
+    "decision": {
+      "groupLabel": "Document decision",
+      "accept": "Accept",
+      "reject": "Reject",
+      "acceptTooltip": "Keep this document in the chat context",
+      "rejectTooltip": "Reject this version: it will be replaced by a summary + reason",
+      "rejectedBadge": "Rejected"
+    },
+    "openExternal": {
+      "label": "Open in Word",
+      "tooltip": "Open the file with the OS default app for .docx (Word / LibreOffice)",
+      "error": "Could not open the file: {err}"
+    },
+    "accept": {
+      "error": "Could not update decision: {err}"
+    },
+    "reject": {
+      "title": "Reject «{file}»",
+      "intro": "Explain why you want to reject this version. The model will use this note on subsequent turns so it doesn't reproduce the same mistake.",
+      "reasonLabel": "Reason for rejection",
+      "placeholder": "e.g. the anamnesis section doesn't correctly list the patient's known allergies…",
+      "minHint": "At least {n} characters.",
+      "confirm": "Generate summary & reject",
+      "generating": "Generating summary…",
+      "yourReason": "Your reason",
+      "summaryLabel": "Summary of the rejected version",
+      "summaryExplain": "This summary + your reason will enter the context of subsequent turns in place of the full document.",
+      "done": "Close",
+      "error": "Reject failed: {err}"
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "What gets indexed",

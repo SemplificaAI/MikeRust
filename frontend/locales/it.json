@@ -555,7 +555,37 @@
     "closeAll": "Chiudi tutto",
     "unsupported": "Questo formato di file non può essere visualizzato. Usa Scarica per aprirlo.",
     "collapse": "Comprimi la vista documento",
-    "expand": "Espandi la vista documento"
+    "expand": "Espandi la vista documento",
+    "decision": {
+      "groupLabel": "Decisione sul documento",
+      "accept": "Accetta",
+      "reject": "Rifiuta",
+      "acceptTooltip": "Mantieni questo documento nel contesto della chat",
+      "rejectTooltip": "Rifiuta questa versione: sarà sostituita da un riassunto + motivo",
+      "rejectedBadge": "Rifiutato"
+    },
+    "openExternal": {
+      "label": "Apri in Word",
+      "tooltip": "Apri il file con l'app predefinita per i .docx (Word / LibreOffice)",
+      "error": "Impossibile aprire il file: {err}"
+    },
+    "accept": {
+      "error": "Impossibile aggiornare la decisione: {err}"
+    },
+    "reject": {
+      "title": "Rifiuta «{file}»",
+      "intro": "Spiega perché vuoi rifiutare questa versione. Il modello userà questa nota nei turni successivi per non riprodurre lo stesso errore.",
+      "reasonLabel": "Motivo del rifiuto",
+      "placeholder": "Es: la sezione anamnesi non riporta correttamente le allergie note del paziente…",
+      "minHint": "Almeno {n} caratteri.",
+      "confirm": "Genera riassunto e rifiuta",
+      "generating": "Genero il riassunto…",
+      "yourReason": "Il tuo motivo",
+      "summaryLabel": "Riassunto della versione rifiutata",
+      "summaryExplain": "Questo riassunto + il tuo motivo entreranno nel contesto dei turni successivi al posto del documento intero.",
+      "done": "Chiudi",
+      "error": "Rifiuto non andato a buon fine: {err}"
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Cosa viene indicizzato",

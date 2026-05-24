@@ -13,6 +13,118 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.3.5 — 2026-05-24 (docx Accept/Reject decision flow + Open-in-Word)
+
+The DocViewerPanel's three buttons over a generated .docx — historically
+a rendering preview toggle (`Tracked Change` / `Accept` / `Reject` of
+the in-doc markup) — were doing nothing the user cared about: flipping
+between them changed only what the panel rendered, not what the model
+received on the next turn. The same rejected docx kept entering the
+LLM payload because `load_attached_docs` auto-attaches every row
+linked to the chat (`chat_id` foreign key), and the user had no way to
+explain *why* a rejection happened.
+
+This release turns those buttons into real operational decisions on
+the per-chat lifecycle of a generated document.
+
+### Schema — migration `0029_documents_decision`
+
+- `documents.decision TEXT NOT NULL DEFAULT 'accepted'`
+  CHECK in `('accepted', 'rejected')`.
+- `documents.decision_reason TEXT` — free-text user explanation
+  captured when the user clicks Reject.
+- `documents.decision_summary TEXT` — one-shot LLM summary of the
+  rejected version, generated server-side at reject-time and
+  preserved across decision flips so a re-reject doesn't pay the
+  summarisation cost twice.
+
+Decision scope is **per-chat** by construction: every generated docx
+already lives on a single `chat_id` (set by `generate_docx` at
+creation), so a per-document column is implicitly per-chat. A docx
+that wants to escape this scope is re-uploaded as a new attachment
+in a different chat — that gets its own fresh decision row.
+
+### Backend
+
+- New endpoint `POST /document/:id/decision` with body
+  `{ decision: "accepted" | "rejected", reason?: string }`. On
+  reject the handler (a) refuses requests with a reason shorter
+  than 10 chars, (b) reads the document's extracted text from the
+  cached `extracted_text_path` (or runs a fresh
+  `extract_text_dispatch` if no cache exists), (c) builds a
+  rejection-aware summarisation prompt and calls the same LLM
+  provider the user picked in Settings — Claude / OpenAI-compat /
+  Gemini — via `crate::llm::summarize`'s `complete` per-provider
+  path, (d) persists `decision`, `decision_reason`,
+  `decision_summary`. On accept it just flips the column and
+  returns the archived reason/summary so the UI can keep them
+  available for a future re-reject without retyping.
+- `GET /document/:id` extended to surface the three new fields.
+- `routes/chat.rs::load_attached_docs` filters documents by
+  `decision` per-turn: a rejected doc is substituted with a synth
+  payload — `"[Documento rifiutato dall'utente]\nFilename: …\n
+  Motivo del rifiuto: …\nRiassunto della versione rifiutata: …\n
+  Indicazione operativa: non riprodurre questa versione…"` —
+  rather than its full text, so the model on subsequent turns
+  knows what was vetoed and why without re-seeing the vetoed
+  bytes.
+
+### Tauri shell — Open in Word
+
+- New IPC command `open_external_path` in `src-tauri/src/lib.rs`.
+  Accepts an absolute path; canonicalises it; rejects anything
+  that doesn't sit under `<home>/mikerust-data/storage/`,
+  `$STORAGE_PATH`, or the OS temp dir; hands the rest to
+  `open::that` so Word / LibreOffice picks up the file with its
+  native Track Changes UI. Frontend never fabricates the path:
+  it asks the auth-gated `GET /document/:id/file_path` and
+  passes the response string straight through.
+
+### Frontend
+
+- New `DocViewer.decision` segmented control inside
+  `DocViewerPanel.svelte` with strong colour states: green fill +
+  ✓ when `accepted`, red fill + ✗ when `rejected`, both visible
+  against the toolbar background instead of the previous near-
+  invisible `bg-surface-100`. ARIA `role="radiogroup"` + per-
+  button `aria-checked` so screen readers and keyboard navigation
+  surface the tri-state nature the old three separate `<button>`s
+  obscured. A `Rejected: <reason>` chip appears beside the
+  group when the doc is currently rejected so the why is visible
+  without reopening the modal.
+- New `RejectReasonModal.svelte` — two-step requester: (1) the
+  user types the rejection reason (`min 10 chars`, validated
+  inline); on confirm the modal calls
+  `POST /document/:id/decision`, which fires the LLM
+  summarisation; (2) the modal displays the summary it just
+  received side-by-side with the user's reason for transparency,
+  with a single "Close" button. The rejection is persisted at
+  step 1 — step 2 is a preview, not a confirmation gate
+  ("Reject means reject"). Re-fills from the archived reason
+  every time it opens so a re-reject doesn't lose prior text.
+- New "Apri in Word" toolbar button (lucide `<ExternalLink />`)
+  replaces the old "Tracked Change" preview toggle. The
+  preview-toggle semantics had become noise once the buttons
+  stopped being decorative; the new behaviour hands the docx
+  off to the user's preferred editor where they *can* actually
+  accept/reject individual changes inline.
+- `doc-viewer` store gains `decision`, `decisionReason`,
+  `decisionSummary` per tab plus a `setDecision` action.
+  `hydrateDecision` runs on tab open via `GET /document/:id`,
+  so the toolbar reflects the current backend state.
+- New i18n keys under `DocViewer.decision.*`,
+  `DocViewer.openExternal.*`, `DocViewer.reject.*`,
+  `DocViewer.accept.error` — 22 new strings × 6 locales (en +
+  it canonical, fr/de/es/pt via `scripts/fill-i18n.mjs`'s
+  translation table). i18n parity now at 1117 keys × 6 locales.
+
+### Installer artefacts
+
+- `dist/MikeRust_0.3.5_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.3.5_arm64.msi` — Windows ARM64
+
+---
+
 ## v0.3.4 — 2026-05-24 (generate_docx — strip chat-citation markers)
 
 ### Fixed — exported .docx peppered with unresolvable `[c104]` pills

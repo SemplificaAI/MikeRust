@@ -35,7 +35,7 @@ pub struct LocalStorage {
 /// and the WebView surfaced it as "Could not load document — Accesso
 /// negato". Anchoring to `%USERPROFILE%` / `$HOME` puts the storage
 /// next to the SQLite DB so a backup is one folder copy.
-fn default_storage_path() -> String {
+pub fn default_storage_path() -> String {
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".to_string());

@@ -12,9 +12,69 @@
   import DocxView from './DocxView.svelte'
   import SheetView from './SheetView.svelte'
   import TextView from './TextView.svelte'
+  import RejectReasonModal from './RejectReasonModal.svelte'
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
-  import { X, Download, Quote, PanelRightClose, PanelRightOpen, Check } from 'lucide-svelte'
+  import { toastStore } from '$lib/stores/toast.svelte'
+  import { openExternalPath } from '$lib/tauri/commands'
+  import {
+    X,
+    Download,
+    Quote,
+    PanelRightClose,
+    PanelRightOpen,
+    Check,
+    ExternalLink,
+  } from 'lucide-svelte'
+
+  let rejectModalOpen = $state(false)
+
+  async function hydrateDecision(tab: ViewerTab) {
+    if (tab.source !== 'document') return
+    try {
+      const meta = await documentsApi.get(tab.docId)
+      docViewer.setDecision(
+        tab.docId,
+        meta.decision ?? 'accepted',
+        meta.decision_reason ?? null,
+        meta.decision_summary ?? null,
+      )
+    } catch {
+      // Non-fatal: keep the default 'accepted' the store seeded with.
+    }
+  }
+
+  async function acceptActive(tab: ViewerTab) {
+    if (tab.source !== 'document') return
+    try {
+      const res = await documentsApi.setDecision(tab.docId, { decision: 'accepted' })
+      docViewer.setDecision(tab.docId, 'accepted', res.reason, res.summary)
+    } catch (err) {
+      toastStore.danger(
+        i18n.t('DocViewer.accept.error', {
+          err: (err as Error).message ?? String(err),
+        }),
+      )
+    }
+  }
+
+  function openRejectModal() {
+    rejectModalOpen = true
+  }
+
+  async function openExternally(tab: ViewerTab) {
+    if (tab.source !== 'document') return
+    try {
+      const meta = await documentsApi.filePath(tab.docId)
+      await openExternalPath(meta.path)
+    } catch (err) {
+      toastStore.danger(
+        i18n.t('DocViewer.openExternal.error', {
+          err: (err as Error).message ?? String(err),
+        }),
+      )
+    }
+  }
 
   type RendererKind = 'pdf' | 'docx' | 'sheet' | 'md' | 'rtf' | 'text' | 'unsupported'
 
@@ -83,6 +143,9 @@
                 throw new Error('KB citation missing path')
               })()
           : await documentsApi.displayBytes(tab.docId)
+      // Hydrate the per-chat accept/reject state alongside the bytes.
+      // Fire-and-forget so the renderer doesn't wait for it.
+      void hydrateDecision(tab)
       const buf = new Uint8Array(await blob.arrayBuffer())
       const kind = rendererFor(blob, tab.title)
       const text =
@@ -265,79 +328,16 @@
               </button>
             </div>
             {#if isDocxTab(activeTab)}
-              <div class="flex flex-wrap items-center gap-1 mb-1.5">
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded text-[11px] border border-(--color-surface-200)
-                         {activeTab.trackedPolicy === 'show'
-                           ? 'bg-(--color-surface-100) text-(--color-text-primary)'
-                           : 'text-(--color-text-secondary) hover:text-(--color-text-primary)'}"
-                  onclick={() => docViewer.setTrackedPolicy('show')}
-                >
-                  {i18n.t('DocViewer.trackedChange')}
-                </button>
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded text-[11px] border border-(--color-surface-200)
-                         {activeTab.trackedPolicy === 'accept'
-                           ? 'bg-(--color-surface-100) text-(--color-text-primary)'
-                           : 'text-(--color-text-secondary) hover:text-(--color-text-primary)'}"
-                  onclick={() => docViewer.setTrackedPolicy('accept')}
-                >
-                  <span class="inline-flex items-center gap-1"><Check size={11} />{i18n.t('EditCard.accept')}</span>
-                </button>
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded text-[11px] border border-(--color-surface-200)
-                         {activeTab.trackedPolicy === 'reject'
-                           ? 'bg-(--color-surface-100) text-(--color-text-primary)'
-                           : 'text-(--color-text-secondary) hover:text-(--color-text-primary)'}"
-                  onclick={() => docViewer.setTrackedPolicy('reject')}
-                >
-                  <span class="inline-flex items-center gap-1"><X size={11} />{i18n.t('EditCard.reject')}</span>
-                </button>
-              </div>
+              {@render decisionToolbar(activeTab)}
             {/if}
             <p class="text-xs text-(--color-text-secondary) line-clamp-3 whitespace-pre-wrap">
               {activeTab.quote.replaceAll('[[PAGE_BREAK]]', ' … ')}
             </p>
           </div>
         {:else}
-          <div class="flex items-center justify-between gap-2">
-            <span class="text-xs text-(--color-text-secondary) truncate">{activeTab.title}</span>
-            <div class="flex items-center gap-1.5">
-              {#if isDocxTab(activeTab)}
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded text-[11px] border border-(--color-surface-200)
-                         {activeTab.mode === 'tracked' && activeTab.trackedPolicy === 'show'
-                           ? 'bg-(--color-surface-100) text-(--color-text-primary)'
-                           : 'text-(--color-text-secondary) hover:text-(--color-text-primary)'}"
-                  onclick={() => docViewer.setTrackedPolicy('show')}
-                >
-                  {i18n.t('DocViewer.trackedChange')}
-                </button>
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded text-[11px] border border-(--color-surface-200)
-                         {activeTab.mode === 'tracked' && activeTab.trackedPolicy === 'accept'
-                           ? 'bg-(--color-surface-100) text-(--color-text-primary)'
-                           : 'text-(--color-text-secondary) hover:text-(--color-text-primary)'}"
-                  onclick={() => docViewer.setTrackedPolicy('accept')}
-                >
-                  <span class="inline-flex items-center gap-1"><Check size={11} />{i18n.t('EditCard.accept')}</span>
-                </button>
-                <button
-                  type="button"
-                  class="h-6 px-2 rounded text-[11px] border border-(--color-surface-200)
-                         {activeTab.mode === 'tracked' && activeTab.trackedPolicy === 'reject'
-                           ? 'bg-(--color-surface-100) text-(--color-text-primary)'
-                           : 'text-(--color-text-secondary) hover:text-(--color-text-primary)'}"
-                  onclick={() => docViewer.setTrackedPolicy('reject')}
-                >
-                  <span class="inline-flex items-center gap-1"><X size={11} />{i18n.t('EditCard.reject')}</span>
-                </button>
-              {/if}
+          <div class="flex flex-col gap-1.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-xs text-(--color-text-secondary) truncate">{activeTab.title}</span>
               <button
                 type="button"
                 class="flex items-center gap-1 text-xs text-(--color-text-secondary) hover:text-(--color-text-primary)"
@@ -346,6 +346,9 @@
                 <Download size={12} />{i18n.t('Documents.viewer.download')}
               </button>
             </div>
+            {#if isDocxTab(activeTab)}
+              {@render decisionToolbar(activeTab)}
+            {/if}
           </div>
         {/if}
       </div>
@@ -395,3 +398,85 @@
     {/if}
   </aside>
 {/if}
+
+{#if activeTab && activeTab.source === 'document'}
+  <RejectReasonModal
+    bind:open={rejectModalOpen}
+    docId={activeTab.docId}
+    filename={activeTab.title}
+    initialReason={activeTab.decisionReason}
+  />
+{/if}
+
+{#snippet decisionToolbar(tab: ViewerTab)}
+  <!--
+    Per-chat decision controls for a model-generated docx.
+    - Accept (green when active): keeps the document in the chat
+      context as if the user had uploaded it manually.
+    - Reject (red when active): opens RejectReasonModal; on confirm
+      the docx is swapped server-side with a summary + the user's
+      reason on subsequent chat turns. The decision is reversible
+      at any time by clicking the opposite button.
+    - Apri in Word (icon + label, neutral): hands off to the OS
+      default app via Tauri's open_external_path — for real
+      inline track-changes editing the WebView can't do.
+    Tracked-change preview policies (show/accept/reject as a
+    pure render hint) were removed when the buttons stopped being
+    decorative; see HISTORY v0.3.5.
+  -->
+  <div class="flex flex-wrap items-center gap-2">
+    <div
+      role="radiogroup"
+      aria-label={i18n.t('DocViewer.decision.groupLabel')}
+      class="inline-flex rounded-(--radius-md) overflow-hidden
+             border border-(--color-surface-200)"
+    >
+      <button
+        type="button"
+        role="radio"
+        aria-checked={tab.decision === 'accepted'}
+        onclick={() => acceptActive(tab)}
+        title={i18n.t('DocViewer.decision.acceptTooltip')}
+        class="h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1
+               border-r border-(--color-surface-200)
+               {tab.decision === 'accepted'
+                 ? 'bg-(--color-success-500) text-white'
+                 : 'text-(--color-text-secondary) hover:bg-(--color-surface-50)'}"
+      >
+        <Check size={12} />{i18n.t('DocViewer.decision.accept')}
+      </button>
+      <button
+        type="button"
+        role="radio"
+        aria-checked={tab.decision === 'rejected'}
+        onclick={openRejectModal}
+        title={i18n.t('DocViewer.decision.rejectTooltip')}
+        class="h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1
+               {tab.decision === 'rejected'
+                 ? 'bg-(--color-danger-500) text-white'
+                 : 'text-(--color-text-secondary) hover:bg-(--color-surface-50)'}"
+      >
+        <X size={12} />{i18n.t('DocViewer.decision.reject')}
+      </button>
+    </div>
+    <button
+      type="button"
+      onclick={() => openExternally(tab)}
+      title={i18n.t('DocViewer.openExternal.tooltip')}
+      class="h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1
+             rounded-(--radius-md) border border-(--color-surface-200)
+             text-(--color-text-secondary) hover:bg-(--color-surface-50)
+             hover:text-(--color-text-primary)"
+    >
+      <ExternalLink size={12} />{i18n.t('DocViewer.openExternal.label')}
+    </button>
+    {#if tab.decision === 'rejected' && tab.decisionReason}
+      <span
+        class="text-[11px] text-(--color-danger-500) truncate max-w-xs"
+        title={tab.decisionReason}
+      >
+        {i18n.t('DocViewer.decision.rejectedBadge')}: {tab.decisionReason}
+      </span>
+    {/if}
+  </div>
+{/snippet}

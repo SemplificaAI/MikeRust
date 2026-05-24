@@ -63,4 +63,36 @@ export const documentsApi = {
    */
   kbBytes: (path: string) =>
     api<Blob>('/sync/kb-doc', { asBlob: true, query: { path } }),
+
+  /**
+   * Flip the per-chat accept/reject decision on a document. On
+   * `'rejected'` the backend also generates a one-shot LLM summary
+   * of the document; on subsequent chat turns the full text is then
+   * replaced with that summary + the user's reason, so the model
+   * knows what was vetoed and why without re-seeing the bytes. See
+   * migration 0029 + routes/documents.rs::set_decision for the
+   * data shape; routes/chat.rs::load_attached_docs for the chat-side
+   * substitution.
+   */
+  setDecision: (
+    id: string,
+    body: { decision: 'accepted' | 'rejected'; reason?: string },
+  ) =>
+    api<{ decision: 'accepted' | 'rejected'; reason: string | null; summary: string | null }>(
+      `/document/${encodeURIComponent(id)}/decision`,
+      { method: 'POST', body },
+    ),
+
+  /**
+   * Resolve the absolute on-disk path of a document. The frontend
+   * never persists this — it's fetched on demand, immediately handed
+   * to the Tauri `open_external_path` command for the
+   * DocViewerPanel "Apri in Word" action, then dropped. Path is
+   * sandboxed server-side to user-owned rows and prefix-checked
+   * Tauri-side against the storage root.
+   */
+  filePath: (id: string) =>
+    api<{ path: string; storage_root: string }>(
+      `/document/${encodeURIComponent(id)}/file_path`,
+    ),
 }

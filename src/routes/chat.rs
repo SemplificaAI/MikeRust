@@ -907,8 +907,9 @@ async fn load_attached_docs(
 ) -> Vec<DocPayload> {
     let mut out = Vec::new();
     for doc_id in document_ids {
-        let row: Option<(String, String, Option<String>, Option<String>, i64)> = sqlx::query_as(
-            "SELECT filename, file_type, storage_path, extracted_text_path, pii_protected \
+        let row: Option<(String, String, Option<String>, Option<String>, i64, String, Option<String>, Option<String>)> = sqlx::query_as(
+            "SELECT filename, file_type, storage_path, extracted_text_path, pii_protected, \
+                    decision, decision_reason, decision_summary \
              FROM documents WHERE id = ? AND user_id = ?",
         )
         .bind(doc_id)
@@ -918,10 +919,52 @@ async fn load_attached_docs(
         .ok()
         .flatten();
 
-        let Some((filename, file_type, Some(storage_path), extracted_text_path, persisted_pii)) = row
+        let Some((
+            filename,
+            file_type,
+            Some(storage_path),
+            extracted_text_path,
+            persisted_pii,
+            decision,
+            decision_reason,
+            decision_summary,
+        )) = row
         else {
             continue;
         };
+
+        // Rejected docs (per-chat decision, migration 0029) never load
+        // their full text into the prompt. Instead we synthesise a
+        // short note from the user-provided reason and the one-shot
+        // LLM summary captured at reject-time, so the model on a
+        // subsequent turn knows what was rejected and why — without
+        // re-seeing the bytes the user already vetoed.
+        if decision == "rejected" {
+            let reason = decision_reason.as_deref().unwrap_or("(motivo non registrato)");
+            let summary = decision_summary
+                .as_deref()
+                .unwrap_or("(riassunto non disponibile)");
+            let stub = format!(
+                "[Documento rifiutato dall'utente]\n\
+                 Filename: {filename}\n\
+                 Motivo del rifiuto: {reason}\n\
+                 Riassunto della versione rifiutata: {summary}\n\
+                 Indicazione operativa: non riprodurre questa versione \
+                 così com'è; correggi tenendo conto del motivo sopra."
+            );
+            tracing::info!(
+                "[chat] doc {filename} (id={doc_id}) rejected — substituting full \
+                 text with reason+summary stub ({} chars)",
+                stub.len()
+            );
+            out.push(DocPayload {
+                filename: filename.clone(),
+                text: Some(stub),
+                images: Vec::new(),
+            });
+            continue;
+        }
+
         // Effective protection = persisted column (set by an earlier
         // opt-in turn) OR the per-request set (set by this turn). The
         // OR-logic guarantees a follow-up text-only turn still

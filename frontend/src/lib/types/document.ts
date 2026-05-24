@@ -13,4 +13,9 @@ export interface DocumentMeta {
   created_at: string
   /** Folder within the project (`GET /document`). null = project root. */
   project_folder_id?: string | null
+  /** Per-chat accept/reject state (migration 0029). Defaults to
+   *  `accepted` for legacy rows. */
+  decision?: 'accepted' | 'rejected'
+  decision_reason?: string | null
+  decision_summary?: string | null
 }

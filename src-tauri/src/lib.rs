@@ -223,6 +223,7 @@ pub fn run() {
         .manage(api_base)
         .invoke_handler(tauri::generate_handler![
             open_external_url,
+            open_external_path,
             api_base_url,
             pick_folder
         ])
@@ -354,6 +355,59 @@ fn open_external_url(url: String) -> Result<(), String> {
         return Err(format!("rejected non-http(s) URL: {url}"));
     }
     open::that(&url).map_err(|e| e.to_string())
+}
+
+/// Open a *file path* with the OS's default associated application
+/// — typically Microsoft Word / LibreOffice for `.docx`. Used by the
+/// DocViewerPanel "Apri in Word" toolbar action so the user can run
+/// Word's native Track Changes accept/reject workflow on a docx the
+/// model generated.
+///
+/// Security model: the path is validated against the user's storage
+/// root (`<home>/mikerust-data/storage/`, the same base
+/// `LocalStorage` uses) plus the OS temp dir as a permitted prefix.
+/// Anything pointing elsewhere — a network share, `C:\Windows`, a
+/// crafted path with `..` segments that escape the base — is
+/// rejected before `open::that` is called. The frontend never
+/// fabricates the path; it asks the authenticated backend endpoint
+/// `GET /document/:id/file_path` for the absolute path and hands the
+/// returned string straight to this command.
+#[tauri::command]
+fn open_external_path(path: String) -> Result<(), String> {
+    use std::path::PathBuf;
+
+    let raw = PathBuf::from(&path);
+    let canonical = std::fs::canonicalize(&raw)
+        .map_err(|e| format!("canonicalize {path}: {e}"))?;
+
+    // Build the allowlist of acceptable prefixes. Canonicalize each
+    // so the prefix comparison below is symmetric with the input.
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .map_err(|_| "USERPROFILE/HOME not set".to_string())?;
+    let storage_default = PathBuf::from(home).join("mikerust-data").join("storage");
+    let storage_override = std::env::var("STORAGE_PATH").ok().map(PathBuf::from);
+
+    let mut allowed: Vec<PathBuf> = vec![storage_default];
+    if let Some(p) = storage_override {
+        allowed.push(p);
+    }
+    allowed.push(std::env::temp_dir());
+
+    let allowed_canonical: Vec<PathBuf> = allowed
+        .iter()
+        .filter_map(|p| std::fs::canonicalize(p).ok())
+        .collect();
+
+    let ok = allowed_canonical.iter().any(|root| canonical.starts_with(root));
+    if !ok {
+        return Err(format!(
+            "rejected: path {} is outside the allowed storage roots",
+            canonical.display()
+        ));
+    }
+
+    open::that(&canonical).map_err(|e| e.to_string())
 }
 
 /// Open the native folder picker. Returns the selected absolute path,

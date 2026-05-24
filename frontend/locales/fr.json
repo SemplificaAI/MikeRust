@@ -542,7 +542,37 @@
     "closeAll": "Tout fermer",
     "unsupported": "Ce format de fichier ne peut pas être prévisualisé. Utilisez Télécharger pour l'ouvrir.",
     "collapse": "Réduire la vue du document",
-    "expand": "Agrandir la vue du document"
+    "expand": "Agrandir la vue du document",
+    "decision": {
+      "groupLabel": "Décision sur le document",
+      "accept": "Accepter",
+      "reject": "Rejeter",
+      "acceptTooltip": "Conserver ce document dans le contexte du chat",
+      "rejectTooltip": "Rejeter cette version : elle sera remplacée par un résumé + un motif",
+      "rejectedBadge": "Rejeté"
+    },
+    "openExternal": {
+      "label": "Ouvrir dans Word",
+      "tooltip": "Ouvrir le fichier avec l'application par défaut pour les .docx (Word / LibreOffice)",
+      "error": "Impossible d'ouvrir le fichier : {err}"
+    },
+    "accept": {
+      "error": "Impossible de mettre à jour la décision : {err}"
+    },
+    "reject": {
+      "title": "Rejeter «{file}»",
+      "intro": "Expliquez pourquoi vous voulez rejeter cette version. Le modèle utilisera cette note dans les tours suivants pour ne pas reproduire la même erreur.",
+      "reasonLabel": "Motif du rejet",
+      "placeholder": "p. ex. la section anamnèse n'indique pas correctement les allergies connues du patient…",
+      "minHint": "Au moins {n} caractères.",
+      "confirm": "Générer le résumé et rejeter",
+      "generating": "Génération du résumé…",
+      "yourReason": "Votre motif",
+      "summaryLabel": "Résumé de la version rejetée",
+      "summaryExplain": "Ce résumé + votre motif entreront dans le contexte des tours suivants à la place du document complet.",
+      "done": "Fermer",
+      "error": "Échec du rejet : {err}"
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Ce qui est indexé",

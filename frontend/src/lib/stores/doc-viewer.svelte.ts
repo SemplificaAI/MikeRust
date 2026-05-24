@@ -16,6 +16,9 @@ export type ViewerMode = 'citation' | 'plain' | 'tracked'
 /** Visual policy for DOCX tracked changes while in `mode: tracked`. */
 export type TrackedPolicy = 'show' | 'accept' | 'reject'
 
+/** Per-chat accept/reject state — see migration 0029. */
+export type DocDecision = 'accepted' | 'rejected'
+
 export interface ViewerTab {
   /** Unique per tab (a document may be reopened from several places). */
   id: string
@@ -36,6 +39,13 @@ export interface ViewerTab {
   page?: number | string
   /** Source label for the citation header card. */
   citationSource?: string
+  /** Current accept/reject state for this document in this chat. */
+  decision: DocDecision
+  /** Archived reject reason (kept across flips so a re-reject doesn't
+   *  ask the user to retype). */
+  decisionReason?: string | null
+  /** LLM-generated summary captured at reject-time. */
+  decisionSummary?: string | null
 }
 
 interface OpenOptions {
@@ -90,6 +100,13 @@ function createDocViewer() {
         trackedPolicy: 'show',
         page: opts.page,
         citationSource: opts.citationSource,
+        // Default to "accepted" — matches the documents.decision
+        // server-side default. The DocViewerPanel hydrates the real
+        // state from `GET /document/:id` on open and then mutates it
+        // through `setDecision` after the server confirms.
+        decision: 'accepted',
+        decisionReason: null,
+        decisionSummary: null,
       }
       tabs = [...tabs, tab]
       activeId = tab.id
@@ -166,6 +183,29 @@ function createDocViewer() {
       if (!tab) return
       tab.mode = 'tracked'
       tab.trackedPolicy = policy
+      revision++
+    },
+
+    /** Reflect the accept/reject decision the backend just confirmed
+     *  into the active tab. Pure state mutation — the network call to
+     *  `POST /document/:id/decision` lives on the component side so
+     *  the modal can wait on the promise and show the generated
+     *  summary before closing. `reason` / `summary` are kept across
+     *  flips so a future re-reject can pre-fill them. */
+    setDecision(
+      docId: string,
+      decision: DocDecision,
+      reason: string | null,
+      summary: string | null,
+    ) {
+      const tab = tabs.find((t) => t.docId === docId)
+      if (!tab) return
+      tab.decision = decision
+      // Only overwrite the archived reason / summary when the backend
+      // hands us new ones — on a re-accept the backend returns the
+      // previously-stored values, so we just mirror them verbatim.
+      tab.decisionReason = reason
+      tab.decisionSummary = summary
       revision++
     },
 

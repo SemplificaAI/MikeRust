@@ -542,7 +542,37 @@
     "closeAll": "Cerrar todo",
     "unsupported": "Este formato de archivo no se puede previsualizar. Usa Descargar para abrirlo.",
     "collapse": "Contraer la vista del documento",
-    "expand": "Expandir la vista del documento"
+    "expand": "Expandir la vista del documento",
+    "decision": {
+      "groupLabel": "Decisión del documento",
+      "accept": "Aceptar",
+      "reject": "Rechazar",
+      "acceptTooltip": "Mantener este documento en el contexto del chat",
+      "rejectTooltip": "Rechazar esta versión: se sustituirá por un resumen + motivo",
+      "rejectedBadge": "Rechazado"
+    },
+    "openExternal": {
+      "label": "Abrir en Word",
+      "tooltip": "Abrir el archivo con la aplicación predeterminada para .docx (Word / LibreOffice)",
+      "error": "No se pudo abrir el archivo: {err}"
+    },
+    "accept": {
+      "error": "No se pudo actualizar la decisión: {err}"
+    },
+    "reject": {
+      "title": "Rechazar «{file}»",
+      "intro": "Explica por qué quieres rechazar esta versión. El modelo usará esta nota en los turnos siguientes para no reproducir el mismo error.",
+      "reasonLabel": "Motivo del rechazo",
+      "placeholder": "p. ej. la sección de anamnesis no enumera correctamente las alergias conocidas del paciente…",
+      "minHint": "Al menos {n} caracteres.",
+      "confirm": "Generar resumen y rechazar",
+      "generating": "Generando resumen…",
+      "yourReason": "Tu motivo",
+      "summaryLabel": "Resumen de la versión rechazada",
+      "summaryExplain": "Este resumen + tu motivo entrarán en el contexto de los turnos siguientes en lugar del documento completo.",
+      "done": "Cerrar",
+      "error": "El rechazo falló: {err}"
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "Qué se indexa",

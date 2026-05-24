@@ -542,7 +542,37 @@
     "closeAll": "Fechar tudo",
     "unsupported": "Este formato de ficheiro não pode ser pré-visualizado. Use Transferir para o abrir.",
     "collapse": "Recolher a vista do documento",
-    "expand": "Expandir a vista do documento"
+    "expand": "Expandir a vista do documento",
+    "decision": {
+      "groupLabel": "Decisão do documento",
+      "accept": "Aceitar",
+      "reject": "Rejeitar",
+      "acceptTooltip": "Manter este documento no contexto do chat",
+      "rejectTooltip": "Rejeitar esta versão: será substituída por um resumo + motivo",
+      "rejectedBadge": "Rejeitado"
+    },
+    "openExternal": {
+      "label": "Abrir no Word",
+      "tooltip": "Abrir o ficheiro com a aplicação predefinida para .docx (Word / LibreOffice)",
+      "error": "Não foi possível abrir o ficheiro: {err}"
+    },
+    "accept": {
+      "error": "Não foi possível atualizar a decisão: {err}"
+    },
+    "reject": {
+      "title": "Rejeitar «{file}»",
+      "intro": "Explica porque queres rejeitar esta versão. O modelo usará esta nota nos turnos seguintes para não reproduzir o mesmo erro.",
+      "reasonLabel": "Motivo da rejeição",
+      "placeholder": "p. ex. a secção de anamnese não indica corretamente as alergias conhecidas do paciente…",
+      "minHint": "Pelo menos {n} carateres.",
+      "confirm": "Gerar resumo e rejeitar",
+      "generating": "A gerar resumo…",
+      "yourReason": "O teu motivo",
+      "summaryLabel": "Resumo da versão rejeitada",
+      "summaryExplain": "Este resumo + o teu motivo entrarão no contexto dos turnos seguintes em vez do documento completo.",
+      "done": "Fechar",
+      "error": "Falha na rejeição: {err}"
+    }
   },
   "DocumentSupport": {
     "noticeTitle": "O que é indexado",

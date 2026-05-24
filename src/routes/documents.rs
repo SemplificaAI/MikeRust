@@ -15,9 +15,14 @@ use std::sync::Arc;
 use crate::{auth::middleware::AuthUser, storage::make_storage, AppState};
 
 fn storage_root() -> PathBuf {
-    PathBuf::from(
-        std::env::var("STORAGE_PATH").unwrap_or_else(|_| "./data/storage".to_string()),
-    )
+    // Mirror `LocalStorage::new()` (src/storage/mod.rs) so the
+    // `STORAGE_PATH` env override and the user-writable default land
+    // both layers on the same base directory. Using the old hardcoded
+    // `./data/storage` literal here was the v0.3.0 ACCESS_DENIED bug
+    // for installed MSIs all over again, just on a different route.
+    PathBuf::from(std::env::var("STORAGE_PATH").unwrap_or_else(|_| {
+        crate::storage::default_storage_path()
+    }))
 }
 
 type ApiResult = Result<Json<Value>, (StatusCode, Json<Value>)>;
@@ -44,7 +49,297 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/{id}/text", get(display_document))
         .route("/{id}/download", get(download_document))
         .route("/{id}/url", get(get_document_url))
+        // Per-chat Accept / Reject decision — see migration 0029.
+        .route("/{id}/decision", axum::routing::post(set_decision))
+        // Absolute on-disk path for the Tauri shell's open-in-Word command.
+        .route("/{id}/file_path", get(get_document_file_path))
         .layer(DefaultBodyLimit::max(100 * 1024 * 1024))
+}
+
+// ---------------------------------------------------------------------------
+// POST /document/:id/decision
+// ---------------------------------------------------------------------------
+
+#[derive(Deserialize)]
+struct DecisionBody {
+    /// `accepted` or `rejected`.
+    decision: String,
+    /// Required when `decision == "rejected"`. Free-text explanation
+    /// the user wants the model to take into account on the next try.
+    #[serde(default)]
+    reason: Option<String>,
+}
+
+/// Flip the per-chat accept/reject state of a document. Rejecting also
+/// generates a one-shot LLM summary of the document so subsequent chat
+/// turns can swap the full text with `"<filename> rejected with reason
+/// X — summary: Y — try again"` (see `routes/chat.rs::load_attached_docs`).
+async fn set_decision(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(doc_id): Path<String>,
+    Json(body): Json<DecisionBody>,
+) -> ApiResult {
+    let decision = body.decision.as_str();
+    if !matches!(decision, "accepted" | "rejected") {
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "decision must be 'accepted' or 'rejected'",
+        ));
+    }
+
+    let row: Option<(String, String, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT filename, file_type, storage_path, extracted_text_path \
+         FROM documents WHERE id = ? AND user_id = ?",
+    )
+    .bind(&doc_id)
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten();
+    let Some((filename, file_type, storage_path, extracted_text_path)) = row else {
+        return Err(err(StatusCode::NOT_FOUND, "document not found"));
+    };
+
+    if decision == "accepted" {
+        // Flip back to the default. Reason/summary are intentionally
+        // preserved so a future re-reject doesn't lose the previous
+        // motivation — the UI can pre-fill the modal with the prior
+        // text if the user re-opens it.
+        let _ = sqlx::query(
+            "UPDATE documents SET decision = 'accepted' WHERE id = ? AND user_id = ?",
+        )
+        .bind(&doc_id)
+        .bind(&auth.user_id)
+        .execute(&state.db)
+        .await;
+        let archived: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+            "SELECT decision_reason, decision_summary FROM documents WHERE id = ?",
+        )
+        .bind(&doc_id)
+        .fetch_optional(&state.db)
+        .await
+        .ok()
+        .flatten();
+        let (reason, summary) = archived.unwrap_or((None, None));
+        return Ok(Json(json!({
+            "decision": "accepted",
+            "reason": reason,
+            "summary": summary,
+        })));
+    }
+
+    // decision == "rejected"
+    let reason = body
+        .reason
+        .as_deref()
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+    if reason.chars().count() < 10 {
+        return Err(err(
+            StatusCode::BAD_REQUEST,
+            "reason must be at least 10 characters",
+        ));
+    }
+
+    // Load the document text. The cached extracted-text path wins —
+    // it's already plain UTF-8 and skips re-running the per-format
+    // extractor. Only fall back to a fresh extraction when no cache
+    // exists (rare for generate_docx output, which always writes the
+    // cache; common for legacy uploaded files predating migration
+    // 0014).
+    let text = load_text_for_summary(&file_type, storage_path.as_deref(), extracted_text_path.as_deref())
+        .await
+        .unwrap_or_default();
+    if text.trim().is_empty() {
+        tracing::warn!(
+            "[doc-decision] no extractable text for {filename} (id={doc_id}) — \
+             persisting reject with empty summary"
+        );
+    }
+
+    // Summarizer credentials come from the user's saved settings —
+    // same model the chat handler would have used for this turn.
+    let user_settings = crate::routes::user::fetch_llm_settings(&state.db, &auth.user_id)
+        .await
+        .ok();
+    let raw_model = user_settings
+        .as_ref()
+        .and_then(|s| s.main_model.clone())
+        .unwrap_or_else(|| "gemini-2.5-flash".to_string());
+    let local_config = crate::routes::chat::build_local_config(&raw_model, user_settings.as_ref());
+    let creds = crate::llm::summarize::SummarizerCreds {
+        local_config,
+        claude_api_key: user_settings.as_ref().and_then(|s| s.claude_api_key.clone()),
+        gemini_api_key: user_settings.as_ref().and_then(|s| s.gemini_api_key.clone()),
+        gemini_region: user_settings.as_ref().and_then(|s| s.gemini_region.clone()),
+    };
+
+    let summary = generate_rejection_summary(&text, &reason, &filename, &raw_model, &creds)
+        .await
+        .unwrap_or_else(|e| {
+            tracing::warn!(
+                "[doc-decision] rejection summary call failed for {filename} (id={doc_id}): {e:#}"
+            );
+            format!(
+                "(Riassunto automatico non disponibile: {e}) \
+                 Motivo utente: {reason}"
+            )
+        });
+
+    let _ = sqlx::query(
+        "UPDATE documents SET decision = 'rejected', decision_reason = ?, \
+         decision_summary = ? WHERE id = ? AND user_id = ?",
+    )
+    .bind(&reason)
+    .bind(&summary)
+    .bind(&doc_id)
+    .bind(&auth.user_id)
+    .execute(&state.db)
+    .await;
+
+    tracing::info!(
+        "[doc-decision] rejected {filename} (id={doc_id}) — reason {} chars, summary {} chars",
+        reason.chars().count(),
+        summary.chars().count()
+    );
+
+    Ok(Json(json!({
+        "decision": "rejected",
+        "reason": reason,
+        "summary": summary,
+    })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /document/:id/file_path
+// ---------------------------------------------------------------------------
+
+/// Resolve the document's absolute on-disk path so the Tauri shell can
+/// pass it to `crate::open::that` for the new "Apri in Word" /
+/// "Open externally" toolbar action introduced alongside the
+/// Accept/Reject decision flow. The frontend never sees the path —
+/// the Svelte side calls this endpoint, immediately hands the result
+/// to the Tauri IPC `open_external_path` command, and drops it.
+///
+/// Auth-gated and ownership-checked (user_id), so a leaked endpoint
+/// can't be hit to enumerate other users' files.
+async fn get_document_file_path(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(doc_id): Path<String>,
+) -> ApiResult {
+    let row: Option<(Option<String>,)> = sqlx::query_as(
+        "SELECT storage_path FROM documents WHERE id = ? AND user_id = ?",
+    )
+    .bind(&doc_id)
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten();
+    let Some((Some(storage_key),)) = row else {
+        return Err(err(StatusCode::NOT_FOUND, "document not found"));
+    };
+    let base = storage_root();
+    let abs = base.join(&storage_key);
+    if !abs.exists() {
+        return Err(err(
+            StatusCode::NOT_FOUND,
+            "document bytes missing on disk",
+        ));
+    }
+    Ok(Json(json!({
+        "path": abs.to_string_lossy().to_string(),
+        "storage_root": base.to_string_lossy().to_string(),
+    })))
+}
+
+/// Best-effort text load for the summarizer. Pulls the cached
+/// extracted text (set at upload time / by generate_docx) when
+/// available; otherwise re-runs `extract_text_dispatch` on the raw
+/// bytes. Either path returns "" rather than an error — the caller
+/// logs and persists the rejection with whatever it got.
+async fn load_text_for_summary(
+    file_type: &str,
+    storage_path: Option<&str>,
+    extracted_text_path: Option<&str>,
+) -> Option<String> {
+    let storage = make_storage().ok()?;
+    if let Some(key) = extracted_text_path {
+        if let Ok(bytes) = storage.get(key).await {
+            let s = String::from_utf8_lossy(&bytes).into_owned();
+            if !s.is_empty() {
+                return Some(s);
+            }
+        }
+    }
+    let storage_key = storage_path?;
+    let bytes = storage.get(storage_key).await.ok()?;
+    let tmp_name = std::path::PathBuf::from(format!("blob.{file_type}"));
+    let (text, _skip) = crate::sync::scanner::extract_text_dispatch(&tmp_name, &bytes).ok()?;
+    Some(text)
+}
+
+async fn generate_rejection_summary(
+    doc_text: &str,
+    reason: &str,
+    filename: &str,
+    model: &str,
+    creds: &crate::llm::summarize::SummarizerCreds,
+) -> anyhow::Result<String> {
+    // Truncate to keep the prompt tractable on smaller-context models.
+    // ~30k chars ~ 7-8k tokens of doc body, well under every supported
+    // model's context budget after the prompt scaffolding lands.
+    const MAX_DOC_CHARS: usize = 30_000;
+    let truncated = if doc_text.chars().count() > MAX_DOC_CHARS {
+        let slice: String = doc_text.chars().take(MAX_DOC_CHARS).collect();
+        format!("{slice}\n[...truncato per limiti di prompt]")
+    } else {
+        doc_text.to_string()
+    };
+
+    let prompt = format!(
+        "Riassumi in al massimo 700 caratteri il seguente documento, \
+         preservando *integralmente* le parti che rispondono o si riferiscono \
+         alla richiesta iniziale dell'utente. L'utente sta rifiutando questa \
+         versione del file `{filename}` con il seguente motivo:\n\
+         \n\
+         «{reason}»\n\
+         \n\
+         Il riassunto deve permettere a un modello AI in un turno successivo \
+         di capire (a) di cosa trattava il documento e (b) cosa l'utente \
+         considerava sbagliato. Niente preamboli, niente \"Il documento \
+         tratta…\" — vai diretto al contenuto.\n\
+         \n\
+         === Documento ===\n{truncated}\n=== Fine documento ===\n\
+         \n\
+         Riassunto (max 700 caratteri):"
+    );
+
+    let params = crate::llm::types::StreamParams {
+        model: model.to_string(),
+        system_prompt: "Sei un assistente che produce riassunti tecnici e \
+                        concisi. Rispondi solo con il riassunto richiesto."
+            .to_string(),
+        system_volatile: String::new(),
+        messages: vec![crate::llm::types::Message::user(prompt)],
+        tools: vec![],
+        max_iterations: 1,
+        enable_thinking: false,
+        local_config: creds.local_config.clone(),
+        claude_api_key: creds.claude_api_key.clone(),
+        gemini_api_key: creds.gemini_api_key.clone(),
+        gemini_region: creds.gemini_region.clone(),
+    };
+
+    let summary = match crate::llm::provider_for_model(model) {
+        crate::llm::Provider::Claude => crate::llm::claude::complete(params).await?,
+        crate::llm::Provider::OpenAI => crate::llm::local::complete(params).await?,
+        crate::llm::Provider::Gemini => crate::llm::gemini::complete(params).await?,
+    };
+    Ok(summary.trim().to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -345,19 +640,40 @@ async fn get_document(
     auth: AuthUser,
     Path(id): Path<String>,
 ) -> ApiResult {
-    let row: Option<(String, String, String, i64, Option<String>, Option<String>, String)> =
-        sqlx::query_as(
-            "SELECT id, filename, file_type, size_bytes, storage_path, status, created_at \
-             FROM documents WHERE id = ? AND user_id = ?",
-        )
-        .bind(&id)
-        .bind(&auth.user_id)
-        .fetch_optional(&state.db)
-        .await
-        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let row: Option<(
+        String,
+        String,
+        String,
+        i64,
+        Option<String>,
+        Option<String>,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+    )> = sqlx::query_as(
+        "SELECT id, filename, file_type, size_bytes, storage_path, status, created_at, \
+                decision, decision_reason, decision_summary \
+         FROM documents WHERE id = ? AND user_id = ?",
+    )
+    .bind(&id)
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
-    let (id, filename, file_type, size, storage_path, status, created_at) =
-        row.ok_or_else(|| err(StatusCode::NOT_FOUND, "Document not found"))?;
+    let (
+        id,
+        filename,
+        file_type,
+        size,
+        storage_path,
+        status,
+        created_at,
+        decision,
+        decision_reason,
+        decision_summary,
+    ) = row.ok_or_else(|| err(StatusCode::NOT_FOUND, "Document not found"))?;
 
     Ok(Json(json!({
         "id": id,
@@ -367,6 +683,11 @@ async fn get_document(
         "storage_path": storage_path,
         "status": status,
         "created_at": created_at,
+        // Migration 0029 — per-chat accept/reject state. `accepted` is
+        // the default for every row including pre-migration data.
+        "decision": decision,
+        "decision_reason": decision_reason,
+        "decision_summary": decision_summary,
     })))
 }
 
