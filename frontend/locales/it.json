@@ -1275,9 +1275,5 @@
     "originGenerated": "Generato",
     "originProject": "Progetto",
     "originReferenced": "Citato"
-  },
-  "SheetView": {
-    "legacyFormatTitle": "Anteprima visiva non disponibile per questo formato",
-    "legacyFormatBody": "I file legacy .xls / .xlsb / .ods non vengono visualizzati nell'app. L'assistente può comunque rispondere a domande su di essi — il testo è estratto lato server. Usa \"Apri in Word\" per vedere l'originale."
   }
 }

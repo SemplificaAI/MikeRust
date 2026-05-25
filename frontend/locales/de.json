@@ -1275,9 +1275,5 @@
     "originGenerated": "Erzeugt",
     "originProject": "Projekt",
     "originReferenced": "Zitiert"
-  },
-  "SheetView": {
-    "legacyFormatTitle": "Visuelle Vorschau für dieses Format nicht verfügbar",
-    "legacyFormatBody": "Ältere Dateiformate .xls / .xlsb / .ods werden in der App nicht angezeigt. Der Assistent kann trotzdem Fragen dazu beantworten — der Text wurde serverseitig extrahiert. Verwenden Sie „In Word öffnen\", um das Original anzuzeigen."
   }
 }
