@@ -9,21 +9,22 @@
   to a document they vetoed. Click a row to open it in the existing
   doc-viewer side panel (same as the ChatSteps doc card).
 
-  Data sources:
-    - `chatStore.messages[i].files`     → uploaded user attachments
-    - `chatStore.messages[i].steps[…]`  → assistant-side generated docs
-       (kind: 'doc' from generate_docx — replayed from persisted
-       events on chat re-open, so reloads survive).
+  Source of truth: `GET /chat/:id/documents`. Both the composer upload
+  flow and the `generate_docx` tool set `documents.chat_id`, so a single
+  backend query enumerates everything the chat has ever touched, with
+  decision state in the same row (no N+1). Walking the in-memory
+  `chatStore.messages` array is not enough — `messages.files` is not
+  echoed back by GET /chat/:id/messages, so uploads disappear on chat
+  reload.
 
-  Decision state is fetched per-row on open via documentsApi.get; the
-  call returns `decision`, `decision_reason`, `decision_summary`. A
-  rejected row paints the filename with strike-through and a red
-  "Rifiutato" badge; the rest carry "Caricato" / "Generato" tags.
+  The "uploaded vs generated" distinction is still derived locally by
+  intersecting docIds with assistant `steps` of kind 'doc' (the rehydrated
+  doc_created events). Anything not in that set is treated as uploaded.
 -->
 <script lang="ts">
   import { docViewer } from '$lib/stores/doc-viewer.svelte'
   import { chatStore } from '$lib/stores/chat.svelte'
-  import { documentsApi } from '$lib/api/documents'
+  import { chatApi } from '$lib/api/chat'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { fileIconColor } from '$lib/utils/file-icon'
   import Spinner from '$lib/components/ui/Spinner.svelte'
@@ -37,7 +38,7 @@
   let { open = $bindable(false), onclose }: Props = $props()
 
   type Origin = 'uploaded' | 'generated'
-  type Decision = 'accepted' | 'rejected' | null
+  type Decision = 'accepted' | 'rejected'
 
   interface Row {
     docId: string
@@ -49,68 +50,47 @@
   let rows = $state<Row[]>([])
   let loading = $state(false)
 
-  /** Walk every message in the active chat and collect file refs +
-   *  generated-doc steps, de-duplicating by docId (a docx that was
-   *  generated and later re-attached only shows up once, keeping the
-   *  earlier origin label so the user sees how it entered the chat). */
-  function collectFromMessages(): Row[] {
-    const seen = new Set<string>()
-    const collected: Row[] = []
+  /** docIds known to be tool-generated (assistant doc_created steps).
+   *  Anything else returned by the backend chat-documents endpoint is
+   *  classified as an uploaded attachment. */
+  function generatedDocIds(): Set<string> {
+    const out = new Set<string>()
     for (const m of chatStore.messages) {
-      if (m.role === 'user' && m.files) {
-        for (const f of m.files) {
-          if (!f.document_id || seen.has(f.document_id)) continue
-          seen.add(f.document_id)
-          collected.push({
-            docId: f.document_id,
-            filename: f.filename ?? f.document_id,
-            origin: 'uploaded',
-            decision: null,
-          })
-        }
-      }
-      if (m.role === 'assistant' && m.steps) {
-        for (const s of m.steps) {
-          if (s.kind !== 'doc') continue
-          if (!s.documentId || seen.has(s.documentId)) continue
-          seen.add(s.documentId)
-          collected.push({
-            docId: s.documentId,
-            filename: s.filename,
-            origin: 'generated',
-            decision: null,
-          })
-        }
+      if (m.role !== 'assistant' || !m.steps) continue
+      for (const s of m.steps) {
+        if (s.kind === 'doc' && s.documentId) out.add(s.documentId)
       }
     }
-    return collected
+    return out
   }
 
-  // Re-collect + re-hydrate decisions every time the panel opens. The
-  // chat-message list and the per-doc decision both change between
-  // opens (a new generate, a fresh reject), so caching across opens
-  // would risk stale rows; the call is small (one /document/:id per
-  // unique doc) and we run them in parallel.
+  // Re-fetch the chat's documents every time the panel opens. Both
+  // the set (a new generate or upload) and the decision state (a fresh
+  // reject) can change between opens, and the call is a single SQL
+  // SELECT on the backend — cheap enough to re-run without caching.
   $effect(() => {
     if (!open) return
-    const next = collectFromMessages()
-    rows = next
-    if (next.length === 0) return
+    const chatId = chatStore.activeId
+    if (!chatId) {
+      // Brand-new unsaved chat: nothing exists server-side yet.
+      rows = []
+      return
+    }
     loading = true
-    Promise.all(
-      next.map(async (r) => {
-        try {
-          const meta = await documentsApi.get(r.docId)
-          return { ...r, decision: (meta.decision ?? null) as Decision }
-        } catch {
-          return r
-        }
-      }),
-    )
-      .then((hydrated) => {
-        // Only commit if the panel is still open and showing the same
-        // batch — a fast close/reopen could race the awaits.
-        if (open) rows = hydrated
+    const generated = generatedDocIds()
+    chatApi
+      .documents(chatId)
+      .then((res) => {
+        if (!open) return // raced a close
+        rows = res.documents.map((d) => ({
+          docId: d.id,
+          filename: d.filename,
+          origin: generated.has(d.id) ? 'generated' : 'uploaded',
+          decision: d.decision,
+        }))
+      })
+      .catch(() => {
+        if (open) rows = []
       })
       .finally(() => {
         loading = false

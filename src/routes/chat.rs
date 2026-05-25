@@ -2389,6 +2389,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/", get(list_chats).post(post_chat_root))
         .route("/{id}", get(get_chat).patch(patch_chat).delete(delete_chat))
         .route("/{id}/messages", get(get_messages))
+        .route("/{id}/documents", get(get_chat_documents))
         .route("/{id}/message", axum::routing::post(post_message))
         .route("/{id}/generate-title", axum::routing::post(generate_title))
 }
@@ -4811,6 +4812,80 @@ async fn get_messages(
         .collect();
 
     Ok(Json(json!({ "messages": messages })))
+}
+
+// ---------------------------------------------------------------------------
+// GET /chat/:id/documents
+// ---------------------------------------------------------------------------
+/// Enumerate every document linked to this chat — uploads the user
+/// attached through the composer plus docs synthesised by tools
+/// (today: `generate_docx`). Both flows set `documents.chat_id` at
+/// creation time (migration 0013), so a single query against that
+/// column is the source of truth.
+///
+/// The chat-files popover in the composer footer (v0.4.3+) relies on
+/// this endpoint instead of walking the in-memory `messages` array,
+/// because `messages.files` is not echoed back by GET /chat/:id/messages
+/// — so on a fresh chat select the frontend would otherwise lose every
+/// upload reference and only see the persisted `doc_created` events
+/// (generated docs).
+///
+/// Decision columns ride along so the UI can paint the strikethrough +
+/// `Rifiutato` badge on rejected rows without a per-doc round-trip.
+async fn get_chat_documents(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+) -> ApiResult {
+    // Ownership check up-front so a forged chat id doesn't leak other
+    // users' rows even when the JOIN would have come up empty anyway.
+    let owned: Option<(String,)> =
+        sqlx::query_as("SELECT id FROM chats WHERE id = ? AND user_id = ?")
+            .bind(&id)
+            .bind(&auth.user_id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    if owned.is_none() {
+        return Err(err(StatusCode::NOT_FOUND, "chat not found"));
+    }
+
+    let rows: Vec<(
+        String,         // id
+        String,         // filename
+        String,         // file_type
+        String,         // decision ('accepted' | 'rejected')
+        Option<String>, // decision_reason
+        Option<String>, // decision_summary
+    )> = sqlx::query_as(
+        "SELECT id, filename, file_type, decision, decision_reason, decision_summary \
+         FROM documents \
+         WHERE chat_id = ? AND user_id = ? \
+         ORDER BY created_at ASC",
+    )
+    .bind(&id)
+    .bind(&auth.user_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let documents: Vec<Value> = rows
+        .into_iter()
+        .map(
+            |(doc_id, filename, file_type, decision, decision_reason, decision_summary)| {
+                json!({
+                    "id": doc_id,
+                    "filename": filename,
+                    "file_type": file_type,
+                    "decision": decision,
+                    "decision_reason": decision_reason,
+                    "decision_summary": decision_summary,
+                })
+            },
+        )
+        .collect();
+
+    Ok(Json(json!({ "documents": documents })))
 }
 
 // ---------------------------------------------------------------------------

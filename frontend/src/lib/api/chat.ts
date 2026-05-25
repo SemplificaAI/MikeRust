@@ -28,6 +28,22 @@ export const chatApi = {
       }[]
     }>(`/chat/${encodeURIComponent(id)}/messages`),
 
+  /** Every document linked to a chat — uploaded attachments plus
+   *  tool-generated docs. Returns the current decision state per
+   *  document so the chat-files popover can paint rejected rows
+   *  without an N+1 fan-out. */
+  documents: (id: string) =>
+    api<{
+      documents: {
+        id: string
+        filename: string
+        file_type: string
+        decision: 'accepted' | 'rejected'
+        decision_reason: string | null
+        decision_summary: string | null
+      }[]
+    }>(`/chat/${encodeURIComponent(id)}/documents`),
+
   remove: (id: string) =>
     api<{ ok: boolean }>(`/chat/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 

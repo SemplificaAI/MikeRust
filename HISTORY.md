@@ -13,6 +13,52 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.4.4 — 2026-05-25 (chat-files popover — backend-sourced, survives reload)
+
+v0.4.3 missed uploaded attachments after a chat reload, a chat
+switch, or any other re-hydration: the popover walked
+`chatStore.messages[*].files`, but `GET /chat/:id/messages` does
+not echo back the `files` column, so the in-memory FileRef array
+was empty for every message that came from the server. Only
+generated docs (rehydrated from the persisted `doc_created`
+events) survived. After a few turns the user could lose sight of
+the 10 PDFs they had uploaded.
+
+### Fix
+
+New backend endpoint **`GET /chat/:id/documents`** in
+[`src/routes/chat.rs`](src/routes/chat.rs) returns every row
+satisfying `documents.chat_id = ? AND user_id = ?` — which means
+both composer uploads (linked when the message is sent) and
+`generate_docx` outputs (linked at create-time). Decision columns
+ride along in the same row, so the popover paints
+strikethrough + `Rifiutato` badge without an N+1 fan-out across
+`GET /document/:id`.
+
+[`ChatFilesPanel.svelte`](frontend/src/lib/components/chat/ChatFilesPanel.svelte)
+now calls `chatApi.documents(activeId)` on each open. The
+"uploaded vs generated" distinction is still derived locally by
+intersecting the returned doc IDs with the assistant `steps` of
+kind `'doc'` (rehydrated from persisted `doc_created` events);
+anything not in that set is classified as uploaded. Result: the
+popover correctly enumerates everything the chat has ever
+touched, regardless of how many times the chat was reopened.
+
+### Files touched
+
+- [`src/routes/chat.rs`](src/routes/chat.rs) — new
+  `get_chat_documents` handler + route registration.
+- [`frontend/src/lib/api/chat.ts`](frontend/src/lib/api/chat.ts) —
+  `chatApi.documents(id)` wrapper.
+- [`frontend/src/lib/components/chat/ChatFilesPanel.svelte`](frontend/src/lib/components/chat/ChatFilesPanel.svelte) —
+  uses the new endpoint; doc-id walk only used to label origin.
+
+No new i18n keys; the existing `ChatFiles.hydrating` label still
+applies (the call loads both the file list and decision state in
+one round-trip).
+
+---
+
 ## v0.4.3 — 2026-05-25 (chat-files shortcut)
 
 After v0.4.1/v0.4.2 made the rejection summary discoverable, a
