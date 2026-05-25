@@ -1235,7 +1235,17 @@
     "license": "Licenza",
     "licenseIntro": "MikeRust è software libero distribuito secondo la GNU Affero General Public License v3 (AGPL-3.0-only). Puoi usarlo, modificarlo e ridistribuirlo liberamente; se lo offri come servizio in rete, il codice sorgente modificato deve essere reso disponibile agli utenti di quel servizio.",
     "licenseSpdx": "Identificatore SPDX",
-    "licenseFullText": "Testo integrale della licenza"
+    "licenseFullText": "Testo integrale della licenza",
+    "retrieval": "Recupero documenti",
+    "retrievalTitle": "Recupero documenti",
+    "retrievalIntro": "Comportamenti che cambiano come l'assistente cerca nella tua libreria al momento della chat. Ogni opzione è opt-in e può essere disattivata senza riavviare MikeRust.",
+    "retrievalHydeLabel": "HyDE — Hypothetical Document Embeddings",
+    "retrievalHydeDescription": "Prima di cercare, l'assistente abbozza una breve risposta-fantoccio nel registro del dominio attivo (legale / medico / finanza / …) e la usa come seconda sonda. Le due classifiche vengono unite. Aiuta a recuperare passaggi formulati come una risposta invece che come una domanda.",
+    "retrievalHydeCost": "Aggiunge una chiamata LLM extra per turno di chat. Il costo si paga sul provider attivo (Anthropic / Gemini / OpenAI / locale), non sul calcolo locale.",
+    "retrievalHydeEnabledToast": "HyDE attivato — il prossimo turno di chat lo userà",
+    "retrievalHydeDisabledToast": "HyDE disattivato — retrieval con solo coseno",
+    "retrievalLoadError": "Impossibile caricare le impostazioni di recupero: {err}",
+    "retrievalSaveError": "Impossibile salvare l'impostazione di recupero: {err}"
   },
   "ColumnFormats": {
     "free_text": "Testo libero",

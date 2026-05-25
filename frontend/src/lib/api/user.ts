@@ -47,6 +47,18 @@ export const userApi = {
       body: { enabled_domains },
     }),
 
+  /** Opt-in HyDE (Hypothetical Document Embeddings) for chat-time
+   *  retrieval. See `src/routes/chat.rs::retrieve_kb_chunks` +
+   *  `src/llm/hyde.rs`. Persisted in `user_settings.hyde_enabled`
+   *  (migration 0030). Default `false`. */
+  getHydeEnabled: () => api<{ hyde_enabled: boolean }>('/user/hyde-enabled'),
+
+  updateHydeEnabled: (hyde_enabled: boolean) =>
+    api<{ ok: boolean; hyde_enabled: boolean }>('/user/hyde-enabled', {
+      method: 'PUT',
+      body: { hyde_enabled },
+    }),
+
   getLlmSettings: () => api<LlmSettings>('/user/llm-settings'),
 
   /** Patch semantics: omit fields to leave them unchanged. */

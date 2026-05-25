@@ -13,6 +13,75 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.0 — 2026-05-25 (HyDE retrieval + DirectML embeddings)
+
+First minor bump since 0.4.0. Two RAG-layer changes that together raise the
+ceiling of what the chat-time retrieval can find without changing the
+on-disk vector index or the embedding model.
+
+### HyDE — Hypothetical Document Embeddings (opt-in)
+
+New behavioural toggle in **Settings → Recupero documenti** (default OFF).
+When enabled, [`retrieve_kb_chunks`](src/routes/chat.rs) fires one extra
+LLM call before vector search: the user's currently-active model is asked
+to draft a short pseudo-answer (3–4 sentences, under 600 chars) anchored
+on the **domain-aware prologue** introduced in v0.4.0 (legal / medical /
+finance / …). Both the original query and the hypothesis are embedded;
+the two KNN rankings are merged via **Reciprocal Rank Fusion** (k=60)
+before the usual top-K + 0.75 distance threshold + PII filter apply.
+
+Why this helps: e5-base cosine matches passages whose surface form looks
+like the embedding input. An Italian legal question ("quanto dura il
+preavviso?") is structurally unlike the passage that answers it ("Il
+recesso è esercitato con preavviso non inferiore a sei mesi…"); HyDE
+closes that gap by giving the embedder something shaped like a passage.
+
+Cost: one extra LLM call per chat turn, billed on the user's active
+provider (Anthropic / Gemini / OpenAI / local) — no local compute
+overhead beyond a second sqlite-vec KNN. Errors in the HyDE call degrade
+gracefully to vanilla cosine retrieval (logged, never silent).
+
+### DirectML execution provider compiled in
+
+`mike-tauri` now depends on `mike` with `features = ["pdf", "ner-pii",
+"rag-directml"]`. At runtime `ort` tries to register the DirectML
+execution provider (DX12 GPU); if no compatible adapter is present,
+it falls back to CPU automatically. No setting, no user knob — just
+faster embeddings on every Windows machine with a DX12 GPU
+(integrated Iris / Adreno X1 / Radeon / GeForce). Hexagon NPU (QNN)
+stays disabled because the default e5-base FP32 model deadlocks
+session-init on the HTP backend — that incompatibility is a known
+constraint pending an INT8 QDQ-quantised e5 variant.
+
+### New behavioural-toggle policy
+
+A project-wide rule lands with this release: **every new RAG / retrieval
+/ reasoning behaviour must surface as an explicit on/off switch in
+Settings → Recupero documenti**, with a one-line plain-language
+description and a cost callout. HyDE is the first; adaptive top-K,
+BM25+RRF fusion, MMR diversification etc. will all land in the same
+panel.
+
+### Files touched
+
+- `migrations/0030_user_hyde_enabled.sql` — `user_settings.hyde_enabled` column.
+- [`src/llm/hyde.rs`](src/llm/hyde.rs) — new module; domain-aware hypothesis generator.
+- [`src/routes/chat.rs`](src/routes/chat.rs) — `retrieve_kb_chunks` wired to HyDE + RRF merge; new `reciprocal_rank_fuse` helper.
+- [`src/routes/user.rs`](src/routes/user.rs) — `LlmSettings.hyde_enabled` + `GET/PUT /user/hyde-enabled`.
+- [`src-tauri/Cargo.toml`](src-tauri/Cargo.toml) — `rag-directml` enabled by default.
+- [`frontend/src/lib/components/settings/RetrievalSection.svelte`](frontend/src/lib/components/settings/RetrievalSection.svelte) — new Settings panel.
+- [`frontend/src/routes/Settings.svelte`](frontend/src/routes/Settings.svelte) — new `retrieval` group between AI and About.
+- [`frontend/src/lib/api/user.ts`](frontend/src/lib/api/user.ts) — `getHydeEnabled` / `updateHydeEnabled` wrappers.
+- 10 new i18n keys (`Settings.retrieval*`) — all six locales now carry 1147 keys.
+
+### Limitations / not in this release
+
+- No runtime UI to inspect *which* EP is active (DirectML vs CPU). Available in logs only.
+- Hexagon / QNN remains disabled pending an INT8 QDQ-quantised e5 variant.
+- Other ORT EPs (CUDA, ROCm, OpenVINO, CoreML, TensorRT) are not compiled in — they require runtime SDKs we don't bundle.
+
+---
+
 ## v0.4.7 — 2026-05-25 (version badge actually renders)
 
 In v0.4.6 the version badge never appeared in the installed MSI

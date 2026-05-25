@@ -4,6 +4,7 @@ pub mod gemini;
 pub mod local;
 pub mod builtin_tools;
 pub mod summarize;
+pub mod hyde;
 
 pub use types::*;
 

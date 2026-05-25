@@ -23,6 +23,7 @@ pub fn router() -> Router<Arc<AppState>> {
         .route("/locale", get(get_locale).put(update_locale))
         .route("/default-domain", get(get_default_domain).put(update_default_domain))
         .route("/enabled-domains", get(get_enabled_domains).put(update_enabled_domains))
+        .route("/hyde-enabled", get(get_hyde_enabled).put(update_hyde_enabled))
         .route("/account", delete(delete_account))
         .route("/mcp-servers", get(list_mcp_servers).post(upsert_mcp_server))
         .route("/mcp-servers/probe", axum::routing::post(probe_mcp_server))
@@ -226,6 +227,67 @@ async fn update_enabled_domains(
 }
 
 // ---------------------------------------------------------------------------
+// GET /user/hyde-enabled  →  { hyde_enabled: bool }
+// PUT /user/hyde-enabled  body { hyde_enabled: bool }
+//
+// Opt-in switch for the HyDE (Hypothetical Document Embeddings)
+// retrieval pass (migration 0030). When ON, `retrieve_kb_chunks` in
+// chat.rs fires one extra LLM call to draft a domain-aware pseudo-
+// answer, embeds both the query and the hypothesis, and merges the
+// two KNN rankings via Reciprocal Rank Fusion before applying the
+// usual top-K + distance threshold.
+//
+// First panel of the future "Recupero documenti" Settings section —
+// dedicated endpoint (instead of bundling into /llm-settings) so the
+// UI toggle keeps a clean small surface and future RAG knobs
+// (adaptive top-K, BM25+RRF weight, MMR λ) can each get their own.
+// ---------------------------------------------------------------------------
+async fn get_hyde_enabled(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+) -> ApiResult {
+    let row: Option<(i64,)> = sqlx::query_as(
+        "SELECT hyde_enabled FROM user_settings WHERE user_id = ?",
+    )
+    .bind(&auth.user_id)
+    .fetch_optional(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    let enabled = row.map(|(v,)| v != 0).unwrap_or(false);
+    Ok(Json(json!({ "hyde_enabled": enabled })))
+}
+
+#[derive(Deserialize)]
+struct UpdateHydeEnabledBody {
+    hyde_enabled: bool,
+}
+
+async fn update_hyde_enabled(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+    Json(body): Json<UpdateHydeEnabledBody>,
+) -> ApiResult {
+    let value: i64 = if body.hyde_enabled { 1 } else { 0 };
+    sqlx::query(
+        "INSERT INTO user_settings (user_id, hyde_enabled, updated_at) \
+         VALUES (?, ?, datetime('now')) \
+         ON CONFLICT(user_id) DO UPDATE SET hyde_enabled = excluded.hyde_enabled, \
+             updated_at = datetime('now')",
+    )
+    .bind(&auth.user_id)
+    .bind(value)
+    .execute(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+    tracing::info!(
+        "[user] PUT /hyde-enabled user={} enabled={}",
+        auth.user_id,
+        body.hyde_enabled,
+    );
+    Ok(Json(json!({ "ok": true, "hyde_enabled": body.hyde_enabled })))
+}
+
+// ---------------------------------------------------------------------------
 // GET /user/profile
 // ---------------------------------------------------------------------------
 async fn get_profile(
@@ -296,6 +358,11 @@ pub struct LlmSettings {
     pub active_provider: Option<String>,
     pub mistral_api_key: Option<String>,
     pub mistral_model: Option<String>,
+    /// Opt-in HyDE (Hypothetical Document Embeddings) at chat-time
+    /// retrieval. Persisted in `user_settings.hyde_enabled` (migration
+    /// 0030). Toggled from Settings → Recupero documenti. Default OFF
+    /// because the technique adds one extra LLM call per chat turn.
+    pub hyde_enabled: bool,
 }
 
 type LlmRow = (
@@ -314,12 +381,13 @@ type LlmRow = (
     Option<String>, // active_provider
     Option<String>, // mistral_api_key
     Option<String>, // mistral_model
+    i64,            // hyde_enabled (0/1)
 );
 
 const SELECT_COLUMNS: &str =
     "main_model, title_model, tabular_model, claude_api_key, gemini_api_key, gemini_region, \
      gemini_model, openai_api_key, openai_model, local_base_url, local_api_key, local_model, \
-     active_provider, mistral_api_key, mistral_model";
+     active_provider, mistral_api_key, mistral_model, hyde_enabled";
 
 pub async fn fetch_llm_settings(
     db: &sqlx::SqlitePool,
@@ -352,6 +420,7 @@ fn row_to_settings(r: LlmRow) -> LlmSettings {
         active_provider: r.12,
         mistral_api_key: r.13,
         mistral_model: r.14,
+        hyde_enabled: r.15 != 0,
     }
 }
 

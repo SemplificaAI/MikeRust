@@ -1217,7 +1217,17 @@
     "license": "Licence",
     "licenseIntro": "MikeRust est un logiciel libre distribué sous la GNU Affero General Public License v3 (AGPL-3.0-only). Vous pouvez l'utiliser, le modifier et le redistribuer librement ; si vous le proposez comme service en réseau, le code source modifié doit être mis à disposition des utilisateurs de ce service.",
     "licenseSpdx": "Identifiant SPDX",
-    "licenseFullText": "Texte intégral de la licence"
+    "licenseFullText": "Texte intégral de la licence",
+    "retrieval": "Récupération",
+    "retrievalTitle": "Récupération de documents",
+    "retrievalIntro": "Réglages comportementaux qui modifient la façon dont l'assistant cherche dans votre bibliothèque lors d'un chat. Chaque option est opt-in et peut être désactivée sans redémarrer MikeRust.",
+    "retrievalHydeLabel": "HyDE — Hypothetical Document Embeddings",
+    "retrievalHydeDescription": "Avant la recherche, l'assistant rédige une courte pseudo-réponse dans le registre du domaine actif (juridique / médical / finance / …) et l'utilise comme deuxième sonde. Les deux classements sont fusionnés. Permet de récupérer les passages formulés comme une réponse plutôt que comme une question.",
+    "retrievalHydeCost": "Ajoute un appel LLM supplémentaire par tour de chat. Le coût est payé sur votre fournisseur actif (Anthropic / Gemini / OpenAI / local), pas sur le calcul local.",
+    "retrievalHydeEnabledToast": "HyDE activé — le prochain tour de chat l'utilisera",
+    "retrievalHydeDisabledToast": "HyDE désactivé — retour à la récupération par cosinus pur",
+    "retrievalLoadError": "Impossible de charger les paramètres de récupération : {err}",
+    "retrievalSaveError": "Impossible d'enregistrer le paramètre de récupération : {err}"
   },
   "ColumnFormats": {
     "free_text": "Texte libre",

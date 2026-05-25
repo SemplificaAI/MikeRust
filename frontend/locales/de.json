@@ -1217,7 +1217,17 @@
     "license": "Lizenz",
     "licenseIntro": "MikeRust ist freie Software unter der GNU Affero General Public License v3 (AGPL-3.0-only). Sie dürfen sie verwenden, ändern und weitergeben; wird sie als Netzwerkdienst angeboten, muss der geänderte Quellcode den Nutzern dieses Dienstes zur Verfügung gestellt werden.",
     "licenseSpdx": "SPDX-Bezeichner",
-    "licenseFullText": "Vollständiger Lizenztext"
+    "licenseFullText": "Vollständiger Lizenztext",
+    "retrieval": "Recherche",
+    "retrievalTitle": "Dokumentenrecherche",
+    "retrievalIntro": "Verhaltensoptionen, die ändern, wie der Assistent während eines Chats Ihre Bibliothek durchsucht. Jede ist opt-in und kann ohne Neustart von MikeRust deaktiviert werden.",
+    "retrievalHydeLabel": "HyDE — Hypothetical Document Embeddings",
+    "retrievalHydeDescription": "Vor der Suche entwirft der Assistent eine kurze Pseudo-Antwort im Register der aktiven Domäne (juristisch / medizinisch / Finanzen / …) und nutzt sie als zweite Sonde. Beide Rankings werden fusioniert. Hilft, Passagen zu finden, die wie eine Antwort und nicht wie eine Frage formuliert sind.",
+    "retrievalHydeCost": "Fügt einen zusätzlichen LLM-Aufruf pro Chat-Runde hinzu. Die Kosten gehen an Ihren aktiven Anbieter (Anthropic / Gemini / OpenAI / lokal), nicht an lokale Rechenleistung.",
+    "retrievalHydeEnabledToast": "HyDE aktiviert — die nächste Chat-Runde wird es nutzen",
+    "retrievalHydeDisabledToast": "HyDE deaktiviert — zurück zur reinen Cosinus-Recherche",
+    "retrievalLoadError": "Recherche-Einstellungen konnten nicht geladen werden: {err}",
+    "retrievalSaveError": "Recherche-Einstellung konnte nicht gespeichert werden: {err}"
   },
   "ColumnFormats": {
     "free_text": "Freitext",

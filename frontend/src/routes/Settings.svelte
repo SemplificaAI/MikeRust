@@ -11,6 +11,7 @@
   import McpSection from '$lib/components/settings/McpSection.svelte'
   import DataSourcesSection from '$lib/components/settings/DataSourcesSection.svelte'
   import DomainsSection from '$lib/components/settings/DomainsSection.svelte'
+  import RetrievalSection from '$lib/components/settings/RetrievalSection.svelte'
   import DangerZoneSection from '$lib/components/settings/DangerZoneSection.svelte'
   import LicenseSection from '$lib/components/settings/LicenseSection.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
@@ -23,6 +24,7 @@
     | 'mcp'
     | 'data'
     | 'domains'
+    | 'retrieval'
     | 'license'
     | 'danger'
 
@@ -33,10 +35,11 @@
    *   - account   — who you are (profile, security)
    *   - content   — what the app shows (domains, data sources)
    *   - ai        — how the assistant reasons (LLM models, MCP servers)
+   *   - retrieval — chat-time RAG knobs (HyDE, future: adaptive K, BM25, MMR)
    *   - about     — meta (product identity + licence)
    *   - danger    — destructive, deliberately isolated
    */
-  type SectionGroup = 'account' | 'content' | 'ai' | 'about' | 'danger'
+  type SectionGroup = 'account' | 'content' | 'ai' | 'retrieval' | 'about' | 'danger'
 
   interface SectionEntry {
     id: SectionId
@@ -51,9 +54,10 @@
     { id: 'domains',  labelKey: 'Settings.domains',    group: 'content', ready: true },
     { id: 'data',     labelKey: 'Settings.dataSources', group: 'content', ready: true },
     { id: 'models',   labelKey: 'Settings.llmModels',  group: 'ai',      ready: true },
-    { id: 'mcp',      labelKey: 'Settings.mcpServers', group: 'ai',      ready: true },
-    { id: 'license',  labelKey: 'Settings.license',    group: 'about',   ready: true },
-    { id: 'danger',   labelKey: 'Settings.dangerZone', group: 'danger',  ready: true },
+    { id: 'mcp',      labelKey: 'Settings.mcpServers', group: 'ai',        ready: true },
+    { id: 'retrieval',labelKey: 'Settings.retrieval',  group: 'retrieval', ready: true },
+    { id: 'license',  labelKey: 'Settings.license',    group: 'about',     ready: true },
+    { id: 'danger',   labelKey: 'Settings.dangerZone', group: 'danger',    ready: true },
   ]
 
   let active = $state<SectionId>('profile')
@@ -104,6 +108,8 @@
         <DataSourcesSection />
       {:else if active === 'domains'}
         <DomainsSection />
+      {:else if active === 'retrieval'}
+        <RetrievalSection />
       {:else if active === 'license'}
         <LicenseSection />
       {:else if active === 'danger'}

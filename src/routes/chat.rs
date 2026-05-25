@@ -1578,6 +1578,66 @@ pub struct RetrievedKbEntry {
 #[cfg(feature = "rag")]
 const KB_DISTANCE_THRESHOLD: f32 = 0.75;
 
+/// Reciprocal Rank Fusion (Cormack et al. 2009). Merge two ranked
+/// chunk lists by `sum(1 / (k + rank))`, deduping on
+/// `(document_id, chunk_index)`. Returns a single list ordered by
+/// fused score, truncated to `target`. Each survivor keeps the
+/// *minimum* distance across the two source lists so the downstream
+/// `KB_DISTANCE_THRESHOLD` filter still has a meaningful value
+/// (semantically: "this chunk was a good hit on at least one ranker").
+#[cfg(feature = "rag")]
+fn reciprocal_rank_fuse(
+    primary: Vec<crate::embeddings::service::RetrievedChunk>,
+    secondary: Vec<crate::embeddings::service::RetrievedChunk>,
+    target: usize,
+) -> Vec<crate::embeddings::service::RetrievedChunk> {
+    use crate::embeddings::service::RetrievedChunk;
+    const RRF_K: f32 = 60.0;
+
+    // Insertion-ordered: keep the first occurrence's RetrievedChunk
+    // but track minimum distance across both rankings.
+    let mut by_key: std::collections::HashMap<(String, i32), (RetrievedChunk, f32)> =
+        std::collections::HashMap::new();
+    let mut score: std::collections::HashMap<(String, i32), f32> =
+        std::collections::HashMap::new();
+
+    for (rank, c) in primary.into_iter().enumerate() {
+        let key = (c.document_id.clone(), c.chunk_index);
+        let s = 1.0 / (RRF_K + (rank as f32) + 1.0);
+        *score.entry(key.clone()).or_insert(0.0) += s;
+        let entry = by_key
+            .entry(key)
+            .or_insert((c.clone(), c.distance));
+        if c.distance < entry.1 {
+            entry.1 = c.distance;
+        }
+    }
+    for (rank, c) in secondary.into_iter().enumerate() {
+        let key = (c.document_id.clone(), c.chunk_index);
+        let s = 1.0 / (RRF_K + (rank as f32) + 1.0);
+        *score.entry(key.clone()).or_insert(0.0) += s;
+        let entry = by_key
+            .entry(key)
+            .or_insert((c.clone(), c.distance));
+        if c.distance < entry.1 {
+            entry.1 = c.distance;
+        }
+    }
+
+    let mut merged: Vec<(f32, RetrievedChunk)> = by_key
+        .into_iter()
+        .map(|(key, (mut chunk, min_dist))| {
+            // Reuse the min distance so the downstream threshold sees
+            // the better of the two scorers' confidence.
+            chunk.distance = min_dist;
+            let s = *score.get(&key).unwrap_or(&0.0);
+            (s, chunk)
+        })
+        .collect();
+    merged.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    merged.into_iter().take(target).map(|(_, c)| c).collect()
+}
+
 /// Run vector retrieval against the user's library and return the
 /// chunks ready to be rendered into the system prompt. The scope is
 /// inferred from the chat's project_id + the project's isolation_mode.
@@ -1586,6 +1646,12 @@ const KB_DISTANCE_THRESHOLD: f32 = 0.75;
 ///  - the embedding service isn't initialised
 ///  - the user has no indexed documents in the relevant pool
 ///  - all retrieved chunks are above the distance threshold
+///
+/// When `user_settings.hyde_enabled = 1` (migration 0030), the
+/// function also fires a one-shot LLM call to draft a domain-aware
+/// hypothesis (see `crate::llm::hyde`) and runs a second KNN against
+/// that hypothesis; the two result sets are fused via Reciprocal Rank
+/// Fusion before the distance threshold + PII filter are applied.
 #[cfg(feature = "rag")]
 async fn retrieve_kb_chunks(
     state: &AppState,
@@ -1612,14 +1678,28 @@ async fn retrieve_kb_chunks(
     .flatten();
     let project_id: Option<String> = project_row.and_then(|(p,)| p);
 
+    // Pull the three knobs we need from user_settings in one round-trip:
+    // - hyde_enabled  → whether to fire the HyDE expansion pass
+    // - locale        → drives the domain prologue language
+    // - default_domain → drives which domain.md preset is loaded
+    let prefs: Option<(i64, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT hyde_enabled, locale, default_domain FROM user_settings WHERE user_id = ?",
+    )
+    .bind(user_id)
+    .fetch_optional(&state.db)
+    .await
+    .ok()
+    .flatten();
+    let (hyde_enabled, user_locale, user_default_domain) = prefs
+        .map(|(h, l, d)| (h != 0, l, d))
+        .unwrap_or((false, None, None));
+
     use crate::embeddings::service::SearchScope;
-    let scope_label: &'static str;
-    let chunks_result = match project_id.as_deref() {
-        None => {
-            scope_label = "global";
-            svc.search(user_id, SearchScope::Global, user_query, top_k_target)
-                .await
-        }
+    // Resolve scope once. `is_strict_project` is needed because the
+    // borrow rules around the SearchScope<'_> lifetime make it
+    // simpler to keep the variant inline than capture in a closure.
+    let is_strict_project = match project_id.as_deref() {
+        None => false,
         Some(pid) => {
             let mode: Option<(String,)> = sqlx::query_as(
                 "SELECT isolation_mode FROM projects WHERE id = ?",
@@ -1629,27 +1709,150 @@ async fn retrieve_kb_chunks(
             .await
             .ok()
             .flatten();
-            let strict = mode.as_ref().map(|(m,)| m.as_str()) == Some("strict");
-            // The scope_label below is per-chunk decided after retrieval
-            // (a chunk with project_id NULL is "global", with our pid is
-            // "project"); we still set a useful default for the empty
-            // path. Real labelling happens below.
-            scope_label = "project";
-            if strict {
-                svc.search(user_id, SearchScope::ProjectStrict(pid), user_query, top_k_target)
-                    .await
-            } else {
-                svc.search(user_id, SearchScope::ProjectShared(pid), user_query, top_k_target)
-                    .await
-            }
+            mode.as_ref().map(|(m,)| m.as_str()) == Some("strict")
         }
     };
-    let _ = scope_label;
 
-    let chunks = match chunks_result {
-        Ok(c) => c,
-        Err(e) => {
+    // Build the scope inline at each call site. A closure would be
+    // tidier but Rust's lifetime inference for `impl Fn() ->
+    // SearchScope<'_>` is too narrow here (the borrowed `pid` outlives
+    // each individual call but the closure signature flattens that).
+    let scope_for_primary = match project_id.as_deref() {
+        None => SearchScope::Global,
+        Some(p) if is_strict_project => SearchScope::ProjectStrict(p),
+        Some(p) => SearchScope::ProjectShared(p),
+    };
+
+    // Primary pass — vanilla embedding of the user's query.
+    let primary_result = svc
+        .search(user_id, scope_for_primary, user_query, top_k_target)
+        .await;
+
+    // Optional HyDE pass — draft a domain-aware hypothesis, embed it,
+    // run a second KNN. Errors here are non-fatal: log and degrade to
+    // the primary-only ranking. We deliberately don't gate the primary
+    // pass on HyDE so a flaky LLM call never hides relevant chunks.
+    let hyde_result = if hyde_enabled {
+        let locale = user_locale.as_deref().unwrap_or("it");
+        // Project domain wins over user default, mirroring how the
+        // domain prologue is composed in stream_chat. We re-resolve
+        // here rather than threading a parameter to avoid changing the
+        // function signature (the call site already passes only the
+        // raw text).
+        let project_domain: Option<String> = if let Some(pid) = project_id.as_deref() {
+            let r: Option<(Option<String>,)> = sqlx::query_as(
+                "SELECT domain FROM projects WHERE id = ?",
+            )
+            .bind(pid)
+            .fetch_optional(&state.db)
+            .await
+            .ok()
+            .flatten();
+            r.and_then(|(d,)| d)
+        } else {
+            None
+        };
+        let domain = project_domain
+            .or(user_default_domain.clone())
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| "others".to_string());
+
+        // Reuse the chat-side credentials path so HyDE rides whatever
+        // model + provider the user has currently configured.
+        let user_settings = crate::routes::user::fetch_llm_settings(&state.db, user_id)
+            .await
+            .ok();
+        let raw_model = user_settings
+            .as_ref()
+            .and_then(|s| s.main_model.clone())
+            .unwrap_or_else(|| "gemini-2.5-flash".to_string());
+        let local_config = build_local_config(&raw_model, user_settings.as_ref());
+        let creds = crate::llm::hyde::HydeCreds {
+            local_config,
+            claude_api_key: user_settings.as_ref().and_then(|s| s.claude_api_key.clone()),
+            gemini_api_key: user_settings.as_ref().and_then(|s| s.gemini_api_key.clone()),
+            gemini_region: user_settings.as_ref().and_then(|s| s.gemini_region.clone()),
+        };
+
+        match crate::llm::hyde::generate_hypothesis(
+            user_query,
+            locale,
+            &domain,
+            &raw_model,
+            &creds,
+        )
+        .await
+        {
+            Ok(hypothesis) if !hypothesis.trim().is_empty() => {
+                tracing::info!(
+                    "[rag] HyDE on user={} domain={} locale={} → hypothesis {} chars",
+                    user_id,
+                    domain,
+                    locale,
+                    hypothesis.chars().count(),
+                );
+                let scope_for_hyde = match project_id.as_deref() {
+                    None => SearchScope::Global,
+                    Some(p) if is_strict_project => SearchScope::ProjectStrict(p),
+                    Some(p) => SearchScope::ProjectShared(p),
+                };
+                Some(
+                    svc.search(user_id, scope_for_hyde, &hypothesis, top_k_target)
+                        .await,
+                )
+            }
+            Ok(_) => {
+                tracing::warn!(
+                    "[rag] HyDE returned empty hypothesis user={} — falling back to primary-only",
+                    user_id,
+                );
+                None
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "[rag] HyDE call failed user={}: {e:#} — falling back to primary-only",
+                    user_id,
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
+
+    // Fuse the rankings. Without HyDE: just the primary list. With
+    // HyDE: Reciprocal Rank Fusion with k=60 (the conventional value
+    // from Cormack et al. 2009), deduplicated by `(document_id,
+    // chunk_index)`. The fused score is `sum(1 / (k + rank))` across
+    // both lists; we then re-sort by score descending and synthesise
+    // a `distance` value as the minimum across the two lists so the
+    // downstream KB_DISTANCE_THRESHOLD filter still meaningfully
+    // applies (any chunk that survived a vanilla KNN's threshold once
+    // is kept).
+    let chunks = match (primary_result, hyde_result) {
+        (Ok(primary), None) => primary,
+        (Err(e), None) => {
             tracing::warn!("[rag] retrieval failed: {e}");
+            return Vec::new();
+        }
+        (Ok(primary), Some(Ok(hyde_chunks))) => {
+            tracing::info!(
+                "[rag] RRF merge: primary={} hyde={} chunks before fusion",
+                primary.len(),
+                hyde_chunks.len(),
+            );
+            reciprocal_rank_fuse(primary, hyde_chunks, top_k_target)
+        }
+        (Ok(primary), Some(Err(e))) => {
+            tracing::warn!("[rag] HyDE KNN failed: {e} — using primary only");
+            primary
+        }
+        (Err(e), Some(Ok(hyde_chunks))) => {
+            tracing::warn!("[rag] primary KNN failed: {e} — using HyDE only");
+            hyde_chunks
+        }
+        (Err(ep), Some(Err(eh))) => {
+            tracing::warn!("[rag] both retrievals failed: primary={ep} hyde={eh}");
             return Vec::new();
         }
     };

@@ -1,6 +1,6 @@
 [package]
 name = "mike-tauri"
-version = "0.4.7"
+version = "0.5.0"
 edition = "2024"
 
 [lib]
@@ -32,7 +32,7 @@ tauri = { version = "2", features = ["devtools"] }
 # working baseline; on ARM64 Snapdragon X Elite per-query embed is
 # 50-100 ms which is invisible to the user. The performance lap
 # back to QNN is tracked in Phase 1.A.4 (lap B).
-mike = { path = "..", features = ["pdf", "ner-pii"] }
+mike = { path = "..", features = ["pdf", "ner-pii", "rag-directml"] }
 windows-future = "0.2"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
