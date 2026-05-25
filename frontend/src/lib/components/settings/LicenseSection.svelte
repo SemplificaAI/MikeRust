@@ -10,7 +10,7 @@
 -->
 <script lang="ts">
   import { i18n } from '$lib/stores/i18n.svelte'
-  import { appVersion } from '$lib/stores/app-version.svelte'
+  import { APP_VERSION } from '$lib/stores/app-version.svelte'
   // Repo-root LICENSE (AGPL-3.0-only), inlined by Vite at build time.
   // Relative path crosses out of the frontend project, which the
   // dev-server allows via `server.fs.allow` in vite.config.ts.
@@ -26,11 +26,10 @@
            bg-(--color-surface-0) px-5 py-4"
   >
     <h3 class="text-base font-semibold text-(--color-text-primary)">
-      MikeRust{#if appVersion.value}
-        <span class="ml-2 text-sm font-normal text-(--color-text-secondary) tabular-nums">
-          v{appVersion.value}
-        </span>
-      {/if}
+      MikeRust
+      <span class="ml-2 text-sm font-normal text-(--color-text-secondary) tabular-nums">
+        v{APP_VERSION}
+      </span>
     </h3>
     <p class="mt-1 text-sm text-(--color-text-secondary)">
       {i18n.t('Settings.licenseIntro')}

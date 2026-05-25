@@ -13,6 +13,42 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.4.7 — 2026-05-25 (version badge actually renders)
+
+In v0.4.6 the version badge never appeared in the installed MSI
+even though the wiring looked correct. Root cause: the store used
+`@tauri-apps/api/app::getVersion()` to resolve the value into a
+top-level `$state`, then exposed it through a getter. The Promise
+resolved in dev, but in the bundled build the assignment inside
+the async `.then` callback never propagated reactively to the
+brand snippet — so `appVersion.value` stayed `null` and the
+`{#if}` guard kept the chip mounted but empty.
+
+### Fix
+
+Replaced the runtime IPC call with a build-time import of
+`frontend/package.json` (Vite's first-class JSON import). The
+value is now a plain TypeScript string constant the templates can
+interpolate directly — no Promise, no `$state`, no reactivity
+race, no `{#if}` guard:
+
+```ts
+import pkg from '../../../package.json'
+export const APP_VERSION: string = pkg.version
+```
+
+The release pipeline already bumps `package.json` alongside
+`Cargo.toml` and `tauri.svelte.conf.json`, so a single source is
+sufficient to label the running build.
+
+### Files touched
+
+- [`frontend/src/lib/stores/app-version.svelte.ts`](frontend/src/lib/stores/app-version.svelte.ts) — rewritten to export `APP_VERSION` const.
+- [`frontend/src/routes/Shell.svelte`](frontend/src/routes/Shell.svelte) — drops the `{#if}` guard; renders `v{APP_VERSION}` unconditionally.
+- [`frontend/src/lib/components/settings/LicenseSection.svelte`](frontend/src/lib/components/settings/LicenseSection.svelte) — same swap.
+
+---
+
 ## v0.4.6 — 2026-05-25 (version label + License settings panel)
 
 The shipped version was invisible to the user — neither the unlock

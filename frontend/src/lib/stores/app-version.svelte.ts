@@ -1,31 +1,19 @@
 // Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only.
 
 /**
- * The bundle's semver, as reported by Tauri at runtime via
- * `@tauri-apps/api/app::getVersion`. Returned by the Tauri runtime as
- * the value of `version` in `src-tauri/tauri.svelte.conf.json`, so it
- * always matches the version we shipped — not what `package.json`
- * happens to say in a checked-out source tree.
+ * The frontend bundle's semver, read from `frontend/package.json` at
+ * build time via Vite's first-class JSON import. Synchronous — no
+ * Tauri IPC, no Promise dance, no race with template render. The
+ * release pipeline keeps this in lock-step with
+ * `src-tauri/tauri.svelte.conf.json` and the two Cargo manifests, so
+ * this single source is enough to label the running build.
  *
- * Resolved once at module load (Tauri is available the moment the
- * webview boots). Synchronous accessor returns `null` until the
- * promise resolves; callers should render an empty slot in that
- * window rather than block on it.
+ * v0.4.6 tried `@tauri-apps/api/app::getVersion()` + `$state`. The
+ * top-level promise resolved fine in dev, but the assignment inside
+ * the async `.then` callback never propagated reactively to the
+ * sidebar brand snippet in the installed MSI, so the badge stayed
+ * invisible. A build-time constant has no such failure mode.
  */
-import { getVersion } from '@tauri-apps/api/app'
+import pkg from '../../../package.json'
 
-let version = $state<string | null>(null)
-
-void getVersion()
-  .then((v) => {
-    version = v
-  })
-  .catch(() => {
-    // Web preview / unit-test environment — leave null, no fallback.
-  })
-
-export const appVersion = {
-  get value(): string | null {
-    return version
-  },
-}
+export const APP_VERSION: string = pkg.version
