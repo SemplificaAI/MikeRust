@@ -40,7 +40,8 @@
   },
   "App": {
     "title": "MikeRust",
-    "tagline": "Assistente IA legale locale"
+    "tagline": "Assistente IA legale locale",
+    "versionTooltip": "MikeRust v{version}"
   },
   "Login": {
     "heading": "Accedi a MikeRust",
@@ -1230,7 +1231,11 @@
     "resetWithBiometric": "Reimposta con la biometria",
     "usePinInstead": "Usa invece il PIN attuale",
     "pinResetReason": "Verifica la tua identità per reimpostare il PIN",
-    "pinResetHint": "Se non ricordi il PIN attuale, puoi impostarne uno nuovo verificando con Windows Hello / Touch ID."
+    "pinResetHint": "Se non ricordi il PIN attuale, puoi impostarne uno nuovo verificando con Windows Hello / Touch ID.",
+    "license": "Licenza",
+    "licenseIntro": "MikeRust è software libero distribuito secondo la GNU Affero General Public License v3 (AGPL-3.0-only). Puoi usarlo, modificarlo e ridistribuirlo liberamente; se lo offri come servizio in rete, il codice sorgente modificato deve essere reso disponibile agli utenti di quel servizio.",
+    "licenseSpdx": "Identificatore SPDX",
+    "licenseFullText": "Testo integrale della licenza"
   },
   "ColumnFormats": {
     "free_text": "Testo libero",

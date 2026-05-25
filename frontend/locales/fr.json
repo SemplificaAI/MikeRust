@@ -40,7 +40,8 @@
   },
   "App": {
     "title": "MikeRust",
-    "tagline": "Assistant IA juridique local"
+    "tagline": "Assistant IA juridique local",
+    "versionTooltip": "MikeRust v{version}"
   },
   "Login": {
     "heading": "Connexion à MikeRust",
@@ -1212,7 +1213,11 @@
     "domainsHint": "Désactivez les domaines que vous n'utilisez pas pour les masquer des sélecteurs et filtres dans toute l'application. Au moins un domaine doit rester activé.",
     "enabledDomainsSaved": "Domaines mis à jour",
     "enabledDomainsError": "Impossible de mettre à jour les domaines",
-    "atLeastOneDomain": "Au moins un domaine doit rester activé"
+    "atLeastOneDomain": "Au moins un domaine doit rester activé",
+    "license": "Licence",
+    "licenseIntro": "MikeRust est un logiciel libre distribué sous la GNU Affero General Public License v3 (AGPL-3.0-only). Vous pouvez l'utiliser, le modifier et le redistribuer librement ; si vous le proposez comme service en réseau, le code source modifié doit être mis à disposition des utilisateurs de ce service.",
+    "licenseSpdx": "Identifiant SPDX",
+    "licenseFullText": "Texte intégral de la licence"
   },
   "ColumnFormats": {
     "free_text": "Texte libre",

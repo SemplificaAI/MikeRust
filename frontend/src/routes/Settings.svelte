@@ -12,10 +12,19 @@
   import DataSourcesSection from '$lib/components/settings/DataSourcesSection.svelte'
   import DomainsSection from '$lib/components/settings/DomainsSection.svelte'
   import DangerZoneSection from '$lib/components/settings/DangerZoneSection.svelte'
+  import LicenseSection from '$lib/components/settings/LicenseSection.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
 
-  type SectionId = 'profile' | 'security' | 'models' | 'mcp' | 'data' | 'domains' | 'danger'
+  type SectionId =
+    | 'profile'
+    | 'security'
+    | 'models'
+    | 'mcp'
+    | 'data'
+    | 'domains'
+    | 'license'
+    | 'danger'
 
   /**
    * Visual grouping for the sub-nav. Order = render order; a hairline
@@ -24,9 +33,10 @@
    *   - account   — who you are (profile, security)
    *   - content   — what the app shows (domains, data sources)
    *   - ai        — how the assistant reasons (LLM models, MCP servers)
+   *   - about     — meta (product identity + licence)
    *   - danger    — destructive, deliberately isolated
    */
-  type SectionGroup = 'account' | 'content' | 'ai' | 'danger'
+  type SectionGroup = 'account' | 'content' | 'ai' | 'about' | 'danger'
 
   interface SectionEntry {
     id: SectionId
@@ -42,6 +52,7 @@
     { id: 'data',     labelKey: 'Settings.dataSources', group: 'content', ready: true },
     { id: 'models',   labelKey: 'Settings.llmModels',  group: 'ai',      ready: true },
     { id: 'mcp',      labelKey: 'Settings.mcpServers', group: 'ai',      ready: true },
+    { id: 'license',  labelKey: 'Settings.license',    group: 'about',   ready: true },
     { id: 'danger',   labelKey: 'Settings.dangerZone', group: 'danger',  ready: true },
   ]
 
@@ -93,6 +104,8 @@
         <DataSourcesSection />
       {:else if active === 'domains'}
         <DomainsSection />
+      {:else if active === 'license'}
+        <LicenseSection />
       {:else if active === 'danger'}
         <DangerZoneSection />
       {:else}

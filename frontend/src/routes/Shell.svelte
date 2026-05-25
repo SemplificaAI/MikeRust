@@ -27,6 +27,7 @@
   import { chatStore } from '$lib/stores/chat.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
+  import { appVersion } from '$lib/stores/app-version.svelte'
   import {
     MessageSquare,
     FolderKanban,
@@ -173,9 +174,19 @@
   {#snippet sidebar()}
     <Sidebar>
       {#snippet brand()}
-        <span class="flex items-center gap-2">
-          <Logo size={20} activity="idle" />
-          <span class="text-base font-semibold text-(--color-brand-600)">MikeRust</span>
+        <span class="flex items-baseline gap-2">
+          <span class="flex items-center gap-2">
+            <Logo size={20} activity="idle" />
+            <span class="text-base font-semibold text-(--color-brand-600)">MikeRust</span>
+          </span>
+          {#if appVersion.value}
+            <span
+              class="text-[11px] font-normal text-(--color-text-secondary) tabular-nums"
+              title={i18n.t('App.versionTooltip', { version: appVersion.value })}
+            >
+              v{appVersion.value}
+            </span>
+          {/if}
         </span>
       {/snippet}
 

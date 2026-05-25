@@ -13,6 +13,26 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.4.6 — 2026-05-25 (version label + License settings panel)
+
+The shipped version was invisible to the user — neither the unlock
+screen nor the post-login shell showed which build was running, and
+there was no UI surface that named the licence the product is
+distributed under.
+
+### What changed
+
+- **Sidebar brand**: `MikeRust` in [`Shell.svelte`](frontend/src/routes/Shell.svelte) now renders next to a tiny `v{version}` badge in muted secondary text. The version is pulled at runtime from the Tauri bundle via `@tauri-apps/api/app::getVersion`, so it always matches `tauri.svelte.conf.json` — not whatever `package.json` happens to show in a checked-out source tree.
+- **New `app-version` store** ([`stores/app-version.svelte.ts`](frontend/src/lib/stores/app-version.svelte.ts)) caches the result of the single `getVersion()` call. Sync accessor returns `null` until resolved; callers render nothing in that window rather than block.
+- **New Settings → License panel** ([`LicenseSection.svelte`](frontend/src/lib/components/settings/LicenseSection.svelte)) shows MikeRust + version, the SPDX identifier (`AGPL-3.0-only`), an introductory paragraph explaining the AGPL terms in plain language, and the full LICENSE file in a scrollable monospace block. The text is the canonical [`LICENSE`](LICENSE) at the repo root, inlined at build time via Vite's `?raw` import — no runtime fetch, no missing-file risk.
+- **`vite.config.ts`**: `server.fs.allow: ['..']` lets the dev server resolve the LICENSE one directory above the frontend project root.
+
+### Settings nav
+
+A new `about` group sits between `ai` (LLM models / MCP) and `danger` so the licence panel reads as meta info rather than a destructive control. Five new i18n keys (`App.versionTooltip`, `Settings.license`, `Settings.licenseIntro`, `Settings.licenseSpdx`, `Settings.licenseFullText`) — all six locale bundles now carry 1137 keys.
+
+---
+
 ## v0.4.5 — 2026-05-25 (chat-files popover — all five doc categories)
 
 Closes the chat-document audit. The popover now enumerates **every**

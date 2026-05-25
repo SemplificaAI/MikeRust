@@ -14,6 +14,10 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     host: '127.0.0.1',
+    // Allow ?raw imports from the repo root so LicenseSection can pull
+    // in LICENSE (AGPL-3.0 text). Production builds inline the file at
+    // build time, but dev-server file access is sandboxed by default.
+    fs: { allow: ['..'] },
   },
   envPrefix: ['VITE_', 'TAURI_'],
   resolve: {

@@ -40,7 +40,8 @@
   },
   "App": {
     "title": "MikeRust",
-    "tagline": "Lokaler juristischer KI-Assistent"
+    "tagline": "Lokaler juristischer KI-Assistent",
+    "versionTooltip": "MikeRust v{version}"
   },
   "Login": {
     "heading": "Bei MikeRust anmelden",
@@ -1212,7 +1213,11 @@
     "domainsHint": "Deaktivieren Sie die Fachgebiete, die Sie nicht nutzen, um sie aus Auswahlfeldern und Filtern in der gesamten Anwendung auszublenden. Mindestens ein Bereich muss aktiv bleiben.",
     "enabledDomainsSaved": "Domänen aktualisiert",
     "enabledDomainsError": "Domänen konnten nicht aktualisiert werden",
-    "atLeastOneDomain": "Mindestens eine Domäne muss aktiv bleiben"
+    "atLeastOneDomain": "Mindestens eine Domäne muss aktiv bleiben",
+    "license": "Lizenz",
+    "licenseIntro": "MikeRust ist freie Software unter der GNU Affero General Public License v3 (AGPL-3.0-only). Sie dürfen sie verwenden, ändern und weitergeben; wird sie als Netzwerkdienst angeboten, muss der geänderte Quellcode den Nutzern dieses Dienstes zur Verfügung gestellt werden.",
+    "licenseSpdx": "SPDX-Bezeichner",
+    "licenseFullText": "Vollständiger Lizenztext"
   },
   "ColumnFormats": {
     "free_text": "Freitext",
