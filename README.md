@@ -427,7 +427,7 @@ See `.env.example` for the full reference.
 | Area | Status |
 |---|---|
 | Auth (PIN/Argon2id + Windows Hello biometric + opaque sessions) | ✅ |
-| SQLite + migrations (0001 → 0027) | ✅ |
+| SQLite + migrations (0001 → 0029) | ✅ |
 | Local storage (filesystem) + S3 trait | ✅ filesystem ; 🔲 S3 |
 | PDF extraction (pdfium) + scanned-PDF detection | ✅ |
 | DOCX extraction with redline detection | ✅ |
@@ -444,6 +444,9 @@ See `.env.example` for the full reference.
 | Project: `.mikeprj` AES-256-GCM export + import | ✅ |
 | Chat citations with persistence | ✅ |
 | Chat-attachment hash cache + ref-counted cleanup | ✅ |
+| **Accept / Reject decision on generated docx** (migration 0029) — per-chat decision (`accepted` / `rejected`) on every docx the model emits; rejection requires a user motive and triggers a one-shot LLM summary; subsequent chat turns inject the reason + summary in place of the rejected body so the model can correct itself without re-seeing the vetoed bytes. A read-only **"Vedi riassunto"** modal re-opens the archived reason + summary after the reject modal closes; flipping back to Accept restores the original document while keeping the audit trail. | ✅ |
+| **Chat-files popover** in the composer footer — surfaces all five categories the chat ever touched: uploaded attachments, tool-generated docs, rejected docs (strikethrough + red `Rifiutato` badge), project-inherited docs (`chats.project_id` → `documents.project_id`) and KB / corpora docs cited via `messages.annotations`. Per-format icon colours (Excel green / Word blue / PDF red / PowerPoint orange / Markdown text-primary); origin tag chips colour-coded by category. Reads exclusively from `GET /chat/:id/documents`. | ✅ |
+| **App version badge** next to "MikeRust" in the sidebar + **License panel** in Settings → Licenza (SPDX `AGPL-3.0-only`, plain-language summary, full bundled LICENSE text) | ✅ |
 | Authoritative-corpus framework (`LegalCorpusAdapter` trait) | ✅ |
 | EUR-Lex V1 (CELEX-based fetch + 24-language picker + EN fallback) | ✅ |
 | EUR-Lex V2 (full-text search via SOAP CWS) | 🔲 [registration required](docs/EURLEX_REGISTRATION.md) |
