@@ -21,6 +21,7 @@
 pub mod column;
 pub mod docx_template;
 pub mod model;
+pub mod system_prompt;
 pub mod workflow;
 
 use std::path::{Path, PathBuf};

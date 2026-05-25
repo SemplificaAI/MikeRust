@@ -210,6 +210,12 @@ function New-ResourcesOverlay {
         "../config/column-presets/**/*.json"                = "config/column-presets/"
         "../config/docx-templates/**/*.json"                = "config/docx-templates/"
         "../config/model.json"                              = "config/model.json"
+        # Domain-aware system-prompt prologue (v0.4.0). Six locale
+        # sub-folders × 11 domains = 66 Markdown files; the Rust
+        # loader in crate::presets::system_prompt walks
+        # <install>/config/system-prompts/<locale>/<domain>.md with
+        # locale fallback chain (requested → it → en → None).
+        "../config/system-prompts/**/*.md"                  = "config/system-prompts/"
     }
     $obj = @{
         build  = @{ beforeBuildCommand = '' }

@@ -13,6 +13,116 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.4.0 — 2026-05-24 (domain-aware system-prompt prologue)
+
+The chat handler now prepends a **domain-aware prologue** to every
+turn's system prompt, giving the model an explicit role + working
+language + presumed jurisdiction before the generic Mike rules
+(tool-use, citations, SSE shape) kick in. The prologue is bundled as
+editable `.md` files under `config/system-prompts/<locale>/<domain>.md`
+so the operating organisation can tweak the persona without touching
+the binary.
+
+### How the prologue is composed
+
+At `stream_chat` time the backend resolves:
+
+- **Domain** — `project.domain` if the chat is in a project,
+  otherwise `user_settings.default_domain`, otherwise `"others"`.
+- **Locale** — `user_settings.locale` (set in Settings → General),
+  otherwise `"it"` (MikeRust's primary user base).
+- **Default country** — derived from the locale via a fixed map
+  (`it → Italy`, `fr → France`, `de → Germany`, `es → Spain`,
+  `pt → Portugal`, `en → "unspecified (ask the user)"`).
+
+Then `crate::presets::system_prompt::resolve(locale, domain)` walks
+the fallback chain:
+
+```
+1. <root>/<requested-locale>/<domain>.md
+2. <root>/it/<domain>.md           (primary curated set)
+3. <root>/en/<domain>.md           (universal fallback)
+4. None — composer falls back to "generic professional"
+```
+
+`<root>` is found via the same env-var / cwd-ancestor / exe-ancestor
+walker the other preset registries use, so dev (cwd = repo root) and
+installed-MSI (`<install>/config/system-prompts/…`) both work without
+configuration. Locale path-traversal (`../etc`) is hard-rejected by
+`sanitize_segment` before any filesystem read.
+
+### Country disambiguation
+
+The wrapper text the composer wraps around the `.md` body ends with:
+
+> Country disambiguation: If the user's request involves a country,
+> regulation, or legal/medical/professional framework that does not
+> match the default above, ASK the user which country / jurisdiction
+> applies BEFORE giving jurisdiction-specific advice. Do not silently
+> assume.
+
+So a Spanish lawyer who pastes an Italian contract gets a polite
+"which jurisdiction applies?" prompt instead of a wrong-country
+answer, and an Italian medical-legal expert asking about a German
+patient is steered to confirm the framework before applying SIMLA
+tables.
+
+### File set shipped
+
+**66 files** under `config/system-prompts/`:
+
+```
+config/system-prompts/
+├── it/   11 domain prompts — curated, ~30 lines each, primary set
+├── en/   11 domain prompts — native English equivalents
+├── fr/   11 domain prompts — French-jurisdiction adaptations
+├── de/   11 domain prompts — German-jurisdiction adaptations
+├── es/   11 domain prompts — Spanish-jurisdiction adaptations
+└── pt/   11 domain prompts — Portuguese-jurisdiction adaptations
+```
+
+Each `.md` follows a five-section template:
+
+1. Header (role + default country + working language)
+2. Priority capabilities (4-7 bullets)
+3. Operating constraints (3-4 bullets, includes the
+   "never produce a conclusive opinion without disclaimer" rule)
+4. Country / jurisdiction (default + ASK rule for cross-border cases)
+5. Style (terminology, citation form, response structure)
+
+### Implementation files
+
+- `src/presets/system_prompt.rs` (new) — `resolve`,
+  `assemble_prologue`, `default_country_for_locale`,
+  `language_name_for_locale` + 8 unit tests covering locale
+  fallback, missing domain, path-traversal rejection, prologue
+  assembly with/without an `.md` body, country mapping.
+- `src/presets/mod.rs` — exposes the new module alongside `column`,
+  `docx_template`, `model`, `workflow`.
+- `src/routes/chat.rs` — `stream_chat` now SELECTs
+  `(locale, default_domain)` from `user_settings`, picks the
+  effective domain (project > user > "others"), composes the
+  prologue, prepends it to `MRUST_SYSTEM_PROMPT` in the
+  `sections` vector.
+- `scripts/build-release.ps1` — adds
+  `../config/system-prompts/**/*.md` to `bundle.resources` so the
+  installed MSI carries the 66 files at
+  `<install>/config/system-prompts/<locale>/<domain>.md`.
+
+### Tests
+
+`cargo test --features ner-pii --lib presets::system_prompt` — 8/8
+passing (locale fallback chain, missing domain, path-traversal
+rejection, prologue wrapping, country mapping). `cargo check
+--features ner-pii` clean. `pnpm exec svelte-check` 0/0.
+
+### Installer artefacts
+
+- `dist/MikeRust_0.4.0_x64.msi` — Windows x86_64
+- `dist/MikeRust_0.4.0_arm64.msi` — Windows ARM64
+
+---
+
 ## v0.3.6 — 2026-05-24 (generate_docx unblocked on multi-doc anamnesis)
 
 Two related regressions surfaced while attempting the v0.3.5 docx

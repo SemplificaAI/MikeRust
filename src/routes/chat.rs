@@ -2913,7 +2913,48 @@ async fn stream_chat_root(
         // KB retrieval is deliberately NOT joined here: it changes every
         // turn and would invalidate the cache, so it travels separately as
         // the volatile tail.
-        let mut sections: Vec<String> = vec![MRUST_SYSTEM_PROMPT.trim().to_string()];
+        // Domain-aware prologue (see crate::presets::system_prompt).
+        // The domain resolves from the chat's project (if any) →
+        // user_settings.default_domain → "others". The locale comes
+        // from user_settings.locale → "it" (MikeRust's primary
+        // language). Prepended FIRST so it sets the role before the
+        // generic Mike tool-use / citation rules.
+        let domain_locale: (String, String) = {
+            let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+                "SELECT locale, default_domain FROM user_settings WHERE user_id = ?",
+            )
+            .bind(&auth.user_id)
+            .fetch_optional(&state_clone.db)
+            .await
+            .ok()
+            .flatten();
+            let (locale_opt, default_domain_opt) = row.unwrap_or((None, None));
+            let locale = locale_opt
+                .as_deref()
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("it")
+                .to_string();
+            // Project domain wins over user default — the project is
+            // the more specific scope and almost always carries the
+            // authoritative vertical for everything that happens in
+            // its chats.
+            let domain = project_meta
+                .as_ref()
+                .map(|(_, pdomain)| pdomain.clone())
+                .or(default_domain_opt)
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "others".to_string());
+            (locale, domain)
+        };
+        let domain_prologue = crate::presets::system_prompt::assemble_prologue(
+            &domain_locale.0,
+            &domain_locale.1,
+        );
+
+        let mut sections: Vec<String> = Vec::new();
+        sections.push(domain_prologue);
+        sections.push(MRUST_SYSTEM_PROMPT.trim().to_string());
         if !inventory_prompt.is_empty() {
             sections.push(inventory_prompt);
         }
