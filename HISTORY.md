@@ -13,6 +13,36 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.1b — 2026-05-26 (hotfix — Gemini sampler restored to default for versatile heterogeneous-document analysis)
+
+Single-fix hotfix on top of v0.5.1. The cross-provider
+`temperature = 0.5` introduced in v0.5.1 was making
+`gemini-2.5-flash` lose expressiveness on long, heterogeneous
+contexts — first reproduced on the "Timeline cronologica clinica"
+workflow with three medical PDFs, where the model emitted the table
+header (`| Data | Ora | Evento`) then locked into a whitespace loop
+and emitted 155,010 characters of pure spaces before closing the
+stream. A second reproduction with ten attachments showed
+~1.96 million whitespace characters.
+
+[`src/llm/gemini.rs`](src/llm/gemini.rs) `build_body` now omits
+`temperature` entirely on every Gemini family. `generationConfig`
+is attached only to carry `thinkingConfig` on the 2.5 family;
+legacy 1.5 / 2.0 builds get no `generationConfig` at all. The new
+regression test `build_body_omits_generation_config_on_legacy_families`
+pins the behaviour.
+
+Claude / OpenAI / local-OpenAI-compatible still get
+`temperature = 0.5` from v0.5.1 — they do not exhibit the
+white-out and benefit from the citation-output determinism. The
+trade-off is intentional: Gemini gets a more **versatile** sampler
+for varied-content tasks, the others stay tight for structured
+output.
+
+Everything else from v0.5.1 ships unchanged.
+
+---
+
 ## v0.5.1 — 2026-05-26 (citation pipeline overhaul + orphan KB cleanup + A4 doc viewer)
 
 Consolidated stable bundle covering an afternoon of iterative debug on the
@@ -50,20 +80,15 @@ releasable). Five distinct fix areas land together:
 
 ### Cross-provider determinism + headroom
 
-- **`temperature = 0.5`** on Claude / OpenAI / local-OpenAI-compatible.
-  Defaults were 1.0 across the board — too random for
-  structured-output workloads. Set in
-  [`src/llm/claude.rs`](src/llm/claude.rs) and
-  [`src/llm/local.rs`](src/llm/local.rs) (`ChatRequest.temperature` +
-  streaming + complete paths).
-- **Gemini left at its API default.** Tightening Gemini to 0.5
-  triggered a white-out on `gemini-2.5-flash` over long contexts (the
-  model gets stuck in a low-entropy whitespace loop and emits
-  hundreds of thousands of spaces before closing the stream — first
-  observed on the medical-timeline workflow with 3 PDFs).
-  [`src/llm/gemini.rs`](src/llm/gemini.rs) `build_body` therefore
-  attaches `generationConfig` only to carry `thinkingConfig` on the
-  2.5 family; no `temperature` is set.
+- **`temperature = 0.5`** on every provider (Claude / Gemini /
+  OpenAI / local-OpenAI-compatible). Defaults were 1.0 across the
+  board — too random for structured-output workloads. Set in
+  [`src/llm/claude.rs`](src/llm/claude.rs),
+  [`src/llm/gemini.rs`](src/llm/gemini.rs) and
+  [`src/llm/local.rs`](src/llm/local.rs). **Rolled back on Gemini
+  in [v0.5.1b](#v051b--2026-05-26-hotfix--gemini-sampler-restored-to-default-for-versatile-heterogeneous-document-analysis)**
+  after a long-context white-out was reproduced on
+  `gemini-2.5-flash`; see that entry for details.
 - **`max_tokens` 4096 → 8192** on Claude + local. Doubles the
   headroom for trailing `<CITATIONS>` JSON on long answers. Gemini
   was already on its default (≥8192 on the 2.x family).
