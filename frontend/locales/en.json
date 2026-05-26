@@ -1284,5 +1284,11 @@
     "originGenerated": "Generated",
     "originProject": "Project",
     "originReferenced": "Cited"
+  },
+  "DocxView": {
+    "modeFit": "A4 fit",
+    "modeReflow": "Reflow",
+    "switchToReflow": "Switch to reflow mode — drops the page geometry, fills the panel width with reflowed prose",
+    "switchToFit": "Switch to A4 fit — preserves the document page geometry and scales it to fit the panel width"
   }
 }

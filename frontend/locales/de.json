@@ -1284,5 +1284,11 @@
     "originGenerated": "Erzeugt",
     "originProject": "Projekt",
     "originReferenced": "Zitiert"
+  },
+  "DocxView": {
+    "modeFit": "A4 anpassen",
+    "modeReflow": "Umfließen",
+    "switchToReflow": "In den Umfließen-Modus wechseln — verwirft die Seitengeometrie und füllt die Panelbreite mit umfließendem Text",
+    "switchToFit": "Auf A4 anpassen umschalten — bewahrt die Seitengeometrie und skaliert sie auf die Panelbreite"
   }
 }

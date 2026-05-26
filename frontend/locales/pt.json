@@ -1284,5 +1284,11 @@
     "originGenerated": "Gerado",
     "originProject": "Projeto",
     "originReferenced": "Citado"
+  },
+  "DocxView": {
+    "modeFit": "Ajustar A4",
+    "modeReflow": "Refluxo",
+    "switchToReflow": "Mudar para o modo refluxo — abandona a geometria da página e enche a largura do painel com texto refluído",
+    "switchToFit": "Mudar para Ajustar A4 — preserva a geometria da página e escala-a à largura do painel"
   }
 }
