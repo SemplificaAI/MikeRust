@@ -13,6 +13,29 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## Versioning policy — pin at 0.5.0 until stable
+
+User decision 2026-05-26: the source `version` fields in `Cargo.toml`,
+`src-tauri/Cargo.toml`, `src-tauri/tauri.svelte.conf.json` and
+`frontend/package.json` are pinned at **0.5.0** — the last release
+the user actually installed and tested via MSI — until they
+explicitly OK the next bump.
+
+The git tags v0.5.1 / v0.5.2 / v0.5.3 / v0.5.4 stay on origin as
+historical markers of work-in-progress hotfixes (HISTORY entries
+below document what each tag carries). Every fix committed
+between this note and the next "ok, bump to 0.5.1" is shipped at
+version 0.5.0 in the source tree.
+
+Rationale: a version bump should signal "this state was confirmed
+stable by the user". Iterative dev cycles that never hit an MSI
+build shouldn't burn through patch numbers. When the citation /
+orphan / model-determinism cluster stabilises, the user will say
+"bump" and 0.5.0 → 0.5.1 lands together with whatever delta has
+accumulated.
+
+---
+
 ## v0.5.4 — 2026-05-26 (orphan KB chunks — filter at chat-time + cleanup endpoint)
 
 Root-causes the "tutte le 12 citazioni del turn 2 puntano allo stesso
