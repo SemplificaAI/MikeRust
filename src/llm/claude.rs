@@ -38,7 +38,13 @@ pub async fn stream(params: StreamParams) -> Result<BoxStream> {
     let wire_messages = to_wire_messages(&params.messages);
     let mut body = json!({
         "model": params.model,
-        "max_tokens": 4096,
+        // 8192 doubles the headroom for the trailing `<CITATIONS>`
+        // JSON block when a long answer cites many sources (a 10-PDF
+        // medical-legal report easily emits 40+ annotations + ~3 KB
+        // of prose). 4096 was truncating annotation arrays in
+        // production — see v0.5.1 hotfix. Every catalogued Claude
+        // model in `config/model.json` supports ≥8192 output.
+        "max_tokens": 8192,
         "stream": true,
         "messages": wire_messages,
     });

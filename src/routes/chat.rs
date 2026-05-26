@@ -2391,6 +2391,252 @@ fn extract_inline_docid_refs(text: &str) -> Vec<InlineDocIdRef> {
     out
 }
 
+/// Decompose **hybrid citation brackets** the model occasionally emits
+/// when answering with many sources. The frontend marker renderer
+/// (`MARKER_GROUP` in `frontend/src/lib/utils/citations.ts`) requires
+/// every token inside a `[...]` to match `[gcp]\d+`. The model
+/// sometimes concatenates valid refs with filename + page hints and
+/// `doc-N` labels into a single bracket — e.g.
+/// `[c1, c2, c18, c34, CARTELLA_TEST_002.pdf, p.4, doc-7, doc-8]` —
+/// which fails the regex and leaves the whole bracket as plain text,
+/// dragging the legitimate `cN` refs down with it.
+///
+/// This normaliser splits any such bracket into a sequence of clean
+/// brackets the rest of the pipeline understands:
+///   - `cN` / `gN` / `pN`  → `[cN]` (frontend pill marker)
+///   - `doc-N`              → `[doc-id: doc-N]`
+///                            (rewrite_inline_docid_citations resolves it)
+///   - `FILENAME.ext` + optional `p.N` / `pag N` / `page N`
+///                          → `[doc-id: FILENAME.ext, page N]`
+///   - anything else        → preserved verbatim, parenthesised
+///
+/// A bracket whose every token is already a clean `[gcp]\d+` is left
+/// untouched (the renderer handles `[c1, c2, c3]` natively — the
+/// regex permits comma-separated tokens as long as they all match).
+///
+/// The function is **idempotent**: clean input passes through unchanged.
+/// Model-independent post-processing — runs after the LLM stream
+/// completes regardless of provider (Claude / Gemini / OpenAI /
+/// local). See `feedback_model_independent_normalization.md` in the
+/// project memory.
+pub fn split_hybrid_citation_brackets(text: &str) -> std::borrow::Cow<'_, str> {
+    // Fast path — no `[` at all means nothing to rewrite. Avoids
+    // allocating a String for the common short-answer case.
+    if !text.contains('[') {
+        return std::borrow::Cow::Borrowed(text);
+    }
+
+    enum Tok<'a> {
+        /// `c1`, `g12`, `p3` — pill-renderable on the frontend.
+        Ref(&'a str),
+        /// `doc-7` — needs `[doc-id: doc-7]` shape for the inline rewriter.
+        DocLabel(&'a str),
+        /// Filename with extension. Page may follow as a separate token.
+        Filename(&'a str),
+        /// `p.4`, `pag 4`, `page 4`, `pp. 4-6`. Carries the digit substring.
+        PageHint(&'a str),
+        /// Anything we don't recognise — kept verbatim.
+        Unknown(&'a str),
+    }
+
+    fn classify(tok: &str) -> Tok<'_> {
+        let t = tok.trim();
+        if t.is_empty() {
+            return Tok::Unknown(tok);
+        }
+        // Ref shape: single letter g/c/p + 1..3 digits, lowercase.
+        let bytes = t.as_bytes();
+        if matches!(bytes[0], b'g' | b'c' | b'p' | b'G' | b'C' | b'P')
+            && t.len() >= 2
+            && t.len() <= 4
+            && bytes[1..].iter().all(|b| b.is_ascii_digit())
+        {
+            return Tok::Ref(t);
+        }
+        // doc-N shape (the model's alternate handle).
+        if let Some(rest) = t.strip_prefix("doc-")
+            && !rest.is_empty()
+            && rest.bytes().all(|b| b.is_ascii_alphanumeric())
+        {
+            return Tok::DocLabel(t);
+        }
+        // PageHint: any of `p.N`, `p N`, `pag.N`, `pag N`, `pagina N`,
+        // `page N`, `pages N`, `pp.N-M`.
+        let lower = t.to_ascii_lowercase();
+        for prefix in &[
+            "pp.", "pp ", "pag.", "pagina ", "pag ", "pages ", "page ", "p.", "p ",
+        ] {
+            if let Some(rest) = lower.strip_prefix(prefix) {
+                let rest_trim = rest.trim_start();
+                if !rest_trim.is_empty()
+                    && rest_trim
+                        .chars()
+                        .next()
+                        .map(|c| c.is_ascii_digit())
+                        .unwrap_or(false)
+                {
+                    return Tok::PageHint(t);
+                }
+            }
+        }
+        // Filename: contains `.` and at least one alphanumeric char.
+        // Reject pure decimals like `2.5` to avoid catching numeric
+        // tokens — require ≥3 chars after the dot OR an extension
+        // longer than 1 char.
+        if let Some(dot) = t.rfind('.')
+            && dot > 0
+            && dot + 1 < t.len()
+        {
+            let ext = &t[dot + 1..];
+            if ext.len() >= 2 && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                return Tok::Filename(t);
+            }
+        }
+        Tok::Unknown(tok)
+    }
+
+    fn extract_page_digit(hint: &str) -> Option<String> {
+        // Pull the first decimal number out of a PageHint (handles
+        // both `p.4` and `pages 12-14` — the rewriter only needs the
+        // first page number).
+        let mut buf = String::new();
+        let mut started = false;
+        for c in hint.chars() {
+            if c.is_ascii_digit() {
+                buf.push(c);
+                started = true;
+            } else if started && c == '-' {
+                buf.push(c);
+            } else if started {
+                break;
+            }
+        }
+        if buf.is_empty() {
+            None
+        } else {
+            Some(buf)
+        }
+    }
+
+    let mut out = String::with_capacity(text.len() + text.len() / 8);
+    let bytes = text.as_bytes();
+    let mut cursor = 0usize;
+    while cursor < text.len() {
+        let Some(rel_open) = text[cursor..].find('[') else {
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        let open = cursor + rel_open;
+        let Some(rel_close) = text[open + 1..].find(']') else {
+            // No closing bracket — flush the rest verbatim and stop.
+            out.push_str(&text[cursor..]);
+            break;
+        };
+        let close = open + 1 + rel_close;
+        let inner = &text[open + 1..close];
+        out.push_str(&text[cursor..open]);
+
+        // Idempotency guard: `[doc-id: <handle>[, page N]]` is the
+        // already-canonical inline shape that
+        // `rewrite_inline_docid_citations` consumes. Splitting it
+        // again would re-prefix the filename with another `doc-id:`,
+        // producing `[doc-id: doc-id: FILE.pdf, page 3]`. Pass through.
+        if inner.trim_start().to_ascii_lowercase().starts_with("doc-id:") {
+            out.push('[');
+            out.push_str(inner);
+            out.push(']');
+            cursor = close + 1;
+            continue;
+        }
+
+        // Tokenise on top-level commas. (Filenames and refs don't
+        // contain commas, so a flat split is enough.)
+        let raw_tokens: Vec<&str> = inner.split(',').collect();
+        let classified: Vec<Tok<'_>> = raw_tokens.iter().map(|t| classify(t)).collect();
+
+        // Detection of "needs splitting": at least one Ref AND at
+        // least one non-Ref token. Pure-Ref brackets are passed
+        // through (the renderer accepts `[c1, c2, c3]` natively).
+        // Unknown tokens DO trigger a split because their presence
+        // breaks the frontend regex — `[c1, c2, foo]` matches no
+        // pills today, so we must decompose.
+        let any_ref = classified
+            .iter()
+            .any(|t| matches!(t, Tok::Ref(_)));
+        let any_non_ref = classified.iter().any(|t| !matches!(t, Tok::Ref(_)));
+        // Also split if the bracket contains a DocLabel, Filename or
+        // page hint on its own (e.g. `[doc-7, doc-8]` won't render as
+        // pills — needs to go through `rewrite_inline_docid_citations`).
+        let any_docish = classified.iter().any(|t| {
+            matches!(t, Tok::DocLabel(_) | Tok::Filename(_) | Tok::PageHint(_))
+        });
+
+        if (any_ref && any_non_ref) || (!any_ref && any_docish) {
+            // Decompose. Build the replacement.
+            let mut pieces: Vec<String> = Vec::new();
+            let mut i = 0;
+            let mut last_filename: Option<&str> = None;
+            while i < classified.len() {
+                match &classified[i] {
+                    Tok::Ref(r) => {
+                        pieces.push(format!("[{r}]"));
+                    }
+                    Tok::DocLabel(label) => {
+                        pieces.push(format!("[doc-id: {label}]"));
+                    }
+                    Tok::Filename(name) => {
+                        last_filename = Some(name);
+                        // Peek next token: if a PageHint, fuse.
+                        let next_page = classified
+                            .get(i + 1)
+                            .and_then(|t| match t {
+                                Tok::PageHint(h) => extract_page_digit(h),
+                                _ => None,
+                            });
+                        if let Some(page) = next_page {
+                            pieces.push(format!("[doc-id: {name}, page {page}]"));
+                            i += 1; // consume the PageHint
+                        } else {
+                            pieces.push(format!("[doc-id: {name}]"));
+                        }
+                    }
+                    Tok::PageHint(h) => {
+                        // Bare page hint — bind to the last filename we
+                        // saw inside this bracket, if any.
+                        if let (Some(name), Some(page)) =
+                            (last_filename, extract_page_digit(h))
+                        {
+                            pieces.push(format!("[doc-id: {name}, page {page}]"));
+                        }
+                        // No filename context → drop the bare page; it
+                        // can't be turned into a pill without a target.
+                    }
+                    Tok::Unknown(raw) => {
+                        let trimmed = raw.trim();
+                        if !trimmed.is_empty() {
+                            // Preserve as parenthesised remainder so
+                            // the prose still reads.
+                            pieces.push(format!("({trimmed})"));
+                        }
+                    }
+                }
+                i += 1;
+            }
+            out.push_str(&pieces.join(" "));
+        } else {
+            // Either a pure-ref bracket or a bracket with no
+            // citation-relevant content — pass through unchanged.
+            out.push('[');
+            out.push_str(inner);
+            out.push(']');
+        }
+        let _ = bytes; // suppress unused-binding warning on debug builds
+        cursor = close + 1;
+    }
+
+    std::borrow::Cow::Owned(out)
+}
+
 /// Rewrite an assistant response that cites attached documents through
 /// the free-form `[doc-id: <handle>, page <N>]` pattern into the
 /// canonical `[cN]` markers + `<CITATIONS>` block format. `resolve`
@@ -3752,6 +3998,35 @@ async fn stream_chat_root(
             got_done,
             got_error
         );
+
+        // Model-independent normalisation: decompose hybrid citation
+        // brackets like `[c1, c2, FILE.pdf, p.4, doc-7]` that the model
+        // sometimes concatenates when answering with many sources.
+        // The frontend's MARKER_GROUP regex requires every token inside
+        // a `[...]` to match `[gcp]\d+`, so a hybrid bracket fails the
+        // match entirely and drags otherwise-valid `cN` refs into plain
+        // text alongside the filename. Splitting them upstream — before
+        // both the <CITATIONS>-block parser and the [doc-id: …]
+        // rewriter — restores pill rendering regardless of provider.
+        // See `feedback_model_independent_normalization.md` for the
+        // architectural principle.
+        let pre_split_len = full_response.len();
+        let split_response = split_hybrid_citation_brackets(&full_response);
+        if matches!(&split_response, std::borrow::Cow::Owned(_)) {
+            full_response = split_response.into_owned();
+            tracing::info!(
+                "[chat] hybrid-citation-bracket splitter rewrote response: \
+                 {pre_split_len} → {} chars",
+                full_response.len()
+            );
+            // Replace the live view so the user sees clean pills
+            // immediately on this turn (not only after a chat reload).
+            let payload = json!({
+                "type": "content_replace",
+                "text": full_response.clone(),
+            });
+            let _ = tx.send(Ok(Event::default().data(payload.to_string()))).await;
+        }
 
         // Rewrite free-form `[doc-id: <handle>, page <N>]` references the
         // model occasionally writes (ignoring the `[cN]` + <CITATIONS>
@@ -5660,7 +5935,7 @@ mod tests {
         canonical_corpus_key, enrich_doc_citations, extract_citations_block,
         extract_inline_docid_refs, extract_inline_paren_doc_refs,
         rewrite_inline_docid_citations, sanitise_annotations_quotes,
-        strip_page_markers,
+        split_hybrid_citation_brackets, strip_page_markers,
     };
     use serde_json::{json, Value};
 
@@ -5933,6 +6208,110 @@ mod tests {
         // we must return None and let the original body stand.
         let text = "[doc-id: ignoto, page 1]";
         assert!(rewrite_inline_docid_citations(text, |_| None).is_none());
+    }
+
+    // ── split_hybrid_citation_brackets ───────────────────────────────
+
+    #[test]
+    fn split_hybrid_passes_clean_brackets_through() {
+        // Pure-ref brackets must be unchanged — the frontend renders
+        // them natively. Idempotency for the common case.
+        let text = "Vedi [c1] e [c2, c3, c4]. Anche [g5] e [p7].";
+        let out = split_hybrid_citation_brackets(text);
+        assert_eq!(out.as_ref(), text);
+    }
+
+    #[test]
+    fn split_hybrid_passes_non_citation_brackets_through() {
+        // Brackets that contain neither refs nor doc-ish tokens stay
+        // verbatim — Mike must not rewrite `[3]` page numbers in
+        // unrelated prose, square-bracketed paraphrase, etc.
+        let text = "Art. 32 [3] del decreto, articolo [vedi nota].";
+        let out = split_hybrid_citation_brackets(text);
+        assert_eq!(out.as_ref(), text);
+    }
+
+    #[test]
+    fn split_hybrid_decomposes_ref_plus_filename_with_page() {
+        let text = "[c1, c2, c18, c34, CARTELLA_TEST_002.pdf, p.4]";
+        let out = split_hybrid_citation_brackets(text);
+        assert_eq!(
+            out.as_ref(),
+            "[c1] [c2] [c18] [c34] [doc-id: CARTELLA_TEST_002.pdf, page 4]"
+        );
+    }
+
+    #[test]
+    fn split_hybrid_handles_bare_page_after_seen_filename() {
+        // Model sometimes emits `[c1, FILE.pdf, p.4, p.6]` with two
+        // pages — both should bind to the preceding filename so each
+        // becomes its own doc-id marker.
+        let text = "[c1, CARTELLA_TEST_002.pdf, p.4, p.6]";
+        let out = split_hybrid_citation_brackets(text);
+        assert_eq!(
+            out.as_ref(),
+            "[c1] [doc-id: CARTELLA_TEST_002.pdf, page 4] [doc-id: CARTELLA_TEST_002.pdf, page 6]"
+        );
+    }
+
+    #[test]
+    fn split_hybrid_decomposes_doc_labels_into_doc_id_form() {
+        let text = "[c1, c2, doc-6, doc-7, doc-8]";
+        let out = split_hybrid_citation_brackets(text);
+        assert_eq!(
+            out.as_ref(),
+            "[c1] [c2] [doc-id: doc-6] [doc-id: doc-7] [doc-id: doc-8]"
+        );
+    }
+
+    #[test]
+    fn split_hybrid_idempotent_on_already_split_output() {
+        // Run the function twice — the second pass must be a no-op.
+        // Critical for the post-processing pipeline; if we ever wire
+        // it in twice (defensive paths), it must not corrupt clean text.
+        let text = "[c1, c2, FILE.pdf, p.3]";
+        let pass_one = split_hybrid_citation_brackets(text).into_owned();
+        let pass_two = split_hybrid_citation_brackets(&pass_one);
+        assert_eq!(pass_two.as_ref(), &pass_one);
+    }
+
+    #[test]
+    fn split_hybrid_handles_real_world_long_inventory_ref() {
+        // The exact failure case from a 10-attachment medical-legal
+        // report: a long mixed bracket that the frontend's MARKER_GROUP
+        // regex would refuse to match because of the .pdf token.
+        let text = "[c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15, c16, c17, c18, c34, CARTELLA_TEST_002.pdf, p.3]";
+        let out = split_hybrid_citation_brackets(text);
+        let s = out.as_ref();
+        // Each ref now stands alone — render-ready as a pill.
+        for i in [1, 2, 3, 14, 18, 34] {
+            let needle = format!("[c{i}]");
+            assert!(
+                s.contains(&needle),
+                "expected {} in split output: {}",
+                needle,
+                s
+            );
+        }
+        assert!(s.contains("[doc-id: CARTELLA_TEST_002.pdf, page 3]"));
+        // No more comma-with-leading-letter inside any bracket.
+        assert!(
+            !s.contains(", c"),
+            "split output still contains comma-separated refs: {s}"
+        );
+    }
+
+    #[test]
+    fn split_hybrid_preserves_unknown_tokens_in_parentheses() {
+        // The model occasionally drops unstructured prose into a
+        // bracket — we keep that text rather than swallow it, so the
+        // answer doesn't lose meaning.
+        let text = "[c1, c2, vedi anche allegato A]";
+        let out = split_hybrid_citation_brackets(text);
+        let s = out.as_ref();
+        assert!(s.contains("[c1]"));
+        assert!(s.contains("[c2]"));
+        assert!(s.contains("(vedi anche allegato A)"));
     }
 
     #[test]

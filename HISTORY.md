@@ -13,6 +13,52 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.1 — 2026-05-26 (hybrid citation bracket splitter + max_tokens bump)
+
+Closes the citation-rendering gap exposed by long answers with many
+attachments (10+ PDFs). When the model writes a bracket like
+
+```
+[c1, c2, c18, c34, CARTELLA_TEST_002.pdf, p.4, doc-7, doc-8]
+```
+
+the frontend's `MARKER_GROUP` regex (which requires every token inside
+`[…]` to match `[gcp]\d+`) refuses the whole bracket and renders it as
+plain text — dragging the otherwise-valid `cN` refs into plain text
+alongside the filename. Net effect: most citations on a 49-ref answer
+showed up as inline text, only the few "clean" brackets (`[19]`, `[20]`
+…) made it to pills.
+
+### Fix B — `split_hybrid_citation_brackets`
+
+A new deterministic normaliser ([`src/routes/chat.rs`](src/routes/chat.rs)) runs **after** the LLM stream completes and **before** the existing `<CITATIONS>` parser / `rewrite_inline_docid_citations` rewriter. It decomposes every hybrid bracket into a sequence of clean ones:
+
+- `cN` / `gN` / `pN`             → `[cN]` (frontend pill marker)
+- `doc-N`                          → `[doc-id: doc-N]`
+- `FILE.ext` + optional `p.N` / `page N` / `pag N` → `[doc-id: FILE.ext, page N]`
+- Anything unrecognised           → preserved verbatim, parenthesised
+
+Pure-ref brackets like `[c1, c2, c3]` and non-citation brackets like `Art. 32 [3]` pass through unchanged. The function is idempotent (running it twice on the same input produces identical output) and model-independent: it runs the same for Claude / Gemini / OpenAI / local providers.
+
+Saves the architectural principle as a memory: **for any structured-output contract, the system prompt is belt, the Rust post-processor is suspenders. Both stay.** See [`feedback_model_independent_normalization.md`](https://example.invalid) in the project memory.
+
+Covered by 8 new unit tests in [`routes::chat::tests`](src/routes/chat.rs); existing 38 chat tests continue to pass.
+
+### Fix C — `max_tokens` 4096 → 8192
+
+Doubles the headroom for the trailing `<CITATIONS>` JSON block on long answers with many sources. Applied to:
+
+- [`src/llm/claude.rs:41`](src/llm/claude.rs#L41) — every catalogued Claude model in `config/model.json` supports ≥8192 output tokens.
+- [`src/llm/local.rs:198`](src/llm/local.rs#L198) — OpenAI-compatible servers (vLLM, Ollama) ignore the value if their own limit is lower.
+
+Gemini was already on its default (which is ≥8192 for the 2.x family) and was not touched. The 512-token cap for short calls (title generation, etc.) is unchanged.
+
+### Why not multi-round citation generation?
+
+The user proposed splitting the response into 2-3 rounds to let the model re-emit annotations for refs the first round missed. Considered but **rejected** for this fix — the actual failure mode here is **parsing**, not **truncation**. The hybrid-bracket issue would affect a multi-round implementation just as badly without splitting them upstream. Multi-round generation remains an option for future cases where 8192 tokens still aren't enough; the splitter is the foundation either way.
+
+---
+
 ## v0.5.0 — 2026-05-25 (HyDE retrieval + DirectML embeddings)
 
 First minor bump since 0.4.0. Two RAG-layer changes that together raise the

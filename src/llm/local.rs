@@ -195,7 +195,11 @@ pub async fn stream(
         think: Some(false),
         // Ollama defaults to num_predict: 128 — too short for real answers.
         // OpenAI-compatible servers ignore this if their own limit is lower.
-        max_tokens: Some(4096),
+        // 8192 (up from 4096) for the same reason as the Claude path: a
+        // long answer with many sources truncates the trailing
+        // `<CITATIONS>` block at 4096 and the frontend ends up with
+        // gappy pill rendering. See v0.5.1 hotfix.
+        max_tokens: Some(8192),
     };
 
     let resp = client
