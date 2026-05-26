@@ -793,7 +793,26 @@ pub(crate) fn extract_citations_block(text: &str) -> Option<Value> {
         );
         return Some(recovered);
     }
-    tracing::warn!("[chat] <CITATIONS> block found but is not valid JSON — citations dropped");
+    // DIAGNOSTIC (v0.5.2+): we found a <CITATIONS> block but every
+    // parse path failed. Dump the first / middle / last 300 chars of
+    // the offending payload so we can see what the model actually
+    // emitted (and whether the splitter, a stray escape, a mid-array
+    // truncation, or some other shape is at fault). Truncating to
+    // 300/segment keeps the log line readable on a 50k-char response.
+    let inner_chars = inner.chars().count();
+    let head = inner.chars().take(300).collect::<String>();
+    let tail_skip = inner_chars.saturating_sub(300);
+    let tail = inner.chars().skip(tail_skip).collect::<String>();
+    let mid_start = inner_chars / 2;
+    let mid = inner
+        .chars()
+        .skip(mid_start.saturating_sub(150))
+        .take(300)
+        .collect::<String>();
+    tracing::warn!(
+        "[chat] <CITATIONS> block found but is not valid JSON — citations dropped \
+         (inner_chars={inner_chars})\nHEAD:\n{head}\nMID:\n{mid}\nTAIL:\n{tail}"
+    );
     None
 }
 
@@ -4045,6 +4064,32 @@ async fn stream_chat_root(
             let _ = tx.send(Ok(Event::default().data(payload.to_string()))).await;
         }
 
+        // Diagnostic dump (v0.5.2+): before we decide how to resolve
+        // citations, log the final response shape so a "0 citations"
+        // SSE event has an explanation in the backend log. Cheap —
+        // a few lookups + char-window slicing.
+        {
+            let has_citations_marker = full_response
+                .to_ascii_lowercase()
+                .contains("<citations>");
+            let has_closing_marker = full_response
+                .to_ascii_lowercase()
+                .contains("</citations>");
+            let bracket_count = full_response.matches('[').count();
+            let len = full_response.chars().count();
+            let tail = full_response
+                .char_indices()
+                .rev()
+                .nth(800)
+                .map(|(i, _)| &full_response[i..])
+                .unwrap_or(full_response.as_str());
+            tracing::info!(
+                "[chat][cite-diag] final response: {len} chars, {bracket_count} '[' total, \
+                 <CITATIONS>={has_citations_marker}, </CITATIONS>={has_closing_marker}"
+            );
+            tracing::info!("[chat][cite-diag] tail (last 800 chars):\n{tail}");
+        }
+
         // Rewrite free-form `[doc-id: <handle>, page <N>]` references the
         // model occasionally writes (ignoring the `[cN]` + <CITATIONS>
         // contract — observed routinely on verbose generate_docx
@@ -4371,11 +4416,52 @@ async fn stream_chat_root(
         // synthesised any citations earlier (the body is already rewritten
         // and has `[cN]` markers); otherwise parse a model-emitted block;
         // otherwise synthesise from inline `[gN]`/`[pN]` KB markers.
-        let citations_json = prebuilt_citations.or_else(|| {
-            extract_citations_block(&full_response).or_else(|| {
-                synthesise_kb_citations_from_markers(&full_response, &kb_by_tag)
-            })
-        });
+        let citations_source: &'static str;
+        let citations_json = if prebuilt_citations.is_some() {
+            citations_source = "inline-docid-rewriter";
+            prebuilt_citations
+        } else if let Some(parsed) = extract_citations_block(&full_response) {
+            citations_source = "model-emitted-block";
+            let raw_len = parsed
+                .as_array()
+                .map(|a| a.len())
+                .unwrap_or(0);
+            tracing::info!(
+                "[chat][cite-diag] extract_citations_block OK: parsed array has {raw_len} entries"
+            );
+            Some(parsed)
+        } else if let Some(synth) =
+            synthesise_kb_citations_from_markers(&full_response, &kb_by_tag)
+        {
+            citations_source = "kb-marker-synthesis";
+            let synth_len = synth
+                .as_array()
+                .map(|a| a.len())
+                .unwrap_or(0);
+            tracing::info!(
+                "[chat][cite-diag] synthesise_kb_citations_from_markers OK: \
+                 {synth_len} synthesised from inline `g`/`p` markers"
+            );
+            Some(synth)
+        } else {
+            citations_source = "none";
+            tracing::warn!(
+                "[chat][cite-diag] NO citations from any source — \
+                 no <CITATIONS> block, no inline doc-id refs, no `g`/`p` markers \
+                 matching the kb_by_tag map (size={})",
+                kb_by_tag.len()
+            );
+            None
+        };
+        tracing::info!(
+            "[chat][cite-diag] resolution source = {citations_source}, \
+             pre-enrichment entries = {}",
+            citations_json
+                .as_ref()
+                .and_then(|v| v.as_array())
+                .map(|a| a.len())
+                .unwrap_or(0)
+        );
         let citations_array: Vec<Value> = match citations_json {
             Some(v) => v
                 .as_array()
@@ -4790,6 +4876,12 @@ async fn stream_chat_root(
             );
         }
 
+        tracing::info!(
+            "[chat][cite-diag] FINAL citations SSE payload: {} entr{}, \
+             source={citations_source}",
+            citations_array.len(),
+            if citations_array.len() == 1 { "y" } else { "ies" }
+        );
         let done_payload = json!({ "type": "citations", "citations": citations_array });
         let _ = tx
             .send(Ok(Event::default().data(done_payload.to_string())))
