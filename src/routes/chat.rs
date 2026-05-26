@@ -1907,7 +1907,42 @@ async fn retrieve_kb_chunks(
     let mut out: Vec<RetrievedKbEntry> = Vec::new();
     let mut g_idx = 0u32;
     let mut p_idx = 0u32;
+    let mut orphan_count = 0u32;
     for c in chunks.into_iter().filter(|c| c.distance <= KB_DISTANCE_THRESHOLD) {
+        // Orphan-source filter (v0.5.4+). When the user removes a file
+        // from a synced folder (or from the UI's local-documents
+        // settings panel) the on-disk file disappears but the
+        // `doc_chunks` embeddings + `documents` row sometimes
+        // outlive it — the file watcher / soft-delete path missed
+        // it. Surfacing orphan chunks into the system prompt then
+        // makes the model hallucinate that document as a source on
+        // every turn, leading to "12 citations all pointing to the
+        // same 404 page" syndrome the user reported in the medical-
+        // legal chat. We probe the source_path here; URL-shaped
+        // source_paths (EUR-Lex / DILA / italian-legal) are remapped
+        // to their local cache equivalent further down anyway, so
+        // we use the same map for the existence check.
+        let probe_path: String = if c.source_path.starts_with("http://")
+            || c.source_path.starts_with("https://")
+        {
+            // Will be remapped below; trust for now.
+            c.source_path.clone()
+        } else {
+            c.source_path.clone()
+        };
+        let is_url = probe_path.starts_with("http://") || probe_path.starts_with("https://");
+        if !is_url && !std::path::Path::new(&probe_path).exists() {
+            orphan_count += 1;
+            tracing::warn!(
+                "[rag] orphan KB chunk dropped: source_path={:?} missing on disk \
+                 (doc_id={}, chunk_index={}) — run /sync/cleanup-orphans to purge",
+                probe_path,
+                c.document_id,
+                c.chunk_index,
+            );
+            continue;
+        }
+
         // Per-doc PII-protection lookup. Cheap because the chunk batch
         // typically points to at most a handful of distinct documents,
         // and SQLite has a 100 ns hot-cache lookup.
@@ -1956,6 +1991,13 @@ async fn retrieve_kb_chunks(
             text: c.text,
             page: c.page,
         });
+    }
+    if orphan_count > 0 {
+        tracing::warn!(
+            "[rag] {orphan_count} orphan KB chunk(s) dropped this turn — \
+             these are stale embeddings whose source file is missing on disk. \
+             Call POST /sync/cleanup-orphans to purge them permanently."
+        );
     }
     out
 }

@@ -582,6 +582,15 @@
       "explain": "Para restaurar o documento original, mude a decisão para Aceitar — o resumo permanece arquivado caso volte a rejeitar.",
       "noReason": "(motivo não registado)",
       "noSummary": "Não há resumo arquivado para esta rejeição. O motivo do utilizador é mesmo assim injetado no contexto do chat, mas sem um resumo gerado pelo modelo."
+    },
+    "cleanup": {
+      "title": "Ficheiro fonte removido",
+      "body": "Este documento parece ter sido removido do disco. Os seus embeddings continuam no índice e o assistente pode alucinar como fonte a cada turno. Execute uma limpeza para remover as linhas órfãs.",
+      "action": "Limpar fontes órfãs",
+      "running": "A limpar…",
+      "done": "Removidos {orphans} documento(s) órfão(s) e {chunks} fragmentos de embedding",
+      "noOrphans": "Nenhuma fonte órfã encontrada — o índice já está limpo",
+      "failed": "Falha na limpeza: {err}"
     }
   },
   "DocumentSupport": {

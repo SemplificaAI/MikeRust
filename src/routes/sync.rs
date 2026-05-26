@@ -49,6 +49,12 @@ pub fn router() -> Router<Arc<AppState>> {
         // model…" stripe instead of a silent multi-minute hang on
         // first use.
         .route("/ner-status", get(ner_status))
+        // Purge orphan embeddings — `documents` rows whose
+        // `storage_path` file no longer exists on disk, plus their
+        // associated `doc_chunks` entries. Surfaced as a `Resync` /
+        // `Pulisci` button when the chat-time retrieval reports
+        // orphan KB chunks (v0.5.4+).
+        .route("/cleanup-orphans", post(cleanup_orphans))
 }
 
 // ---------------------------------------------------------------------------
@@ -572,4 +578,140 @@ async fn list_files(
         )
         .collect();
     Ok(Json(json!(out)))
+}
+
+// ---------------------------------------------------------------------------
+// POST /sync/cleanup-orphans
+// ---------------------------------------------------------------------------
+/// Delete every `documents` row whose `storage_path` file no longer
+/// exists on disk, plus the matching `doc_chunks` entries (cascade
+/// via the FK declared in migration 0013) and `synced_files` rows
+/// referencing the deleted document id.
+///
+/// Returns a summary `{ scanned, orphans, deleted_docs, deleted_chunks }`.
+/// Scoped to the calling user — orphans owned by other users on the
+/// same install are not touched.
+///
+/// Triggered by the chat-time orphan-KB-chunk diagnostic warning in
+/// `retrieve_kb_chunks` (v0.5.4+) and by the frontend "Pulisci sorgenti
+/// rimosse" button in the file-missing modal.
+async fn cleanup_orphans(
+    State(state): State<Arc<AppState>>,
+    auth: AuthUser,
+) -> ApiResult {
+    // Pull every document this user owns that carries a storage_path
+    // (URL-only corpus rows have storage_path = NULL and are skipped
+    // — they're tracked via `corpus_id` + `corpus_identifier`).
+    let rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT id, storage_path FROM documents \
+         WHERE user_id = ? AND storage_path IS NOT NULL",
+    )
+    .bind(&auth.user_id)
+    .fetch_all(&state.db)
+    .await
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
+
+    let scanned = rows.len();
+    let mut orphan_ids: Vec<String> = Vec::new();
+    let storage_base =
+        std::path::PathBuf::from(std::env::var("STORAGE_PATH").unwrap_or_else(|_| {
+            crate::storage::default_storage_path()
+        }));
+    for (doc_id, storage_path) in rows {
+        // storage_path is the *key* relative to STORAGE_PATH (e.g.
+        // `cache/<hash>.pdf`, or `documents/<user>/<doc_id>`). Some
+        // legacy rows carry an absolute filesystem path (synced
+        // files on the user's machine — `C:\Users\…\file.pdf`).
+        // Resolve both shapes before probing.
+        let p = std::path::Path::new(&storage_path);
+        let abs = if p.is_absolute() {
+            p.to_path_buf()
+        } else {
+            storage_base.join(&storage_path)
+        };
+        if !abs.exists() {
+            orphan_ids.push(doc_id);
+        }
+    }
+
+    if orphan_ids.is_empty() {
+        tracing::info!(
+            "[sync] cleanup-orphans for user={}: scanned {scanned}, 0 orphans found",
+            auth.user_id
+        );
+        return Ok(Json(json!({
+            "scanned": scanned,
+            "orphans": 0,
+            "deleted_docs": 0,
+            "deleted_chunks": 0,
+        })));
+    }
+
+    // Build the IN clause for the cascade delete. SQLite caps each
+    // statement at 999 parameters; chunk if we ever cross that. For
+    // realistic user libraries (<1000 docs) one pass is enough.
+    let mut deleted_chunks: u64 = 0;
+    let mut deleted_docs: u64 = 0;
+    let mut deleted_synced: u64 = 0;
+    for chunk in orphan_ids.chunks(900) {
+        let placeholders = chunk.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+
+        // 1. doc_chunks (vector index)
+        let q = format!("DELETE FROM doc_chunks WHERE document_id IN ({placeholders})");
+        let mut query = sqlx::query(&q);
+        for id in chunk {
+            query = query.bind(id);
+        }
+        deleted_chunks += query
+            .execute(&state.db)
+            .await
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?
+            .rows_affected();
+
+        // 2. synced_files (folder-sync tracking)
+        let q = format!("DELETE FROM synced_files WHERE document_id IN ({placeholders})");
+        let mut query = sqlx::query(&q);
+        for id in chunk {
+            query = query.bind(id);
+        }
+        deleted_synced += query
+            .execute(&state.db)
+            .await
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?
+            .rows_affected();
+
+        // 3. documents (the canonical row). Ownership re-checked here
+        // even though we already filtered by user_id above — defence
+        // in depth against any race where another path reassigned a
+        // doc to a different user between SELECT and DELETE.
+        let q = format!(
+            "DELETE FROM documents WHERE id IN ({placeholders}) AND user_id = ?"
+        );
+        let mut query = sqlx::query(&q);
+        for id in chunk {
+            query = query.bind(id);
+        }
+        query = query.bind(&auth.user_id);
+        deleted_docs += query
+            .execute(&state.db)
+            .await
+            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?
+            .rows_affected();
+    }
+
+    tracing::info!(
+        "[sync] cleanup-orphans for user={}: scanned {scanned}, \
+         {} orphans found, deleted {deleted_docs} document rows, \
+         {deleted_chunks} doc_chunks rows, {deleted_synced} synced_files rows",
+        auth.user_id,
+        orphan_ids.len(),
+    );
+
+    Ok(Json(json!({
+        "scanned": scanned,
+        "orphans": orphan_ids.len(),
+        "deleted_docs": deleted_docs,
+        "deleted_chunks": deleted_chunks,
+        "deleted_synced": deleted_synced,
+    })))
 }

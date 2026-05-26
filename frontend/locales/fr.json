@@ -582,6 +582,15 @@
       "explain": "Pour restaurer le document original, repassez la décision sur Accepter — le résumé reste archivé en cas de nouveau rejet.",
       "noReason": "(motif non enregistré)",
       "noSummary": "Aucun résumé n'est archivé pour ce rejet. Le motif de l'utilisateur est tout de même injecté dans le contexte du chat, mais sans synthèse générée par le modèle."
+    },
+    "cleanup": {
+      "title": "Fichier source supprimé",
+      "body": "Ce document semble avoir été supprimé du disque. Ses embeddings sont toujours dans l'index et l'assistant peut l'halluciner comme source à chaque tour. Lancez un nettoyage pour supprimer les lignes orphelines.",
+      "action": "Nettoyer les sources orphelines",
+      "running": "Nettoyage…",
+      "done": "Supprimés {orphans} document(s) orphelin(s) et {chunks} morceaux d'embedding",
+      "noOrphans": "Aucune source orpheline trouvée — l'index est déjà propre",
+      "failed": "Échec du nettoyage : {err}"
     }
   },
   "DocumentSupport": {

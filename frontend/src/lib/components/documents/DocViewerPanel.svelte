@@ -31,6 +31,46 @@
 
   let rejectModalOpen = $state(false)
   let viewSummaryOpen = $state(false)
+  /** True when the most recent `loadActive` failed with a 404 — the
+   *  source file backing this KB citation has been removed from disk
+   *  but its embeddings outlived it. The renderer surfaces a
+   *  "Pulisci sorgenti rimosse" action that POSTs to
+   *  /sync/cleanup-orphans and toasts the row count. */
+  let orphanSuspected = $state(false)
+  let cleaningOrphans = $state(false)
+
+  async function runCleanup() {
+    if (cleaningOrphans) return
+    cleaningOrphans = true
+    try {
+      const { api } = await import('$lib/api/client')
+      const res = await api<{
+        scanned: number
+        orphans: number
+        deleted_docs: number
+        deleted_chunks: number
+      }>('/sync/cleanup-orphans', { method: 'POST' })
+      if (res.orphans === 0) {
+        toastStore.success(i18n.t('DocViewer.cleanup.noOrphans'))
+      } else {
+        toastStore.success(
+          i18n.t('DocViewer.cleanup.done', {
+            orphans: res.orphans,
+            chunks: res.deleted_chunks,
+          }),
+        )
+        orphanSuspected = false
+      }
+    } catch (err) {
+      toastStore.danger(
+        i18n.t('DocViewer.cleanup.failed', {
+          err: (err as Error).message ?? String(err),
+        }),
+      )
+    } finally {
+      cleaningOrphans = false
+    }
+  }
 
   async function hydrateDecision(tab: ViewerTab) {
     if (tab.source !== 'document') return
@@ -137,6 +177,7 @@
     loading = true
     loadError = null
     loaded = null
+    orphanSuspected = false
     try {
       const blob =
         tab.source === 'kb'
@@ -160,7 +201,14 @@
       loaded = result
       loadedDocId = tab.docId
     } catch (e) {
-      loadError = (e as Error).message
+      const msg = (e as Error).message ?? String(e)
+      loadError = msg
+      // 404 on /sync/kb-doc or /document/:id/display means the row's
+      // file is missing on disk. Hint a cleanup action; the user
+      // accepts and we purge orphan embeddings via the new endpoint.
+      if (/\b404\b/.test(msg) || msg.toLowerCase().includes('not found')) {
+        orphanSuspected = true
+      }
     } finally {
       loading = false
     }
@@ -364,9 +412,39 @@
             {i18n.t('Documents.viewer.loadingDocument')}
           </div>
         {:else if loadError}
-          <p class="text-sm text-(--color-danger-500) p-8 text-center">
-            {i18n.t('Documents.viewer.errorLoading')} — {loadError}
-          </p>
+          <div class="p-8 text-center max-w-md mx-auto">
+            <p class="text-sm text-(--color-danger-500) mb-3">
+              {i18n.t('Documents.viewer.errorLoading')} — {loadError}
+            </p>
+            {#if orphanSuspected}
+              <div
+                class="mt-4 p-4 rounded-(--radius-md) border border-(--color-warning-300)
+                       bg-(--color-warning-50) text-left"
+              >
+                <p class="text-sm font-medium text-(--color-text-primary) mb-1.5">
+                  {i18n.t('DocViewer.cleanup.title')}
+                </p>
+                <p class="text-xs text-(--color-text-secondary) mb-3">
+                  {i18n.t('DocViewer.cleanup.body')}
+                </p>
+                <button
+                  type="button"
+                  onclick={runCleanup}
+                  disabled={cleaningOrphans}
+                  class="h-7 px-3 text-[11px] font-medium inline-flex items-center gap-1.5
+                         rounded-(--radius-md) bg-(--color-warning-500) text-white
+                         hover:bg-(--color-warning-600) disabled:opacity-60
+                         disabled:cursor-not-allowed"
+                >
+                  {#if cleaningOrphans}
+                    <Spinner size="sm" />{i18n.t('DocViewer.cleanup.running')}
+                  {:else}
+                    {i18n.t('DocViewer.cleanup.action')}
+                  {/if}
+                </button>
+              </div>
+            {/if}
+          </div>
         {:else if loaded}
           {#if loaded.kind === 'pdf'}
             <PdfView

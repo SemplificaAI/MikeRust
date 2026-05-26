@@ -582,6 +582,15 @@
       "explain": "Um das Originaldokument wiederherzustellen, setzen Sie die Entscheidung wieder auf Akzeptieren — die Zusammenfassung bleibt für eine erneute Ablehnung archiviert.",
       "noReason": "(Grund nicht erfasst)",
       "noSummary": "Für diese Ablehnung ist keine Zusammenfassung archiviert. Die Begründung des Nutzers wird trotzdem in den Chat-Kontext eingefügt, jedoch ohne KI-generierte Kurzfassung."
+    },
+    "cleanup": {
+      "title": "Quelldatei entfernt",
+      "body": "Dieses Dokument scheint von der Festplatte entfernt worden zu sein. Seine Einbettungen sind noch im Index und der Assistent halluziniert es möglicherweise als Quelle bei jeder Runde. Führen Sie eine Bereinigung durch, um die verwaisten Zeilen zu entfernen.",
+      "action": "Verwaiste Quellen bereinigen",
+      "running": "Bereinigung…",
+      "done": "{orphans} verwaiste Dokument(e) und {chunks} Embedding-Chunks entfernt",
+      "noOrphans": "Keine verwaisten Quellen gefunden — der Index ist bereits sauber",
+      "failed": "Bereinigung fehlgeschlagen: {err}"
     }
   },
   "DocumentSupport": {

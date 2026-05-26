@@ -595,6 +595,15 @@
       "explain": "Per ripristinare il documento originale, riporta la decisione su Accetta — il riassunto resta archiviato per un eventuale futuro rifiuto.",
       "noReason": "(motivo non registrato)",
       "noSummary": "Nessun riassunto archiviato per questo rifiuto. Il motivo dell'utente entra comunque nel contesto della chat, ma senza un riepilogo generato dal modello."
+    },
+    "cleanup": {
+      "title": "Sorgente rimossa",
+      "body": "Questo documento sembra essere stato rimosso dal disco. I suoi embedding sono ancora nell'indice e l'assistente potrebbe hallucinarlo come fonte a ogni turno. Esegui una pulizia per rimuovere le righe orfane.",
+      "action": "Pulisci sorgenti rimosse",
+      "running": "Pulizia in corso…",
+      "done": "Rimossi {orphans} documento/i orfano/i e {chunks} chunk di embedding",
+      "noOrphans": "Nessuna sorgente orfana trovata — l'indice è già pulito",
+      "failed": "Pulizia non riuscita: {err}"
     }
   },
   "DocumentSupport": {

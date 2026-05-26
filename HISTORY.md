@@ -13,6 +13,54 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.4 — 2026-05-26 (orphan KB chunks — filter at chat-time + cleanup endpoint)
+
+Root-causes the "tutte le 12 citazioni del turn 2 puntano allo stesso
+doc orfano, page 13" pattern the user reproduced on v0.5.3. The
+`<KNOWLEDGE BASE>` chunks that survived the cosine-similarity threshold
+all referenced one document — `modello_2026_edpb_dpia.pdf` — whose
+file had been removed from disk earlier without the corresponding
+`documents` + `doc_chunks` rows being cleaned up. The model saw those
+chunks as a legitimate source, the orphan retrieval surfaced them on
+EVERY turn, and it ended up "citing" the same dead chunk 12 times
+under different `[cN]` labels.
+
+### Two-part fix
+
+**At chat time** ([`src/routes/chat.rs`](src/routes/chat.rs))
+`retrieve_kb_chunks` now probes the on-disk existence of each chunk's
+`source_path` (skipping URL-shaped paths, which are remapped to local
+cache further down anyway). Chunks whose file is missing are dropped
+with a `[rag] orphan KB chunk dropped: source_path=... missing on
+disk` warning. A summary `[rag] N orphan KB chunk(s) dropped this
+turn` line lands once per turn — flag visible in the dev log, points
+the user at the cleanup endpoint.
+
+**Persistent fix** new endpoint **`POST /sync/cleanup-orphans`**
+([`src/routes/sync.rs`](src/routes/sync.rs)). Per-user: enumerates
+every `documents` row with a non-null `storage_path`, resolves
+relative keys against `STORAGE_PATH` and absolute keys verbatim, and
+drops the rows whose file is missing — plus the matching
+`doc_chunks` (vector index) and `synced_files` (folder tracking)
+entries. Returns `{ scanned, orphans, deleted_docs, deleted_chunks,
+deleted_synced }`.
+
+**Frontend modal** ([`DocViewerPanel.svelte`](frontend/src/lib/components/documents/DocViewerPanel.svelte))
+When the viewer 404s while opening a citation source, it now surfaces
+a warning panel with a `Pulisci sorgenti rimosse` button that POSTs
+to the cleanup endpoint and toasts the row count. Seven new i18n
+keys under `DocViewer.cleanup.*` — all six locales now at 1154 keys.
+
+### What this DOESN'T fix
+
+The model's *behaviour* of citing the same chunk multiple times
+under different `[cN]` labels is addressed by v0.5.3's CITATION
+QUALITY RULE #3 ("prefer per-passage citations"). The orphan filter
+just prevents the model from receiving the offending chunks in the
+first place.
+
+---
+
 ## v0.5.3 — 2026-05-26 (deterministic LLM output + tighter citation contract)
 
 After a real-world test of v0.5.2 surfaced two failure modes — Gemini

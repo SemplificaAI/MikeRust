@@ -595,6 +595,15 @@
       "explain": "To restore the original document, switch the decision back to Accept — the summary stays archived in case you reject again.",
       "noReason": "(reason not recorded)",
       "noSummary": "No summary is archived for this rejection. The user reason is still injected into the chat context, but no LLM-generated digest accompanies it."
+    },
+    "cleanup": {
+      "title": "Source file removed",
+      "body": "This document appears to have been removed from disk. Its embeddings remain in the index and the assistant may hallucinate it as a source on every turn. Run a cleanup to drop the orphan rows.",
+      "action": "Clean orphan sources",
+      "running": "Cleaning…",
+      "done": "Removed {orphans} orphan document(s) and {chunks} embedding chunks",
+      "noOrphans": "No orphan sources found — the index is already clean",
+      "failed": "Cleanup failed: {err}"
     }
   },
   "DocumentSupport": {
