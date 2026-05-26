@@ -13,221 +13,137 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
-## Versioning policy — pin at 0.5.0 until stable
+## v0.5.1 — 2026-05-26 (citation pipeline overhaul + orphan KB cleanup + A4 doc viewer)
 
-User decision 2026-05-26: the source `version` fields in `Cargo.toml`,
-`src-tauri/Cargo.toml`, `src-tauri/tauri.svelte.conf.json` and
-`frontend/package.json` are pinned at **0.5.0** — the last release
-the user actually installed and tested via MSI — until they
-explicitly OK the next bump.
+Consolidated stable bundle covering an afternoon of iterative debug on the
+v0.5.0 citation pipeline. The user tested four work-in-progress drops in
+dev (formerly tagged v0.5.1 → v0.5.4 — those tags are recreated to point
+at this consolidated commit; the WIP intermediates are not separately
+releasable). Five distinct fix areas land together:
 
-The git tags v0.5.1 / v0.5.2 / v0.5.3 / v0.5.4 stay on origin as
-historical markers of work-in-progress hotfixes (HISTORY entries
-below document what each tag carries). Every fix committed
-between this note and the next "ok, bump to 0.5.1" is shipped at
-version 0.5.0 in the source tree.
+### Citation pipeline — model-independent post-processors
 
-Rationale: a version bump should signal "this state was confirmed
-stable by the user". Iterative dev cycles that never hit an MSI
-build shouldn't burn through patch numbers. When the citation /
-orphan / model-determinism cluster stabilises, the user will say
-"bump" and 0.5.0 → 0.5.1 lands together with whatever delta has
-accumulated.
+1. **Hybrid bracket splitter** ([`split_hybrid_citation_brackets`](src/routes/chat.rs)).
+   Decomposes mixed-content brackets the model occasionally emits
+   (`[c1, c2, FILE.pdf, p.4, doc-7, doc-8]`) into clean ones the
+   frontend `MARKER_GROUP` regex can pill-ify — `[c1] [c2] [doc-id:
+   FILE.pdf, page 4] [doc-id: doc-7] [doc-id: doc-8]`. Idempotent;
+   stops at `<CITATIONS>` so it can't corrupt the trailing JSON block
+   (regression test pins this).
 
----
+2. **Cross-message citation lookup** ([`renderMessageHtml`](frontend/src/lib/utils/citations.ts)).
+   When a `[cN]` in the current message has no matching annotation
+   but an earlier assistant turn in the same chat did, the pill
+   resolves to the older annotation. Catches the common case of
+   models reusing `cN` labels across turns.
 
-## v0.5.4 — 2026-05-26 (orphan KB chunks — filter at chat-time + cleanup endpoint)
+3. **Filename → UUID fallback** in the trailing-CITATIONS resolver
+   and the inline `[doc-id: …]` rewriter. When the model lifts a
+   filename from the inventory and emits it as the `doc_id`, the
+   resolver now back-maps to the right attached-document UUID.
 
-Root-causes the "tutte le 12 citazioni del turn 2 puntano allo stesso
-doc orfano, page 13" pattern the user reproduced on v0.5.3. The
-`<KNOWLEDGE BASE>` chunks that survived the cosine-similarity threshold
-all referenced one document — `modello_2026_edpb_dpia.pdf` — whose
-file had been removed from disk earlier without the corresponding
-`documents` + `doc_chunks` rows being cleaned up. The model saw those
-chunks as a legitimate source, the orphan retrieval surfaced them on
-EVERY turn, and it ended up "citing" the same dead chunk 12 times
-under different `[cN]` labels.
+4. **Tightened CITATION QUALITY RULES** in `MRUST_SYSTEM_PROMPT`.
+   Five new explicit rules attack the failure modes we measured:
+   - Empty / short quotes → omit the citation.
+   - Page ranges (`"1-3"`) RESERVED for sentences spanning
+     `[[PAGE_BREAK]]`; otherwise `page` MUST be an integer.
+   - Prefer per-passage citations over per-document citations.
+   - Prefer attached docs (`doc-N`) over KB docs (`gN`/`pN`) when
+     attached docs cover the claim.
+   - Re-emit cross-turn `[cN]` annotations in the current turn's
+     `<CITATIONS>` block.
 
-### Two-part fix
+### Cross-provider determinism + headroom
 
-**At chat time** ([`src/routes/chat.rs`](src/routes/chat.rs))
-`retrieve_kb_chunks` now probes the on-disk existence of each chunk's
-`source_path` (skipping URL-shaped paths, which are remapped to local
-cache further down anyway). Chunks whose file is missing are dropped
-with a `[rag] orphan KB chunk dropped: source_path=... missing on
-disk` warning. A summary `[rag] N orphan KB chunk(s) dropped this
-turn` line lands once per turn — flag visible in the dev log, points
-the user at the cleanup endpoint.
+- **`temperature = 0.5`** on every provider (Claude / Gemini /
+  OpenAI / local-OpenAI-compatible). Defaults were 1.0 across the
+  board — too random for structured-output workloads. Set in
+  [`src/llm/claude.rs`](src/llm/claude.rs),
+  [`src/llm/gemini.rs`](src/llm/gemini.rs) (`generationConfig.temperature`,
+  carried on legacy 1.5 / 2.0 families that don't accept
+  `thinkingConfig`),
+  [`src/llm/local.rs`](src/llm/local.rs) (`ChatRequest.temperature` +
+  streaming + complete paths).
+- **`max_tokens` 4096 → 8192** on Claude + local. Doubles the
+  headroom for trailing `<CITATIONS>` JSON on long answers. Gemini
+  was already on its default (≥8192 on the 2.x family).
 
-**Persistent fix** new endpoint **`POST /sync/cleanup-orphans`**
-([`src/routes/sync.rs`](src/routes/sync.rs)). Per-user: enumerates
-every `documents` row with a non-null `storage_path`, resolves
-relative keys against `STORAGE_PATH` and absolute keys verbatim, and
-drops the rows whose file is missing — plus the matching
-`doc_chunks` (vector index) and `synced_files` (folder tracking)
-entries. Returns `{ scanned, orphans, deleted_docs, deleted_chunks,
-deleted_synced }`.
+### Orphan KB chunks — chat-time filter + cleanup endpoint
 
-**Frontend modal** ([`DocViewerPanel.svelte`](frontend/src/lib/components/documents/DocViewerPanel.svelte))
-When the viewer 404s while opening a citation source, it now surfaces
-a warning panel with a `Pulisci sorgenti rimosse` button that POSTs
-to the cleanup endpoint and toasts the row count. Seven new i18n
-keys under `DocViewer.cleanup.*` — all six locales now at 1154 keys.
+User-reported: after removing a synced doc from the UI, its
+embeddings outlived the file on disk. Every chat turn the cosine
+retrieval surfaced those stale chunks, the model treated them as
+sources, and one chat ended up emitting 12 citations all pointing
+to the same dead PDF page 13.
 
-### What this DOESN'T fix
+- [`retrieve_kb_chunks`](src/routes/chat.rs) now probes each chunk's
+  `source_path` on disk and drops the missing ones with a
+  `[rag] orphan KB chunk dropped …` warning + per-turn summary.
+- New endpoint **`POST /sync/cleanup-orphans`**
+  ([`src/routes/sync.rs`](src/routes/sync.rs)) — per-user cascade
+  delete of `documents` + `doc_chunks` + `synced_files` rows whose
+  backing file is gone. Returns `{ scanned, orphans, deleted_docs,
+  deleted_chunks, deleted_synced }`.
+- **Frontend modal** ([`DocViewerPanel.svelte`](frontend/src/lib/components/documents/DocViewerPanel.svelte)):
+  when a citation source 404s the viewer surfaces a warning panel
+  with a `Pulisci sorgenti rimosse` button that calls the cleanup
+  endpoint and toasts the row count.
 
-The model's *behaviour* of citing the same chunk multiple times
-under different `[cN]` labels is addressed by v0.5.3's CITATION
-QUALITY RULE #3 ("prefer per-passage citations"). The orphan filter
-just prevents the model from receiving the offending chunks in the
-first place.
+### DocxView — A4 fit (default) + reflow toggle
 
----
+[`DocxView.svelte`](frontend/src/lib/components/documents/DocxView.svelte)
+now defaults to `fit` mode: preserves the document's native A4 page
+geometry (width + height + margins, `breakPages: true`) and applies
+CSS `zoom = containerWidth / pageWidth` (clamped to `[0.4, 1.5]`) via
+a `ResizeObserver` so the page auto-scales when the user drags the
+panel divider. A top-right toggle flips to `reflow` mode (drops
+the page geometry, prose flows the full panel width) for narrow
+side-panel reading. ResizeObserver is detached in reflow mode so
+the responsive cost is zero off-path.
 
-## v0.5.3 — 2026-05-26 (deterministic LLM output + tighter citation contract)
+### Diagnostic logging
 
-After a real-world test of v0.5.2 surfaced two failure modes — Gemini
-emitting one degenerate citation per attached document with `page=1-3`
-instead of per-passage refs, and irrelevant KB documents leaking into
-chats with 10 explicit attachments — this patch tightens the contract
-across all providers.
+- `[rag][cite-diag] retrieve_kb_chunks …` now spells out HyDE on/off
+  + locale + domain + top-K and notes the **base cosine retrieval
+  always runs** regardless of HyDE (HyDE only adds a second pass —
+  removes a recurring "but I turned HyDE off, why is the model still
+  searching?" confusion).
+- `[chat][cite-diag] …` events trace each step of the citation
+  pipeline: final response shape (chars + bracket count + presence of
+  `<CITATIONS>` markers), tail dump (last 800 chars), per-step
+  outcome (`extract_citations_block` Some/None, source path,
+  pre-enrichment entry count, FINAL SSE payload size).
+- `[chat] <CITATIONS> block found but is not valid JSON` warning
+  now dumps the head / mid / tail (300 chars each) of the offending
+  payload so we can diagnose model malformations without re-running.
 
-### Cross-provider `temperature = 0.5`
+### E2E test scaffold
 
-Every catalogued provider was running on its API default temperature
-(1.0 for Claude / Gemini / OpenAI, model-defined for Ollama). Citation
-lists + structured `<CITATIONS>` JSON + tool calls all benefit from
-less-random sampling. Set explicitly in [`src/llm/claude.rs`](src/llm/claude.rs),
-[`src/llm/gemini.rs`](src/llm/gemini.rs) (`generationConfig.temperature`,
-which now ships even on legacy 1.5 / 2.0 families that don't accept
-`thinkingConfig` — the test
-`build_body_omits_thinking_config_on_legacy_families` was updated to
-match), and [`src/llm/local.rs`](src/llm/local.rs) (`ChatRequest`
-adds `temperature: Option<f32>`, both stream + complete paths set 0.5).
+New [`tests/medical_citations_e2e.rs`](tests/medical_citations_e2e.rs)
+bypasses the frontend entirely: places the 10 PDFs from
+`tests/medical/` straight into the cache + documents rows, exercises
+the real `POST /chat` handler via `tower::ServiceExt::oneshot`,
+parses the SSE stream, and prints a structured JSON report of
+citation quality (citation count, per-citation page-kind + quote
+length, source distribution). Gated by `#[ignore]` + a
+`GEMINI_API_KEY` env check; A/B switches via `E2E_HYDE` / `E2E_MODEL`.
 
-### Citation contract — 5 new "quality rules"
+Run with:
 
-[`MRUST_SYSTEM_PROMPT`](src/routes/chat.rs) now spells out the failure
-modes we measured in production:
-
-1. EVERY citation must have a non-empty `quote` of ≥15 characters — if
-   you can't anchor a claim to a passage, omit the citation entirely.
-2. NEVER use a page range (`"1-3"`) to mean "the whole document". Page
-   ranges are RESERVED for single sentences spanning a `[[PAGE_BREAK]]`.
-   Without the break marker, `page` MUST be an integer.
-3. PREFER per-passage citations over per-document citations. A 6-page
-   doc supporting 5 distinct claims → 5 citations on 5 different pages,
-   not 1 citation with `page="1-6"`.
-4. When attached documents cover the claim, cite THEM (doc-N). Only
-   cite KB documents (gN / pN) when no attached doc covers the claim
-   — KB pollution into an attachment-heavy chat confuses the user.
-5. If your prose mentions a `[cN]` from a previous turn, RE-EMIT its
-   `<CITATIONS>` entry in the current turn's JSON block. Don't leave
-   the user clicking a dead pill that lives in a stale message.
-
-### Retrieval-pipeline diagnostic clarity
-
-The `[rag][cite-diag] retrieve_kb_chunks ...` log now spells out
-`hyde=ON/OFF` and notes that the **base cosine retrieval always runs**
-regardless of HyDE — HyDE only ADDS a second pass. Removes the
-"flag is off in UI but model still seems to do retrieval" confusion.
-
-### Frontend cross-message citation lookup (shipped in d2621f0)
-
-Already on main since yesterday — when a `[cN]` in the current message
-doesn't have a matching annotation but a previous assistant turn in
-the same chat does, the pill resolves to the older annotation. The
-contract rule (5) above tries to make this fallback unnecessary;
-rule + fallback are belt + suspenders.
+```pwsh
+$env:GEMINI_API_KEY = "..."
+cargo test --test medical_citations_e2e --features rag,pdf `
+    -- --ignored --nocapture
+```
 
 ### Tests
 
-47 chat unit tests still pass; `routes::chat::tests` suite is green.
-A new `tests/medical_citations_e2e.rs` (shipped in 17354f5) lets us
-measure citation quality OUTSIDE the UI on a fixed 10-PDF medical-legal
-corpus — comparison runs across model / HyDE / prompt versions are
-trivial.
-
----
-
-## v0.5.2 — 2026-05-26 (hotfix: v0.5.1 splitter corrupted CITATIONS JSON)
-
-**Regression introduced by v0.5.1**: the new `split_hybrid_citation_brackets`
-post-processor scanned for the first `]` after each `[`. The trailing
-`<CITATIONS>[…]</CITATIONS>` JSON block contains a `quote` field whose
-value sometimes carries `[N]` brackets the model copied from prose
-(e.g. `"art. 32 [3] del decreto"`). The splitter landed on that nested
-`]`, truncated the JSON array, and `extract_citations_block` silently
-rejected the malformed result — **every chat lost all its citations**,
-regardless of provider, regardless of attachment count. User-reported
-on both `gemini-3.5-flash` and `gemini-2.5-flash`.
-
-### Fix
-
-[`split_hybrid_citation_brackets`](src/routes/chat.rs) now stops processing
-the moment it encounters `<CITATIONS>` (case-insensitive). The segment
-from that marker to end-of-string is passed through byte-for-byte. New
-regression test `split_hybrid_does_not_corrupt_trailing_citations_json_block`
-pins the contract — feeding a body containing `"art. 32 [3]"` inside a
-citation quote produces output whose trailing JSON is byte-identical to
-the input.
-
-Existing 8 splitter tests + 38 chat tests still pass; full lib suite
-still green (398/398). Production-facing behaviour: any chat that
-produced zero pills on v0.5.1 should render correctly again on v0.5.2.
-
-This is exactly the failure mode the project memory
-[`feedback_model_independent_normalization.md`](https://example.invalid)
-warned about — "cover the normaliser with focused unit tests using real
-outputs the user has seen, not synthetic happy-path samples." I had
-synthetic happy-path tests; the production case turned up a JSON-quote-
-brackets edge that none of them covered. Test added retroactively.
-
----
-
-## v0.5.1 — 2026-05-26 (hybrid citation bracket splitter + max_tokens bump)
-
-Closes the citation-rendering gap exposed by long answers with many
-attachments (10+ PDFs). When the model writes a bracket like
-
-```
-[c1, c2, c18, c34, CARTELLA_TEST_002.pdf, p.4, doc-7, doc-8]
-```
-
-the frontend's `MARKER_GROUP` regex (which requires every token inside
-`[…]` to match `[gcp]\d+`) refuses the whole bracket and renders it as
-plain text — dragging the otherwise-valid `cN` refs into plain text
-alongside the filename. Net effect: most citations on a 49-ref answer
-showed up as inline text, only the few "clean" brackets (`[19]`, `[20]`
-…) made it to pills.
-
-### Fix B — `split_hybrid_citation_brackets`
-
-A new deterministic normaliser ([`src/routes/chat.rs`](src/routes/chat.rs)) runs **after** the LLM stream completes and **before** the existing `<CITATIONS>` parser / `rewrite_inline_docid_citations` rewriter. It decomposes every hybrid bracket into a sequence of clean ones:
-
-- `cN` / `gN` / `pN`             → `[cN]` (frontend pill marker)
-- `doc-N`                          → `[doc-id: doc-N]`
-- `FILE.ext` + optional `p.N` / `page N` / `pag N` → `[doc-id: FILE.ext, page N]`
-- Anything unrecognised           → preserved verbatim, parenthesised
-
-Pure-ref brackets like `[c1, c2, c3]` and non-citation brackets like `Art. 32 [3]` pass through unchanged. The function is idempotent (running it twice on the same input produces identical output) and model-independent: it runs the same for Claude / Gemini / OpenAI / local providers.
-
-Saves the architectural principle as a memory: **for any structured-output contract, the system prompt is belt, the Rust post-processor is suspenders. Both stay.** See [`feedback_model_independent_normalization.md`](https://example.invalid) in the project memory.
-
-Covered by 8 new unit tests in [`routes::chat::tests`](src/routes/chat.rs); existing 38 chat tests continue to pass.
-
-### Fix C — `max_tokens` 4096 → 8192
-
-Doubles the headroom for the trailing `<CITATIONS>` JSON block on long answers with many sources. Applied to:
-
-- [`src/llm/claude.rs:41`](src/llm/claude.rs#L41) — every catalogued Claude model in `config/model.json` supports ≥8192 output tokens.
-- [`src/llm/local.rs:198`](src/llm/local.rs#L198) — OpenAI-compatible servers (vLLM, Ollama) ignore the value if their own limit is lower.
-
-Gemini was already on its default (which is ≥8192 for the 2.x family) and was not touched. The 512-token cap for short calls (title generation, etc.) is unchanged.
-
-### Why not multi-round citation generation?
-
-The user proposed splitting the response into 2-3 rounds to let the model re-emit annotations for refs the first round missed. Considered but **rejected** for this fix — the actual failure mode here is **parsing**, not **truncation**. The hybrid-bracket issue would affect a multi-round implementation just as badly without splitting them upstream. Multi-round generation remains an option for future cases where 8192 tokens still aren't enough; the splitter is the foundation either way.
+47 chat unit tests + 9 splitter unit tests + 49 frontend Vitest
+tests all green. No new migrations (HyDE's `hyde_enabled` column
+from v0.5.0 is still the latest schema change). 7 new i18n keys
+for the cleanup modal (`DocViewer.cleanup.*`) + 4 for the DocxView
+toggle (`DocxView.modeFit / modeReflow / switchToFit / switchToReflow`)
+across all six locales — 1158 keys per locale.
 
 ---
 
