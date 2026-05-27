@@ -348,6 +348,55 @@ Once `http-fetch-per-id` ships, this is the entire flow:
   only sets the initial state; the live state lives in `corpus_settings`
   rows in the DB (see `/eurlex/config`, `/italian-legal/config`).
 
+## ⚠️ Security — only point plugins at sources you trust
+
+A corpus manifest is a routing instruction: it tells MikeRust where to
+fetch bytes from and how to parse them. **Two of the supported parsers
+have known unfixed-upstream advisories that only manifest under
+attacker-controlled input**, and a malicious manifest is the easiest
+path to that input:
+
+- **`hf-dataset-bulk` (Parquet shards)** — the `parquet` crate pulls in
+  `thrift 0.17.0`, which has a moderate-severity *Memory Allocation
+  with Excessive Size Value* advisory. A crafted Parquet footer can
+  declare an oversized allocation that the decoder honours before
+  validating against the actual stream length, causing process OOM.
+  The Apache Thrift Rust bindings have not shipped a fix; even the
+  latest `parquet 58` still depends on `thrift ^0.17`. We mitigate it
+  with a hard byte cap on every shard before it reaches the decoder
+  (`max_parquet_file_size_mb` in
+  [`config/corpora.json`](../config/corpora.json), default 500 MB)
+  — see [`src/corpora/limits.rs`](../src/corpora/limits.rs) and the
+  pre-decode bail in
+  [`src/corpora/italian_legal.rs`](../src/corpora/italian_legal.rs).
+  The cap mitigates the most obvious DoS path; it does not make
+  untrusted Parquet input safe in general.
+
+- **`dila-bulk-xml` (XML inside tar.gz)** — uses `quick-xml` against
+  arbitrary tar contents. The parser is hardened against entity
+  expansion, but a malicious archive could still serve oversized
+  records or path-traversal entries the importer's tar walker is
+  expected to reject. We don't expose a per-archive size knob today;
+  the safe practice is to point this strategy only at official DILA
+  endpoints (`echanges.dila.gouv.fr/OPENDATA/`).
+
+**Concrete guidance for plugin authors:**
+
+1. Pin `base_url` (and any per-strategy URL fields) to an official
+   government / academic / well-known publisher endpoint. Never accept
+   user-supplied URLs verbatim, and never point a `hf-dataset-bulk`
+   strategy at a HuggingFace dataset you do not control or trust.
+2. Treat third-party HF datasets as untrusted by default — review the
+   shard sizes and footer structure before enabling the plugin, and
+   leave the `max_parquet_file_size_mb` cap at its default unless you
+   have a specific reason to raise it.
+3. The runtime refuses to decode a shard above the cap with a
+   `[italian-legal] shard … above the max_parquet_file_size_mb cap`
+   error — that is the intended failure mode, not a bug to work around.
+4. The `builtin` strategy is the safest option: the Rust adapter
+   chooses every URL and parser configuration; the manifest only
+   surfaces display metadata.
+
 ## Surfacing in chat
 
 When the chat handler builds the `<USER LIBRARY>` block of the system

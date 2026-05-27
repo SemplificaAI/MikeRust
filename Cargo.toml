@@ -4,7 +4,7 @@ resolver = "2"
 
 [package]
 name = "mike"
-version = "0.5.1-1"
+version = "0.5.2"
 edition = "2024"
 description = "Mike local — sovereign AI document assistant"
 
@@ -118,12 +118,6 @@ gliner2_inference = { git = "https://github.com/SemplificaAI/gliner2-rs", tag = 
 half              = { version = "2.4", optional = true }
 
 # ------------------------------------------------------------------
-# Storage — local filesystem + optional S3/R2 fallback
-# ------------------------------------------------------------------
-aws-sdk-s3 = { version = "1", optional = true }
-aws-config = { version = "1", optional = true }
-
-# ------------------------------------------------------------------
 # PDF extraction — pdfium-render (bundled dll in libs/pdfium/)
 # Pass 1: native text extraction; Pass 2: image render for OCR fallback
 # ------------------------------------------------------------------
@@ -211,9 +205,14 @@ async-trait = "0.1"
 # Optional features
 # ------------------------------------------------------------------
 [features]
+# `local-storage` is kept as a no-op feature so anyone who pinned it in
+# their own manifest still resolves cleanly. The S3/R2 fallback (and
+# the `s3-storage` feature that switched it on) was dropped in v0.5.2:
+# the AWS SDK chain transitively pinned a vulnerable rustls 0.21.12 /
+# rustls-webpki 0.101.7, and the feature was never actually wired up
+# in src/storage/mod.rs (always returned LocalStorage anyway).
 default = ["local-storage", "rag"]
 local-storage = []
-s3-storage = ["dep:aws-sdk-s3", "dep:aws-config"]
 pdf = ["dep:pdfium-render"]
 # Embeddings + vector DB + folder scanner. Pulled in by default so the
 # UI's "Sincronizza cartella" panel is functional out of the box, but

@@ -13,6 +13,109 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.2 — 2026-05-26 (security hardening — drop S3 fallback + Parquet size cap + platform-support clarification)
+
+Security-driven patch release. Three changes land together:
+
+### Drop the `s3-storage` feature and the AWS SDK chain
+
+`aws-sdk-s3` + `aws-config` are gone from `Cargo.toml`. Removing them
+drops 70+ transitive crates from the lockfile, including:
+
+- `rustls 0.21.12` + **`rustls-webpki 0.101.7`** — the Dependabot
+  advisory that prompted this release. The AWS SDK chain was the
+  only path that pulled in the vulnerable 0.21 line of rustls; the
+  rest of the codebase (fastembed, sqlx, hf-hub) already uses
+  `rustls 0.23` + `rustls-webpki 0.103.13`.
+- `aws-smithy-*`, `aws-sigv4`, `rustls-native-certs`, `sct`, …
+  the full SDK transitive graph.
+
+The S3/R2 path was always feature-gated **OFF** by default and the
+`s3-storage` feature was never actually wired into
+[`src/storage/mod.rs`](src/storage/mod.rs)::`make_storage` — that
+function has only ever returned `LocalStorage`. The trait stays for
+the ergonomic win of a single `Box<dyn Storage>` handle and to keep
+the door open for a sovereign-cloud backend on rustls 0.23 later.
+Behaviour for end users is unchanged.
+
+`local-storage` is kept as a no-op feature so anyone who pinned it
+in their own manifest still resolves cleanly.
+
+### Parquet shard size cap — Thrift advisory mitigation
+
+The `parquet` crate (used by the Italian Legal Cassazione bulk
+importer) transitively depends on `thrift 0.17.0`, which carries an
+unfixed-upstream advisory: a crafted Parquet footer can declare an
+allocation that the decoder honours before validating against the
+actual stream length, causing a DoS-style OOM. The Apache Thrift
+Rust bindings have not shipped a fix; even the latest `parquet 58`
+still depends on `thrift ^0.17`.
+
+Mitigation lands as a hard byte cap applied **before** the bytes ever
+reach `parse_parquet_metadata`:
+
+- New file [`config/corpora.json`](config/corpora.json) holds the
+  knob `max_parquet_file_size_mb` (default **500 MB** — comfortably
+  above any legitimate shard from the corpora we ingest, well below
+  the threshold at which a malicious footer would matter on a 16 GB
+  workstation).
+- New module [`src/corpora/limits.rs`](src/corpora/limits.rs) is the
+  loader. Same env-override + ancestor-walk pattern as
+  `src/presets/model.rs` (`MRUST_CORPORA_LIMITS` env var). Falls back
+  to defaults with a warning if the JSON is missing or malformed.
+- [`src/corpora/italian_legal.rs`](src/corpora/italian_legal.rs)
+  refuses to decode a shard above the cap with a clear bail message;
+  the import job surfaces it through the normal `corpus_state`
+  channel.
+- [`docs/CORPUS_PLUGINS.md`](docs/CORPUS_PLUGINS.md) gains a
+  **Security** section explaining the Thrift advisory, the
+  `dila-bulk-xml` analogous concern (oversized XML / tar-walker
+  hardening), and concrete guidance for plugin authors who add new
+  corpus sources — pin URLs to official publishers, never accept
+  user-supplied URLs verbatim, leave the cap at default unless you
+  have a specific reason to raise it.
+
+### Platform-support clarification (resolves the `glib 0.18.5` Dependabot finding)
+
+[README.md](README.md) gains a "Supported platforms" section right at
+the top of Quick start:
+
+- **Windows** is the only currently shipping target (x86_64 + ARM64).
+- **macOS** is on the roadmap but work hasn't started — codebase
+  compiles to `aarch64-apple-darwin` already; gating items are
+  signing / notarisation and a Touch-ID equivalent of the
+  Windows-Hello unlock flow.
+- **Linux is not supported and there are no plans to add it.**
+
+The practical consequence for security scanners: the `gtk` / `glib` /
+`atk` / `webkit2gtk` / `tao-linux` chain that Tauri pulls in for the
+Linux WebView backend **is not present in any shipped MSI** —
+`webview2-com` + `windows-rs` are what compile in on Windows.
+Advisories on that chain (e.g. `glib 0.18.5` flagged 2026-05-26) are
+therefore inert for end users and tracked as "not affected — Linux
+support is not in scope".
+
+### Lockfile + dep changes
+
+- 70+ transitive crates removed via `cargo update` after deleting the
+  AWS deps. Net `Cargo.lock` shrinks ~3 kB.
+- No new direct dependencies. `parquet`, `arrow-*`, `thrift` versions
+  unchanged (bumping `parquet 53 → 58` does not fix the Thrift
+  advisory — even latest parquet still depends on `thrift ^0.17` —
+  and would require a coordinated `arrow-array` / `arrow-schema`
+  migration; deferred until either Thrift ships a fix or arrow-rs
+  removes the dep).
+- Schema version on `config/corpora.json` set to `1`. No DB
+  migration.
+
+### Tests
+
+Existing 23 `llm::gemini` unit tests still green. Four new
+`corpora::limits` unit tests pin the default / config / missing-field
+/ overflow-safe arithmetic paths.
+
+---
+
 ## v0.5.1b — 2026-05-26 (hotfix — Gemini sampler restored to default for versatile heterogeneous-document analysis)
 
 Single-fix hotfix on top of v0.5.1. The cross-provider

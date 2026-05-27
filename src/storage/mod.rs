@@ -2,8 +2,14 @@ use anyhow::{anyhow, Result};
 use std::path::{Component, Path, PathBuf};
 use tokio::fs;
 
-/// Unified storage trait — local filesystem or S3/R2 backend.
-/// Switch via env: if STORAGE_PATH is set → LocalStorage, else → S3Storage.
+/// Unified storage trait. Only `LocalStorage` ships in v0.5.2+; the
+/// historical S3/R2 fallback was removed when its AWS SDK chain
+/// transitively pinned a vulnerable rustls 0.21.12 / rustls-webpki
+/// 0.101.7 and was never actually wired into `make_storage` (the S3
+/// implementation lived only on a feature branch). The trait remains
+/// for the small ergonomic win of a single `Box<dyn Storage>` handle
+/// across the codebase and to keep the door open for a sovereign-cloud
+/// backend later (rustls 0.23 native).
 #[async_trait::async_trait]
 pub trait Storage: Send + Sync {
     async fn put(&self, key: &str, data: &[u8], content_type: &str) -> Result<()>;
@@ -241,7 +247,7 @@ mod tests {
 // ---------------------------------------------------------------------------
 
 pub fn make_storage() -> Result<Box<dyn Storage>> {
-    // If STORAGE_PATH is set, use local filesystem.
-    // R2/S3 implementation can be added behind the s3-storage feature flag.
+    // Local filesystem only. The S3/R2 path was removed in v0.5.2 —
+    // see the `Storage` trait docstring above for the rationale.
     Ok(Box::new(LocalStorage::new()?))
 }

@@ -171,6 +171,16 @@ pub async fn run_import(db: Arc<SqlitePool>) -> Result<()> {
         .timeout(std::time::Duration::from_secs(300))
         .build()?;
 
+    // Hard cap on shard size, applied BEFORE the bytes ever reach the
+    // Parquet decoder. Mitigates the unfixed-upstream Thrift footer
+    // advisory (parquet → thrift 0.17.0): a malicious shard could
+    // declare an oversized allocation in its footer that the parser
+    // would honour on a 16 GB workstation. Threshold is configurable
+    // via `config/corpora.json` (default 500 MB; live Cassazione shards
+    // run ~50-80 MB).
+    let limits = crate::corpora::limits::load_limits();
+    let max_shard_bytes = limits.max_parquet_file_size_bytes();
+
     let mut total_rows: i64 = 0;
     let mut row_offset_running: i64 = 0;
     for shard in 0..TOTAL_SHARDS {
@@ -199,6 +209,16 @@ pub async fn run_import(db: Arc<SqlitePool>) -> Result<()> {
             "[italian-legal] shard {shard} downloaded ({:.1} MB)",
             bytes.len() as f64 / 1_000_000.0
         );
+        if (bytes.len() as u64) > max_shard_bytes {
+            anyhow::bail!(
+                "[italian-legal] shard {shard} from {url} is {:.1} MB, above the \
+                 max_parquet_file_size_mb cap ({} MB) configured in \
+                 config/corpora.json — refusing to decode it (thrift advisory \
+                 mitigation). Raise the cap only if you trust the source.",
+                bytes.len() as f64 / 1_000_000.0,
+                limits.max_parquet_file_size_mb
+            );
+        }
 
         set_state(&db, "importing").await?;
         let imported = import_shard_into_db(

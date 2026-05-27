@@ -172,6 +172,21 @@ original, blind-rewritten Svelte frontend (`frontend/`).
 
 ## Quick start
 
+### Supported platforms
+
+MikeRust currently ships **Windows-only**: x86_64 + ARM64 MSI
+installers (the latter native on Snapdragon X Elite). **macOS** is on
+the roadmap — work hasn't started yet, but the codebase already
+compiles to `aarch64-apple-darwin` and the Tauri / Webview backends
+are macOS-ready, so the gating items are signing / notarisation and
+the equivalent of `Windows Hello` via Touch ID. **Linux is not
+supported and there are no plans to add it.** Any Linux-specific
+advisories that show up in the dependency graph through Tauri's GTK
+chain (`gtk`, `glib`, `atk`, `webkit2gtk`, …) are therefore not
+reachable in any shipped artefact — they compile on Linux but are
+inert on Windows and macOS, which use `webview2-com` and `WKWebView`
+respectively.
+
 ### Install a pre-built Windows release
 
 Each tagged release ships pre-built MSI installers for Windows x86_64
@@ -428,7 +443,7 @@ See `.env.example` for the full reference.
 |---|---|
 | Auth (PIN/Argon2id + Windows Hello biometric + opaque sessions) | ✅ |
 | SQLite + migrations (0001 → 0030) | ✅ |
-| Local storage (filesystem) + S3 trait | ✅ filesystem ; 🔲 S3 |
+| Local storage (filesystem) | ✅ — the historical S3/R2 fallback (`s3-storage` feature) was removed in v0.5.2. The AWS SDK chain it pulled in pinned a vulnerable `rustls 0.21.12` / `rustls-webpki 0.101.7`, and the feature was never wired into `make_storage` to begin with. |
 | PDF extraction (pdfium) + scanned-PDF detection | ✅ |
 | DOCX extraction with redline detection | ✅ |
 | RTF / XLSX / TXT / MD / CSV extraction | ✅ |

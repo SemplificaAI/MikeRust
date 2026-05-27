@@ -1,0 +1,8 @@
+{
+    "$schema_version": 1,
+    "_note": "Runtime hardening for the corpus-import pipeline. Read once at startup by src/corpora/limits.rs::load_limits(). Today the only knob is the Parquet shard size cap — see RATIONALE below. Drop more limits here as we add more bulk loaders.",
+
+    "RATIONALE": "The Apache Thrift footer parser bundled with the `parquet` crate (transitively via `parquet → thrift 0.17.0`) has an unfixed-upstream advisory: a malicious Parquet footer can declare an excessively large allocation that the parser honours before checking against the actual stream length, causing an OOM-style denial of service. The thrift crate has not shipped a fix; even the latest `parquet 58` still depends on `thrust ^0.17`. Our mitigation is a hard byte cap applied BEFORE the bytes ever reach `parse_parquet_metadata`. 500 MB is comfortably above any legitimate shard from the corpora we currently ingest (Cassazione shards are ~50-80 MB) and well below the threshold at which a malicious footer would matter on a typical 16 GB workstation. Tighten further only if a future corpus needs a more restrictive bound; loosening it past ~2 GB defeats the mitigation.",
+
+    "max_parquet_file_size_mb": 500
+}
