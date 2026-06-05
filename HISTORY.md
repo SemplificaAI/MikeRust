@@ -13,6 +13,51 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.4 — 2026-06-05 (hotfix — tabular-review creation against preset workflows)
+
+Single-fix release. Creating a new tabular review against any of the
+49 built-in workflow presets shipped under
+`config/workflow-presets/*.json` (the user surfaced it on
+"Inventario documenti medico-legali" but every preset triggered the
+same failure) returned
+
+```
+error returned from database: (code: 787) FOREIGN KEY constraint failed
+```
+
+directly in the "Nuova revisione" modal, blocking the creation.
+
+The root cause was a residual FK from migration 0002:
+
+```sql
+CREATE TABLE tabular_reviews (
+    ...
+    workflow_id TEXT REFERENCES workflows(id) ON DELETE SET NULL,
+    ...
+);
+```
+
+Built-in workflows live as JSON manifests under
+`config/workflow-presets/` and are merged into the registry in-memory
+at startup — they intentionally never own a row in the `workflows`
+table. We hit and fixed the same pattern on `workflow_hidden` in
+migration 0022; `tabular_reviews` carried the same FK and the bug had
+been latent since the JSON-preset registry shipped.
+
+New [`migrations/0031_tabular_reviews_drop_workflow_fk.sql`](migrations/0031_tabular_reviews_drop_workflow_fk.sql)
+rebuilds the table dropping the `workflow_id` FK while keeping the
+`user_id` / `project_id` references intact and preserving all data
+plus the `domain` index. After the migration runs once on first
+launch of v0.5.4, `workflow_id` is a free text id that resolves
+either against the DB `workflows` table (user-created workflows) or
+the in-memory preset registry (built-in workflows).
+
+No frontend / backend code change — the route handler was already
+binding `workflow_id` as a free string. No DB seeding hack. No
+behaviour change for any existing review.
+
+---
+
 ## v0.5.3 — 2026-06-05 (hotfix — Gemini 3.5 parallel-tool-call accumulator)
 
 Single-fix release. `gemini-3.5-flash` streams parallel function calls

@@ -442,7 +442,7 @@ See `.env.example` for the full reference.
 | Area | Status |
 |---|---|
 | Auth (PIN/Argon2id + Windows Hello biometric + opaque sessions) | ✅ |
-| SQLite + migrations (0001 → 0030) | ✅ |
+| SQLite + migrations (0001 → 0031) | ✅ |
 | Local storage (filesystem) | ✅ — the historical S3/R2 fallback (`s3-storage` feature) was removed in v0.5.2. The AWS SDK chain it pulled in pinned a vulnerable `rustls 0.21.12` / `rustls-webpki 0.101.7`, and the feature was never wired into `make_storage` to begin with. |
 | PDF extraction (pdfium) + scanned-PDF detection | ✅ |
 | DOCX extraction with redline detection | ✅ |
