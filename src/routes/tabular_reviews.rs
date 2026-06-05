@@ -599,11 +599,25 @@ async fn load_document_text(state: &AppState, user_id: &str, doc_id: &str) -> Op
             }
         }
     }
-    // Fall back to extracting from the binary.
+    // Fall back to extracting from the binary. For PDFs the dispatcher
+    // re-opens the file via pdfium (it takes a path, not bytes), so we
+    // must resolve the storage *key* (e.g. `documents/<uid>/<doc>`) to
+    // an absolute on-disk path before handing it off — otherwise pdfium
+    // tries to open a relative path against the process cwd, fails
+    // silently, and the row surfaces as "Document text unavailable" in
+    // the UI. The bug only bit `cache=false` uploads (legacy storage
+    // layout) because the `cache=true` path extracts text up-front at
+    // upload time and persists it in `extracted_text_path`, hitting
+    // the short-circuit above. v0.5.4's new Upload affordance inside
+    // the tabular-review picker used the legacy path, surfacing this
+    // for the first time.
     let key = storage_path?;
     let bytes = storage.get(&key).await.ok()?;
-    let path = std::path::Path::new(&key);
-    crate::sync::scanner::extract_text_dispatch(path, &bytes)
+    let abs_path = std::env::var("STORAGE_PATH")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|_| std::path::PathBuf::from(crate::storage::default_storage_path()))
+        .join(key.replace('/', std::path::MAIN_SEPARATOR_STR.to_string().as_str()));
+    crate::sync::scanner::extract_text_dispatch(&abs_path, &bytes)
         .ok()
         .map(|(text, _)| text)
         .filter(|t| !t.trim().is_empty())
