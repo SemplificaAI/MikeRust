@@ -3791,7 +3791,22 @@ async fn stream_chat_root(
                                 }
                             }
                             Ok(StreamEvent::ToolCalls(calls)) => {
-                                iter_tool_calls = calls;
+                                // ACCUMULATE across multiple SSE chunks. Gemini 3.5
+                                // streams parallel function calls in separate SSE
+                                // chunks (one functionCall per chunk), each carrying
+                                // its own thoughtSignature. The previous `=` replaced
+                                // the vec on every chunk, dropping all but the last
+                                // call. The next iteration's request to Gemini then
+                                // failed with 400 INVALID_ARGUMENT — the model's
+                                // internal state knew it had emitted N calls, but
+                                // we'd only echoed back the last one, so positions
+                                // 0..N-1 looked like they were "missing
+                                // thought_signature". `extend` is also correct for
+                                // providers that bundle all calls into a single
+                                // event (Claude, OpenAI batch): a single extend of
+                                // [c1,…,cN] gives the same result as the prior
+                                // single assignment.
+                                iter_tool_calls.extend(calls);
                             }
                             // Model reasoning / "thinking" — forwarded as
                             // its own SSE event so the UI can show it in a

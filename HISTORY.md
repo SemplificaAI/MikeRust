@@ -13,6 +13,62 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.3 — 2026-06-05 (hotfix — Gemini 3.5 parallel-tool-call accumulator)
+
+Single-fix release. `gemini-3.5-flash` streams parallel function calls
+across separate SSE chunks (one `functionCall` per `data:` line), each
+chunk's parts array carrying its own `thoughtSignature` on the first
+call. The chat dispatch loop in
+[`src/routes/chat.rs`](src/routes/chat.rs) was **replacing** its
+`iter_tool_calls` vec on every `StreamEvent::ToolCalls` event:
+
+```rust
+Ok(StreamEvent::ToolCalls(calls)) => {
+    iter_tool_calls = calls;   // ← drops everything from earlier chunks
+}
+```
+
+So when Gemini emitted three parallel calls in iteration 1, only the
+last chunk's calls survived — the rest of the parallel batch vanished
+before they were ever dispatched. Iteration 2's request to Gemini
+then carried a truncated assistant turn that no longer matched the
+model's internal record of which calls it had emitted, surfacing as:
+
+```
+Gemini API error 400 Bad Request:
+  "Function call is missing a thought_signature in functionCall parts.
+   Additional data, function call `default_api:read_document`, position 2."
+```
+
+(Reproduced on `gemini-3.5-flash` 2026-06-05 with the user testing
+v0.5.2 + 4 uploaded documents.)
+
+The fix is one line — `extend` instead of `=`:
+
+```rust
+Ok(StreamEvent::ToolCalls(calls)) => {
+    iter_tool_calls.extend(calls);
+}
+```
+
+`extend` is safe for the other providers too. Claude tool use never
+emits `StreamEvent::ToolCalls` in the SSE path (Anthropic streams
+deltas through a different channel); the OpenAI-compatible local
+adapter emits a single batched event per turn, so `extend` of one vec
+of N is identical to assignment of the same N.
+
+Per the official Gemini docs
+(<https://ai.google.dev/gemini-api/docs/thought-signatures>), only the
+first function call in a parallel batch carries a `thoughtSignature`
+and the others must not, so this fix is sufficient — the original
+gemini.rs wire-format code (`to_wire_contents`) was already correct
+for the single-call case.
+
+No DB migration, no config change, no UX change. Everything from
+v0.5.2 ships unchanged.
+
+---
+
 ## v0.5.2 — 2026-05-26 (security hardening — drop S3 fallback + Parquet size cap + platform-support clarification)
 
 Security-driven patch release. Three changes land together:
