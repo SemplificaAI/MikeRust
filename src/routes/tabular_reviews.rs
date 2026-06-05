@@ -578,8 +578,8 @@ async fn delete_tabular_review(
 /// Load a document's plain text (extracted-text sidecar, else extracted
 /// from the binary on the fly). Returns `None` when unavailable.
 async fn load_document_text(state: &AppState, user_id: &str, doc_id: &str) -> Option<String> {
-    let row: Option<(Option<String>, Option<String>)> = sqlx::query_as(
-        "SELECT storage_path, extracted_text_path FROM documents \
+    let row: Option<(Option<String>, Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT storage_path, extracted_text_path, file_type FROM documents \
          WHERE id = ? AND user_id = ?",
     )
     .bind(doc_id)
@@ -588,39 +588,141 @@ async fn load_document_text(state: &AppState, user_id: &str, doc_id: &str) -> Op
     .await
     .ok()
     .flatten();
-    let (storage_path, text_path) = row?;
+    let Some((storage_path, text_path, file_type)) = row else {
+        tracing::warn!(
+            "[tabular][doc-text] doc_id={} user={} — row not found",
+            doc_id, user_id
+        );
+        return None;
+    };
     let storage = make_storage().ok()?;
 
     if let Some(key) = text_path.as_ref() {
-        if let Ok(bytes) = storage.get(key).await {
-            let text = String::from_utf8_lossy(&bytes).into_owned();
-            if !text.trim().is_empty() {
-                return Some(text);
+        match storage.get(key).await {
+            Ok(bytes) => {
+                let text = String::from_utf8_lossy(&bytes).into_owned();
+                let len = text.trim().len();
+                tracing::info!(
+                    "[tabular][doc-text] doc_id={} sidecar='{}' bytes={} non_ws_chars={}",
+                    doc_id, key, bytes.len(), len
+                );
+                if len > 0 {
+                    return Some(text);
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "[tabular][doc-text] doc_id={} sidecar='{}' read FAILED: {}",
+                    doc_id, key, e
+                );
             }
         }
+    } else {
+        tracing::info!(
+            "[tabular][doc-text] doc_id={} no extracted_text_path sidecar — falling back to binary",
+            doc_id
+        );
     }
-    // Fall back to extracting from the binary. For PDFs the dispatcher
-    // re-opens the file via pdfium (it takes a path, not bytes), so we
-    // must resolve the storage *key* (e.g. `documents/<uid>/<doc>`) to
-    // an absolute on-disk path before handing it off — otherwise pdfium
-    // tries to open a relative path against the process cwd, fails
-    // silently, and the row surfaces as "Document text unavailable" in
-    // the UI. The bug only bit `cache=false` uploads (legacy storage
-    // layout) because the `cache=true` path extracts text up-front at
-    // upload time and persists it in `extracted_text_path`, hitting
-    // the short-circuit above. v0.5.4's new Upload affordance inside
-    // the tabular-review picker used the legacy path, surfacing this
-    // for the first time.
-    let key = storage_path?;
-    let bytes = storage.get(&key).await.ok()?;
-    let abs_path = std::env::var("STORAGE_PATH")
+
+    // Fall back to extracting from the binary. The dispatcher dispatches
+    // on the path EXTENSION (and for PDFs re-opens the file via pdfium,
+    // which takes a path not bytes), so the legacy `cache=false` upload
+    // layout — `documents/<uid>/<docid>` with NO extension — defeats
+    // both halves of that contract: pdfium gets a path it can't open
+    // (relative + no extension) AND the dispatcher falls into the
+    // catch-all branch that returns "format not supported".
+    //
+    // To make on-the-fly extraction work for those rows, we:
+    //   1. Look up the doc's `file_type` from the documents row above.
+    //   2. Resolve the storage key to an absolute path via STORAGE_PATH
+    //      / default_storage_path.
+    //   3. Append `.<file_type>` so the dispatcher's extension-based
+    //      match hits the right branch and pdfium's open-by-path
+    //      succeeds.
+    //
+    // The cache=true path remains unaffected — it persists the sidecar
+    // at upload time, so we short-circuit above before reaching here.
+    let Some(key) = storage_path else {
+        tracing::warn!(
+            "[tabular][doc-text] doc_id={} — storage_path is NULL",
+            doc_id
+        );
+        return None;
+    };
+    let bytes = match storage.get(&key).await {
+        Ok(b) => b,
+        Err(e) => {
+            tracing::warn!(
+                "[tabular][doc-text] doc_id={} key='{}' storage.get FAILED: {}",
+                doc_id, key, e
+            );
+            return None;
+        }
+    };
+
+    let base_abs = std::env::var("STORAGE_PATH")
         .map(std::path::PathBuf::from)
-        .unwrap_or_else(|_| std::path::PathBuf::from(crate::storage::default_storage_path()))
-        .join(key.replace('/', std::path::MAIN_SEPARATOR_STR.to_string().as_str()));
-    crate::sync::scanner::extract_text_dispatch(&abs_path, &bytes)
-        .ok()
-        .map(|(text, _)| text)
-        .filter(|t| !t.trim().is_empty())
+        .unwrap_or_else(|_| std::path::PathBuf::from(crate::storage::default_storage_path()));
+    let mut abs_path = base_abs.join(key.replace('/', std::path::MAIN_SEPARATOR_STR.to_string().as_str()));
+
+    // The legacy upload key `documents/<uid>/<docid>` lacks an
+    // extension. If the on-disk key has no extension yet but the DB
+    // tells us this is e.g. a pdf, append `.pdf` so the dispatcher
+    // picks the right branch. pdfium then opens this exact path —
+    // which is also where the bytes physically live on disk, since
+    // LocalStorage::put stored them at `<base>/<key>` with no
+    // extension. To avoid pdfium reading a non-existent
+    // `<base>/<key>.pdf`, we materialise a sibling symlink/copy at
+    // the extension-suffixed path when needed.
+    let needs_ext = abs_path.extension().is_none();
+    if needs_ext {
+        if let Some(ft) = file_type.as_deref() {
+            let suffixed = abs_path.with_extension(ft);
+            if !suffixed.exists() {
+                if let Err(e) = std::fs::copy(&abs_path, &suffixed) {
+                    tracing::warn!(
+                        "[tabular][doc-text] doc_id={} could not materialise sibling \
+                         {} for extension dispatch: {}",
+                        doc_id,
+                        suffixed.display(),
+                        e
+                    );
+                }
+            }
+            abs_path = suffixed;
+        }
+    }
+
+    tracing::info!(
+        "[tabular][doc-text] doc_id={} dispatching extract_text_dispatch(path='{}', bytes={}, file_type={:?})",
+        doc_id,
+        abs_path.display(),
+        bytes.len(),
+        file_type
+    );
+
+    match crate::sync::scanner::extract_text_dispatch(&abs_path, &bytes) {
+        Ok((text, skip)) => {
+            tracing::info!(
+                "[tabular][doc-text] doc_id={} extracted chars={} skip_reason={:?}",
+                doc_id,
+                text.len(),
+                skip
+            );
+            if text.trim().is_empty() {
+                None
+            } else {
+                Some(text)
+            }
+        }
+        Err(e) => {
+            tracing::warn!(
+                "[tabular][doc-text] doc_id={} extract_text_dispatch ERROR: {}",
+                doc_id, e
+            );
+            None
+        }
+    }
 }
 
 /// Pick the model used for tabular extraction: the user's `tabular_model`,
