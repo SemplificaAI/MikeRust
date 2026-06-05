@@ -134,22 +134,69 @@
   let pickerOpen = $state(false)
   let pickerItems = $state<PickerItem[]>([])
   let pickerLoading = $state(false)
+  let uploadingDoc = $state(false)
+  let uploadInputEl: HTMLInputElement | undefined = $state()
+  // Once the user uploads anything during a picker session the changes
+  // are already committed server-side, so Confirm should stay enabled
+  // (even with nothing ticked) to give them a clean way out.
+  let hasUploadedThisSession = $state(false)
+
+  async function refreshPickerItems() {
+    const r = await documentsApi.list()
+    pickerItems = r.documents.map((d) => ({
+      id: d.id,
+      label: d.filename,
+      sublabel: d.file_type,
+    }))
+  }
 
   async function openPicker() {
     pickerOpen = true
     pickerLoading = true
     pickerItems = []
+    hasUploadedThisSession = false
     try {
-      const r = await documentsApi.list()
-      pickerItems = r.documents.map((d) => ({
-        id: d.id,
-        label: d.filename,
-        sublabel: d.file_type,
-      }))
+      await refreshPickerItems()
     } catch {
       pickerItems = []
     } finally {
       pickerLoading = false
+    }
+  }
+
+  // Opens the OS file picker. The actual upload happens in `onUploadFiles`
+  // once the user selects something — the picker resolves synchronously.
+  function startUpload() {
+    uploadInputEl?.click()
+  }
+
+  async function onUploadFiles(ev: Event) {
+    const target = ev.target as HTMLInputElement
+    const files = target.files ? Array.from(target.files) : []
+    if (files.length === 0) return
+    uploadingDoc = true
+    const uploadedIds: string[] = []
+    try {
+      // Upload sequentially — the backend extracts text + indexes per
+      // file synchronously; running uploads in parallel just spikes
+      // CPU on the embedding worker without finishing sooner.
+      for (const f of files) {
+        const doc = await documentsApi.upload(f, { domain: review?.domain })
+        uploadedIds.push(doc.id)
+      }
+      await refreshPickerItems()
+      toastStore.success(t('TabularReviews.docUploaded', { count: uploadedIds.length }))
+      // Wire the freshly-uploaded docs straight into the review so the
+      // user doesn't have to re-select them in the picker. The picker
+      // stays open for any follow-up selection from existing docs.
+      await onPickDocuments(uploadedIds)
+      hasUploadedThisSession = true
+    } catch (e) {
+      toastStore.danger(t('Errors.somethingWrong'), { detail: (e as Error).message })
+    } finally {
+      uploadingDoc = false
+      // Reset the input so picking the same file again still triggers `change`.
+      if (uploadInputEl) uploadInputEl.value = ''
     }
   }
 
@@ -337,6 +384,16 @@
   loading={pickerLoading}
   multi
   onpick={onPickDocuments}
+  onUpload={startUpload}
+  uploading={uploadingDoc}
+  confirmAlwaysEnabled={hasUploadedThisSession}
+/>
+<input
+  bind:this={uploadInputEl}
+  type="file"
+  multiple
+  hidden
+  onchange={onUploadFiles}
 />
 
 <!-- cell detail -->

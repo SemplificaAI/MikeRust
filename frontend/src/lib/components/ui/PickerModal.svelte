@@ -1,6 +1,8 @@
 <!-- Copyright (c) 2026 MikeRust contributors. Licensed under AGPL-3.0-only. -->
 <!-- Generic searchable single/multi-select picker (documents, workflows…). -->
 <script lang="ts" module>
+  import type { BadgeTone } from './Badge.svelte'
+
   export interface PickerItem {
     id: string
     label: string
@@ -11,6 +13,9 @@
      *  these equals the selected value (e.g. a template's also-applicable
      *  domains). */
     tags?: string[]
+    /** Optional right-aligned pill — used by the workflow picker to surface
+     *  Tabellare vs Assistente at a glance without lengthening the sublabel. */
+    badge?: { text: string; tone: BadgeTone }
   }
 </script>
 
@@ -21,8 +26,9 @@
   import Button from './Button.svelte'
   import Spinner from './Spinner.svelte'
   import EmptyState from './EmptyState.svelte'
+  import Badge from './Badge.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
-  import { Search, Check } from 'lucide-svelte'
+  import { Search, Check, Upload } from 'lucide-svelte'
 
   interface Props {
     open?: boolean
@@ -37,6 +43,23 @@
     /** Current filter value (bindable). Empty string = no filter. */
     filterValue?: string
     onpick: (ids: string[]) => void
+    /** When set, renders an "Upload" affordance bottom-left. The host is
+     *  expected to open a file picker, run the upload, refresh `items`,
+     *  and optionally pre-select the newly uploaded ids — this component
+     *  doesn't own that flow because the storage endpoint differs per
+     *  caller (chat attachments vs. tabular-review docs vs. project
+     *  uploads). The button is disabled while `uploading` is true. */
+    onUpload?: () => void | Promise<void>
+    /** Whether an upload is currently in flight — shows a spinner on the
+     *  Upload button and disables it. */
+    uploading?: boolean
+    /** When true, the Confirm button stays enabled even with no items
+     *  selected. The Upload flow commits its changes server-side as
+     *  soon as the upload finishes, so once the user has uploaded
+     *  anything during this picker session the modal should still be
+     *  closeable via Confirm even if they don't tick anything else.
+     *  Confirm still calls `onpick(selected)` if anything is selected. */
+    confirmAlwaysEnabled?: boolean
   }
 
   let {
@@ -49,6 +72,9 @@
     filterOptions,
     filterValue = $bindable(''),
     onpick,
+    onUpload,
+    uploading = false,
+    confirmAlwaysEnabled = false,
   }: Props = $props()
 
   const t = (k: string) => i18n.t(k)
@@ -84,7 +110,10 @@
   }
 
   function confirm() {
-    onpick([...selected])
+    // Empty selection can legitimately reach here when the host enabled
+    // `confirmAlwaysEnabled` after a successful upload — skip the
+    // callback in that case since there's nothing new to pick.
+    if (selected.size > 0) onpick([...selected])
     open = false
   }
 </script>
@@ -137,6 +166,11 @@
                     <span class="block text-xs text-(--color-text-secondary) truncate">{item.sublabel}</span>
                   {/if}
                 </span>
+                {#if item.badge}
+                  <span class="shrink-0 ml-2">
+                    <Badge tone={item.badge.tone} size="xs">{item.badge.text}</Badge>
+                  </span>
+                {/if}
               </button>
             </li>
           {/each}
@@ -146,7 +180,21 @@
   </div>
 
   {#snippet footer()}
+    {#if onUpload}
+      <Button
+        variant="secondary"
+        size="sm"
+        loading={uploading}
+        onclick={() => void onUpload?.()}
+        class="mr-auto"
+      >
+        <Upload size={14} class="mr-1" />{t('Common.upload')}
+      </Button>
+    {/if}
     <Button variant="ghost" onclick={() => (open = false)}>{t('Common.cancel')}</Button>
-    <Button disabled={selected.size === 0} onclick={confirm}>{t('Common.confirm')}</Button>
+    <Button
+      disabled={selected.size === 0 && !confirmAlwaysEnabled}
+      onclick={confirm}
+    >{t('Common.confirm')}</Button>
   {/snippet}
 </Modal>

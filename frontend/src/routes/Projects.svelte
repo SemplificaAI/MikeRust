@@ -21,7 +21,7 @@
   import { i18n } from '$lib/stores/i18n.svelte'
   import { DOMAINS, domainLabel } from '$lib/types/domain'
   import type { Project } from '$lib/types/project'
-  import { Search, Pencil, Trash2 } from 'lucide-svelte'
+  import { Search, Pencil, Trash2, Upload } from 'lucide-svelte'
 
   const t = (k: string, p?: Record<string, string | number>) => i18n.t(k, p)
 
@@ -32,11 +32,25 @@
   let deleteTarget = $state<Project | null>(null)
   let detailId = $state<string | null>(null)
 
-  // ── .mikeprj import (drag & drop) ──────────────────────────────────
+  // ── .mikeprj import (drag & drop OR explicit Import button) ──────
   let dragActive = $state(false)
   let importFile = $state<File | null>(null)
   let importEmail = $state('')
   let importing = $state(false)
+  let importInputEl: HTMLInputElement | undefined = $state()
+
+  function onPickImport(ev: Event) {
+    const target = ev.target as HTMLInputElement
+    const file = target.files?.[0] ?? null
+    if (file && file.name.toLowerCase().endsWith('.mikeprj')) {
+      importFile = file
+      importEmail = ''
+    } else if (file) {
+      toastStore.danger(t('ProjectImport.errorImport'))
+    }
+    // Reset so re-picking the same file fires `change` again.
+    if (importInputEl) importInputEl.value = ''
+  }
 
   function onDragOver(e: DragEvent) {
     if (e.dataTransfer?.types.includes('Files')) {
@@ -144,8 +158,21 @@
       <h2 class="text-2xl font-semibold text-(--color-text-primary)">{t('Projects.title')}</h2>
       <p class="text-sm text-(--color-text-secondary)">{t('Projects.emptyHint')}</p>
     </div>
-    <Button onclick={openCreate}>{t('Projects.newProject')}</Button>
+    <div class="flex items-center gap-2">
+      <Button variant="secondary" onclick={() => importInputEl?.click()}>
+        <Upload size={14} class="mr-1.5" />{t('ProjectImport.title')}
+      </Button>
+      <Button onclick={openCreate}>{t('Projects.newProject')}</Button>
+    </div>
   </header>
+
+  <input
+    bind:this={importInputEl}
+    type="file"
+    accept=".mikeprj"
+    hidden
+    onchange={onPickImport}
+  />
 
   <div class="flex items-end gap-3">
     <Input bind:value={search} placeholder={t('Projects.searchPlaceholder')} size="sm" class="w-60">

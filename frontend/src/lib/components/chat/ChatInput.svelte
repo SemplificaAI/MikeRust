@@ -294,6 +294,13 @@
           label: w.title,
           sublabel: domainLabel(w.domain),
           tag: w.domain,
+          badge: {
+            text:
+              w.type === 'tabular'
+                ? t('Workflows.typeTabular')
+                : t('Workflows.typeAssistant'),
+            tone: w.type === 'tabular' ? 'tabular' : 'assistant',
+          },
         }))
       } else {
         const r = await templatesApi.list()

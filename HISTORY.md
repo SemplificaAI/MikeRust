@@ -13,9 +13,16 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
-## v0.5.4 — 2026-06-05 (hotfix — tabular-review creation against preset workflows)
+## v0.5.4 — 2026-06-05 (tabular-review FK hotfix + four UX upgrades from the same testing session)
 
-Single-fix release. Creating a new tabular review against any of the
+The schema hotfix that triggered this release is the FK on
+`tabular_reviews.workflow_id`; the four UI improvements rolled into
+the same build came out of the same hands-on testing session and ship
+together because they touch the same screens.
+
+### Schema hotfix — tabular_reviews FK to workflows blocked preset usage
+
+Creating a new tabular review against any of the
 49 built-in workflow presets shipped under
 `config/workflow-presets/*.json` (the user surfaced it on
 "Inventario documenti medico-legali" but every preset triggered the
@@ -55,6 +62,50 @@ the in-memory preset registry (built-in workflows).
 No frontend / backend code change — the route handler was already
 binding `workflow_id` as a free string. No DB seeding hack. No
 behaviour change for any existing review.
+
+### UX — workflow picker now labels Tabellare vs Assistente
+
+[`PickerModal`](frontend/src/lib/components/ui/PickerModal.svelte)
+gains an optional `badge` field per item, rendered as a right-aligned
+pill via the existing `Badge` component (reusing the brand-audit
+`tabular` purple and `assistant` blue tones — they were minted for
+exactly this case but had never been surfaced). The chat composer's
+"Allega un workflow" modal in
+[`ChatInput.svelte`](frontend/src/lib/components/chat/ChatInput.svelte)
+populates it from `workflow.type`. New i18n strings reuse the
+existing `Workflows.typeTabular` / `Workflows.typeAssistant`
+catalogue keys (no new translation work needed).
+
+### UX — Upload affordance inside the doc picker
+
+[`PickerModal`](frontend/src/lib/components/ui/PickerModal.svelte)
+gains an optional `onUpload` prop. When set, the modal renders an
+"Upload" button bottom-left (mirror of the upstream Mike layout).
+[`TabularDetail.svelte`](frontend/src/lib/components/tabular/TabularDetail.svelte)
+wires it to a hidden `<input type="file" multiple>` that uploads via
+`documentsApi.upload` sequentially, refreshes the picker list, and
+automatically links the new docs to the review via the same patch
+endpoint the picker uses — the user does not have to re-tick the
+files they just uploaded. New i18n key `Common.upload` added in all
+six locales (it/en/fr/de/es/pt).
+
+UX corollary: once an upload succeeds during a picker session the
+"Conferma" button stays enabled even with zero items ticked
+(`confirmAlwaysEnabled` flag toggled by the host), so the user has a
+clean way out — Cancel implied undo of an action that had already
+committed. New i18n key `TabularReviews.docUploaded` localised in
+all six locales.
+
+### UX — Import Project button on the Projects list
+
+[`Projects.svelte`](frontend/src/routes/Projects.svelte) gains a
+secondary "Importa progetto" button next to the existing
+"Nuovo progetto", powered by a hidden `<input type="file"
+accept=".mikeprj">` that reuses the existing email-prompt modal that
+was previously reachable only by drag-and-dropping a `.mikeprj` file
+onto the page. The backend `POST /project/import` endpoint and the
+`ProjectImport.*` i18n catalogue were already complete since v0.4.x
+and didn't need any new code.
 
 ---
 
