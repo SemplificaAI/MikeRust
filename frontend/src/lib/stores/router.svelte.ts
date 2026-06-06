@@ -61,24 +61,41 @@ const EMPTY_CONTEXT: NavContext = Object.freeze({})
 
 function createRouter() {
   let current = $state<Route>('boot')
+  // Bumps on every navigation. Destination screens that need to
+  // react to *re*-navigation to the route they're already on (e.g.
+  // the Projects screen reacting to a click on a different project
+  // in the sidebar accordion while already on Projects) track this
+  // signal. Without it Svelte short-circuits on `current = current`
+  // and the destination's mount `$effect` never re-fires — first
+  // surfaced on 2026-06-06 as "second sidebar project click does
+  // nothing".
+  let navTick = $state(0)
   // `pending` is intentionally a PLAIN variable, NOT `$state`. The
   // destination screen's mount `$effect` reads-and-clears it, so if
   // we made it reactive Svelte would subscribe the effect to the
   // pending signal, then the same effect's write (the clear) would
-  // re-trigger it — that's the
-  // `effect_update_depth_exceeded` Projects.svelte hit on
-  // 2026-06-06 even after a frozen-EMPTY sentinel was added. We
-  // don't need reactivity on this slot anyway: the navigation that
-  // sets it has just changed `current`, and that *is* reactive, so
-  // the destination component mounts; on its mount it reads
-  // `pending` (just once) via `consumePending()` and that's the end
-  // of the story.
+  // re-trigger it — that was the original
+  // `effect_update_depth_exceeded`. We don't need reactivity on
+  // this slot anyway: the navigation that sets it also bumps
+  // `navTick`, which IS reactive, so destination effects re-run
+  // and the read happens at the right moment.
   let pending: NavContext = EMPTY_CONTEXT
   let backStack = $state<BackEntry[]>([])
 
   return {
     get current() {
       return current
+    },
+
+    /**
+     * Monotonically increasing tick — bumped by every `go()`,
+     * `goWithReturn()` and `popBack()`. Destination `$effect`s that
+     * need to re-fire on re-navigation to the SAME route (the same
+     * sidebar-accordion-twice case) should reference this getter
+     * so Svelte's tracker subscribes to it.
+     */
+    get navTick(): number {
+      return navTick
     },
 
     /**
@@ -99,6 +116,7 @@ function createRouter() {
     go(route: Route, context: NavContext = EMPTY_CONTEXT) {
       current = route
       pending = context
+      navTick++
       if (backStack.length > 0) backStack = []
     },
 
@@ -113,6 +131,7 @@ function createRouter() {
       backStack = [...backStack, entry]
       current = target
       pending = targetContext
+      navTick++
     },
 
     /**
@@ -126,6 +145,7 @@ function createRouter() {
       backStack = backStack.slice(0, -1)
       current = entry.route
       pending = entry.context
+      navTick++
     },
 
     /**

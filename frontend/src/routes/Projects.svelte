@@ -90,6 +90,13 @@
   }
 
   $effect(() => {
+    // Track the router's nav-tick so this effect re-fires not just
+    // on mount but also on RE-navigation to /projects (e.g. clicking
+    // a different project in the sidebar accordion while already on
+    // this screen). Without the tick Svelte short-circuits the
+    // `current = 'projects'` re-assignment and the consumePending
+    // below never runs the second time.
+    void router.navTick
     void projectStore.refresh()
     // Restore a drill-down (e.g. project detail) requested by the
     // previous screen's back action — see router.NavContext.
