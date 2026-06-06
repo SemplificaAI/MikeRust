@@ -55,17 +55,25 @@ export type BackEntry = {
   label?: string
 }
 
-// Frozen sentinel so `consumePending()` can clear the signal without
-// minting a fresh object every call. Without it Svelte sees a NEW `{}`
-// reference on every clear and re-triggers any `$effect` that read the
-// signal — Projects.svelte's mount effect blew up with
-// `effect_update_depth_exceeded` on the first open of the screen
-// (2026-06-06).
+// Frozen sentinel so `consumePending()` can clear the slot without
+// minting a fresh object every call.
 const EMPTY_CONTEXT: NavContext = Object.freeze({})
 
 function createRouter() {
   let current = $state<Route>('boot')
-  let pending = $state<NavContext>(EMPTY_CONTEXT)
+  // `pending` is intentionally a PLAIN variable, NOT `$state`. The
+  // destination screen's mount `$effect` reads-and-clears it, so if
+  // we made it reactive Svelte would subscribe the effect to the
+  // pending signal, then the same effect's write (the clear) would
+  // re-trigger it — that's the
+  // `effect_update_depth_exceeded` Projects.svelte hit on
+  // 2026-06-06 even after a frozen-EMPTY sentinel was added. We
+  // don't need reactivity on this slot anyway: the navigation that
+  // sets it has just changed `current`, and that *is* reactive, so
+  // the destination component mounts; on its mount it reads
+  // `pending` (just once) via `consumePending()` and that's the end
+  // of the story.
+  let pending: NavContext = EMPTY_CONTEXT
   let backStack = $state<BackEntry[]>([])
 
   return {
@@ -123,15 +131,14 @@ function createRouter() {
     /**
      * Routes read this once on mount and consume it (the call clears
      * the pending context so it isn't applied twice on rerenders).
+     * Returns the frozen `EMPTY_CONTEXT` when nothing was queued.
      *
-     * Uses the frozen `EMPTY_CONTEXT` sentinel to clear, so a caller
-     * who keeps re-reading the signal in a `$effect` doesn't loop —
-     * the second read sees the same reference and Svelte's
-     * shallow-equal check skips the re-trigger.
+     * The implementation deliberately does NOT touch any reactive
+     * state — see the `pending` declaration above for why.
      */
     consumePending(): NavContext {
       const ctx = pending
-      if (pending !== EMPTY_CONTEXT) pending = EMPTY_CONTEXT
+      pending = EMPTY_CONTEXT
       return ctx
     },
   }
