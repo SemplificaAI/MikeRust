@@ -17,6 +17,8 @@
   import { projectsApi } from '$lib/api/projects'
   import { chatApi } from '$lib/api/chat'
   import { tabularApi } from '$lib/api/tabular'
+  import { workflowsApi } from '$lib/api/workflows'
+  import { tabularStore } from '$lib/stores/tabular.svelte'
   import { chatStore } from '$lib/stores/chat.svelte'
   import { router } from '$lib/stores/router.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
@@ -24,7 +26,9 @@
   import { domainLabel } from '$lib/types/domain'
   import type { ProjectDetail, IsolationMode } from '$lib/types/project'
   import type { TabularReview } from '$lib/types/tabular'
-  import { ArrowLeft, Download, MessageSquare, Table2 } from 'lucide-svelte'
+  import type { Workflow } from '$lib/types/workflow'
+  import { ApiError } from '$lib/types/error'
+  import { ArrowLeft, Download, MessageSquare, Table2, Plus } from 'lucide-svelte'
 
   let { id, onback }: { id: string; onback: () => void } = $props()
 
@@ -68,6 +72,78 @@
       reviews = []
     } finally {
       reviewsLoaded = true
+    }
+  }
+
+  // ── new tabular review (mirrors Tabular.svelte's create flow) ──
+  let tabularWorkflows = $state<Workflow[]>([])
+  let createReviewOpen = $state(false)
+  let crTitle = $state('')
+  let crWorkflowId = $state('')
+  let creatingReview = $state(false)
+  let createReviewError = $state<string | null>(null)
+
+  // Workflows are fetched once on first open of the modal. They're
+  // filtered to `tabular` type AND the project's domain so the user
+  // doesn't see workflows that can't fit this project's review.
+  async function ensureWorkflowsLoaded() {
+    if (tabularWorkflows.length > 0) return
+    try {
+      const r = await workflowsApi.list({ type: 'tabular' })
+      tabularWorkflows = r.workflows
+    } catch {
+      tabularWorkflows = []
+    }
+  }
+
+  const projectDomain = $derived(project?.domain ?? 'legal')
+  const reviewWorkflowOptions = $derived([
+    { value: '', label: t('TabularReviews.selectWorkflowOption') },
+    ...tabularWorkflows
+      .filter((w) => w.domain === projectDomain)
+      .map((w) => ({ value: w.id, label: w.title })),
+  ])
+  const selectedReviewWorkflow = $derived(
+    tabularWorkflows.find((w) => w.id === crWorkflowId),
+  )
+
+  function openCreateReview() {
+    crTitle = ''
+    crWorkflowId = ''
+    createReviewError = null
+    createReviewOpen = true
+    void ensureWorkflowsLoaded()
+  }
+
+  async function createReview() {
+    if (!crWorkflowId) {
+      createReviewError = t('TabularReviews.pickWorkflowError')
+      return
+    }
+    creatingReview = true
+    createReviewError = null
+    try {
+      // Inherit project_id + the project's domain so the new review
+      // automatically lives under this project and isn't double-listed
+      // in someone else's domain filter on the standalone screen.
+      const created = await tabularStore.create({
+        title: crTitle.trim() || undefined,
+        workflow_id: crWorkflowId,
+        columns_config: selectedReviewWorkflow?.columns_config,
+        domain: projectDomain,
+        project_id: id,
+      })
+      toastStore.success(t('TabularReviews.createdToast'))
+      createReviewOpen = false
+      // Refresh the project-scoped list and drill straight into the
+      // new review on the standalone Tabular screen.
+      await loadReviews()
+      tabularStore.selectDetail(created.id)
+      router.go('tabular')
+    } catch (e) {
+      createReviewError = e instanceof ApiError ? e.detail : (e as Error).message
+    } finally {
+      creatingReview = false
     }
   }
 
@@ -236,19 +312,41 @@
         </ul>
       {/if}
     {:else}
+      <div class="flex justify-end">
+        <Button size="sm" onclick={openCreateReview}>
+          <Plus size={14} class="mr-1" />{t('TabularReviews.newReview')}
+        </Button>
+      </div>
       {#if !reviewsLoaded}
         <div class="flex justify-center py-8"><Spinner size="sm" /></div>
       {:else if reviews.length === 0}
-        <EmptyState title={t('TabularReviews.noReviews')} description={t('Projects.emptyHint')} />
+        <EmptyState title={t('TabularReviews.noReviews')} description={t('Projects.emptyHint')}>
+          {#snippet action()}
+            <Button size="sm" onclick={openCreateReview}>
+              <Plus size={14} class="mr-1" />{t('TabularReviews.newReview')}
+            </Button>
+          {/snippet}
+        </EmptyState>
       {:else}
         <ul class="flex flex-col gap-2">
           {#each reviews as r (r.id)}
-            <li class="flex items-center gap-3 px-4 py-2.5 bg-(--color-surface-0) border border-(--color-surface-200) rounded-(--radius-md)">
-              <Table2 size={14} class="text-(--color-text-secondary) shrink-0" />
-              <span class="flex-1 min-w-0 truncate text-sm text-(--color-text-primary)">{r.title}</span>
-              <span class="text-xs text-(--color-text-secondary)">
-                {t('Ui.columnCountFull', { n: r.columns_config.length })}
-              </span>
+            <li>
+              <button
+                type="button"
+                onclick={() => {
+                  tabularStore.selectDetail(r.id)
+                  router.go('tabular')
+                }}
+                class="w-full flex items-center gap-3 px-4 py-2.5 text-left
+                       bg-(--color-surface-0) border border-(--color-surface-200) rounded-(--radius-md)
+                       hover:border-(--color-surface-300)"
+              >
+                <Table2 size={14} class="text-(--color-text-secondary) shrink-0" />
+                <span class="flex-1 min-w-0 truncate text-sm text-(--color-text-primary)">{r.title}</span>
+                <span class="text-xs text-(--color-text-secondary)">
+                  {t('Ui.columnCountFull', { n: r.columns_config.length })}
+                </span>
+              </button>
             </li>
           {/each}
         </ul>
@@ -274,6 +372,39 @@
     <Button variant="ghost" onclick={() => (exportOpen = false)}>{t('Common.cancel')}</Button>
     <Button loading={exporting} disabled={!exportEmail.trim()} onclick={runExport}>
       {t('ProjectExport.exportNow')}
+    </Button>
+  {/snippet}
+</Modal>
+
+<!-- new tabular review modal — inherits project domain + project_id -->
+<Modal bind:open={createReviewOpen} title={t('TabularReviews.newReview')} size="md">
+  <div class="space-y-3">
+    <Input label={t('Common.name')} bind:value={crTitle} placeholder={t('Common.untitled')} />
+    <Select
+      label={t('TabularReviews.workflowTemplate')}
+      options={reviewWorkflowOptions}
+      bind:value={crWorkflowId}
+    />
+    <!-- The domain is inherited from the project (visible as a badge in
+         the header) and intentionally not editable here — a review in
+         a project must share the project's domain to keep retrieval
+         filters consistent. -->
+    <p class="text-xs text-(--color-text-secondary)">
+      {t('TabularReviews.scopedToDomain', { domain: domainLabel(projectDomain) })}
+    </p>
+    {#if selectedReviewWorkflow}
+      <p class="text-xs text-(--color-text-secondary)">
+        {t('TabularReviews.inheritsColumns', { n: selectedReviewWorkflow.columns_config.length })}
+      </p>
+    {/if}
+    {#if createReviewError}
+      <p class="text-sm text-(--color-danger-500)">{createReviewError}</p>
+    {/if}
+  </div>
+  {#snippet footer()}
+    <Button variant="ghost" onclick={() => (createReviewOpen = false)}>{t('Common.cancel')}</Button>
+    <Button loading={creatingReview} disabled={!crWorkflowId} onclick={createReview}>
+      {t('TabularReviews.createReview')}
     </Button>
   {/snippet}
 </Modal>

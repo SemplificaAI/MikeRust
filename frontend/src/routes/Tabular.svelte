@@ -33,6 +33,10 @@
 
   $effect(() => {
     void tabularStore.refresh()
+    // If another screen (e.g. ProjectDetail) asked us to open a
+    // specific review on mount, pick it up here.
+    const pending = tabularStore.consumePendingDetailId()
+    if (pending) detailId = pending
   })
   $effect(() => {
     workflowsApi
