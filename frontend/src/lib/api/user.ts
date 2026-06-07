@@ -2,7 +2,15 @@
 
 import { api } from './client'
 import type { Domain } from '$lib/types/domain'
-import type { LlmSettings, Locale, McpServer, McpTransport, UserProfile } from '$lib/types/user'
+import type {
+  CuratedModelEntry,
+  LlmSettings,
+  Locale,
+  LocalSecureEnsureEvent,
+  McpServer,
+  McpTransport,
+  UserProfile,
+} from '$lib/types/user'
 
 /** Input for upsertMcpServer — every field but `name` is optional. */
 export interface McpServerInput {
@@ -64,6 +72,83 @@ export const userApi = {
   /** Patch semantics: omit fields to leave them unchanged. */
   updateLlmSettings: (patch: Partial<LlmSettings>) =>
     api<{ ok: boolean }>('/user/llm-settings', { method: 'PUT', body: patch }),
+
+  // -------------------------------------------------------------------
+  // v0.5.6 "Modalità sicura locale" plug-and-play endpoints. Backed by
+  // the four /user/local-secure/* routes in src/routes/user.rs.
+  // -------------------------------------------------------------------
+
+  /** Is Ollama serving on the loopback port we'd use in secure mode? */
+  localSecureHeartbeat: () =>
+    api<{ ollama_running: boolean; base_url: string }>(
+      '/user/local-secure/heartbeat',
+    ),
+
+  /** Curated catalogue + per-entry installed/ready flags. */
+  localSecureModels: () =>
+    api<{ models: CuratedModelEntry[] }>('/user/local-secure/models'),
+
+  /**
+   * Open an SSE stream against POST /user/local-secure/ensure/{id}.
+   * Returns the underlying `EventSource` so the caller can listen for
+   * messages and close it on unmount. We use a hand-built fetch +
+   * stream reader rather than `EventSource` because EventSource only
+   * supports GET, and the route is POST (the body would be empty
+   * anyway, but the route shape matters for the auth middleware).
+   */
+  localSecureEnsureStream: async (
+    modelId: string,
+    onEvent: (ev: LocalSecureEnsureEvent) => void,
+  ): Promise<void> => {
+    // Reuse the same base + token handling as `api()` so the SSE call
+    // hits the same backend instance and carries the auth cookie.
+    const { apiBase } = await import('$lib/stores/api-base.svelte')
+    const { authStore } = await import('$lib/stores/auth.svelte')
+    const base = apiBase.url || 'http://127.0.0.1:3001'
+    const headers: Record<string, string> = { Accept: 'text/event-stream' }
+    if (authStore.token) headers.Authorization = `Bearer ${authStore.token}`
+    const res = await fetch(
+      `${base}/user/local-secure/ensure/${encodeURIComponent(modelId)}`,
+      { method: 'POST', headers },
+    )
+    if (!res.ok || !res.body) {
+      throw new Error(`local-secure/ensure failed: HTTP ${res.status}`)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      // Split on the SSE record separator (blank line). Each record is
+      // a `data: …` line; the backend uses .json_data() so each is a
+      // complete JSON object on a single data: line.
+      let idx
+      while ((idx = buf.indexOf('\n\n')) >= 0) {
+        const record = buf.slice(0, idx)
+        buf = buf.slice(idx + 2)
+        for (const line of record.split('\n')) {
+          const t = line.trim()
+          if (!t.startsWith('data:')) continue
+          try {
+            const payload = JSON.parse(t.slice(5).trim()) as LocalSecureEnsureEvent
+            onEvent(payload)
+          } catch {
+            // SSE keep-alive comments (`: keep-alive`) hit this path
+            // — silent drop is intentional.
+          }
+        }
+      }
+    }
+  },
+
+  /** Remove the `mike-…-fast` wrapper (keeps the base model on disk). */
+  localSecureUninstall: (modelId: string) =>
+    api<{ ok: boolean }>(
+      `/user/local-secure/uninstall/${encodeURIComponent(modelId)}`,
+      { method: 'DELETE' },
+    ),
 
   listMcpServers: () => api<{ servers: McpServer[] }>('/user/mcp-servers'),
 

@@ -396,8 +396,24 @@
 
   // Only models from configured providers; ids carry the dispatch prefix
   // the backend expects. Falls back to every model when no key is visible.
+  //
+  // v0.5.6 — when `local_secure_mode` is on, the picker collapses to
+  // ONLY the curated mike-…-fast variants. Cloud providers are hidden
+  // even if the user has API keys configured: secure mode is an
+  // explicit "I want air-gapped" opt-in, not "I have a preference".
+  // The user can always flip the toggle off from Settings to get the
+  // full picker back.
   const modelOptions = $derived.by(() => {
     const s = modelsStore.settings
+    if (s.local_secure_mode) {
+      // Hard-coded order to keep the lighter Qwen at the top — same as
+      // the curated catalogue in src/llm/ollama_manager.rs CURATED_MODELS.
+      return [
+        { value: 'local:mike-qwen35-4b-fast', label: 'Qwen 3.5 4B (rapido)' },
+        { value: 'local:mike-gemma4-e2b-fast', label: 'Gemma 4 E2B (rapido)' },
+      ]
+    }
+
     const configured = new Set<string>()
     if (keyset(s.claude_api_key)) configured.add('anthropic')
     if (keyset(s.gemini_api_key)) configured.add('google')

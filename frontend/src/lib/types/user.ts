@@ -52,7 +52,50 @@ export interface LlmSettings {
   active_provider?: LlmProvider | null
   mistral_api_key?: string | null
   mistral_model?: string | null
+  /** v0.5.6: "Modalità sicura locale" toggle. ON → local provider
+   *  pins to loopback + curated `mike-…-fast` model ids only. */
+  local_secure_mode?: boolean
+  /** Same field on PUT — kept Partial<LlmSettings> compatible. */
+  hyde_enabled?: boolean
 }
+
+/** One row of the v0.5.6 curated-models catalogue (GET
+ *  /user/local-secure/models). Mirrors `local_secure_models` in
+ *  `src/routes/user.rs`. */
+export interface CuratedModelEntry {
+  /** Mike-side id (`mike-qwen35-4b-fast`, `mike-gemma4-e2b-fast`).
+   *  This is what gets written to `user_settings.local_model`. */
+  id: string
+  /** Upstream tag Ollama needs to pull (`qwen2.5:3b-instruct-q4_K_M`
+   *  or `hf.co/…:Q4_K_M`). Shown in the Settings UI as the source. */
+  base_model: string
+  display_name: string
+  /** Approximate on-disk footprint in GB. Shown next to the entry. */
+  approx_size_gb: number
+  /** Minimum recommended RAM in GB. */
+  min_ram_gb: number
+  /** Is the `mike-…-fast` wrapper present? Drives the
+   *  Installato / Installa decision in the UI. */
+  ready: boolean
+  /** Is the BASE model already on disk? Lets the UI show
+   *  "wrapper missing — fast install" vs "pulling X GB". */
+  base_present: boolean
+}
+
+/** SSE event yielded by `POST /user/local-secure/ensure/{id}`. The
+ *  variants mirror `EnsureEvent` in `src/llm/ollama_manager.rs` —
+ *  serde tag = "phase". */
+export type LocalSecureEnsureEvent =
+  | { phase: 'started'; model_id: string }
+  | {
+      phase: 'pulling'
+      status: string
+      completed_bytes: number
+      total_bytes: number
+    }
+  | { phase: 'creating'; model_id: string }
+  | { phase: 'ready'; model_id: string }
+  | { phase: 'error'; message: string }
 
 /** MCP server config — mirror of `McpServerOut` in user.rs. */
 export type McpTransport = 'http' | 'sse' | 'stdio'
