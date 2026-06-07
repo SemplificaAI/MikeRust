@@ -68,9 +68,22 @@ fn resolve_endpoint(params: &StreamParams) -> Result<(String, String, String)> {
                      solo a localhost (URL ricevuto: {base})."
                 ));
             }
+            // Ollama suffixes any tag-less model with `:latest` on
+            // creation/pull (e.g. `ollama create mike-gemma4-e2b-fast`
+            // lands as `mike-gemma4-e2b-fast:latest` in `ollama list`).
+            // The model id can therefore arrive here with the suffix
+            // even though the curated catalogue stores bare names —
+            // normalise before the contains check so the user's pick
+            // doesn't get rejected for a purely cosmetic mismatch.
+            // Bug surfaced 2026-06-07 immediately after the picker
+            // refresh path populated main_model from Ollama's
+            // tag-suffixed response.
+            let bare_model = model
+                .strip_suffix(":latest")
+                .unwrap_or(model.as_str());
             if !crate::llm::ollama_manager::CURATED_MODELS
                 .iter()
-                .any(|m| m.id == model)
+                .any(|m| m.id == bare_model)
             {
                 return Err(anyhow!(
                     "Modalità sicura locale attiva: il modello `{model}` non è \
@@ -532,6 +545,26 @@ mod tests {
         // Base URL is snapped to the canonical loopback form.
         assert!(base.starts_with("http://localhost:11434"));
         assert_eq!(model, "mike-gemma4-e2b-fast");
+    }
+
+    #[test]
+    fn secure_mode_accepts_curated_model_with_latest_suffix() {
+        // Reproduces the 2026-06-07 false-positive rejection: the
+        // free-form Settings refresh path saved `main_model =
+        // local:mike-gemma4-e2b-fast:latest` after reading Ollama's
+        // tag-suffixed local-model list. Without the strip_suffix
+        // normalisation the allowlist contains check failed and the
+        // chat composer flagged the model as "non in allowlist".
+        let p = params_with_local(
+            "http://localhost:11434",
+            "mike-gemma4-e2b-fast:latest",
+            true,
+        );
+        let (_base, _key, model) = resolve_endpoint(&p).unwrap();
+        // We keep the original :latest on the way out — that's what
+        // Ollama actually expects on the wire — but the allowlist
+        // check normalises only for the membership test.
+        assert_eq!(model, "mike-gemma4-e2b-fast:latest");
     }
 
     #[test]

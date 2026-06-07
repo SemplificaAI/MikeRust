@@ -72,8 +72,9 @@
   import { i18n } from '$lib/stores/i18n.svelte'
   import { api } from '$lib/api/client'
   import { userApi } from '$lib/api/user'
-  import type { CuratedModelEntry, LocalSecureEnsureEvent } from '$lib/types/user'
-  import { Download, CheckCircle2, AlertCircle, Trash2 } from 'lucide-svelte'
+  import type { CuratedModelEntry } from '$lib/types/user'
+  import { secureInstall } from '$lib/stores/secureInstall.svelte'
+  import { Download, CheckCircle2, AlertCircle, Trash2, X } from 'lucide-svelte'
 
   let form = $state<LlmForm>(toForm({}))
   let initialized = $state(false)
@@ -310,18 +311,18 @@
     return null
   }
 
-  // ── v0.5.6 Modalità sicura locale ─────────────────────────────────
+  // ── v0.6.0 Modalità sicura locale ─────────────────────────────────
   let secureOllamaRunning = $state<boolean | null>(null)
   let secureModels = $state<CuratedModelEntry[]>([])
   let secureLoading = $state(false)
-  // Per-model install progress. Keyed by curated id.
-  let installProgress = $state<Record<string, {
-    phase: LocalSecureEnsureEvent['phase']
-    bytes?: number
-    total?: number
-    status?: string
-    error?: string
-  }>>({})
+  // Per-model install progress + AbortController registry live in a
+  // module-singleton store (secureInstall.svelte.ts) so they survive
+  // the user navigating away from Settings → Modelli LLM and back.
+  // Bug fixed 2026-06-07: with the state on the component, an unmount
+  // wiped the AbortController map, the next mount re-enabled the
+  // Install button mid-pull, the user clicked it again, and a second
+  // parallel pull fired.
+  const installProgress = $derived(secureInstall.progress)
 
   async function refreshSecureCatalogue() {
     secureLoading = true
@@ -340,48 +341,49 @@
     }
   }
 
-  async function installSecure(modelId: string) {
-    installProgress = { ...installProgress, [modelId]: { phase: 'started' } }
+  /** Persist the toggle the instant the user flips it. The section's
+   *  bulk "Salva modifiche" button still works for the other fields,
+   *  but the secure-mode flag is special: the rest of the section's
+   *  UI (curated picker vs. free-form inputs) keys off it, and
+   *  losing the choice on navigation away was a real bug. */
+  async function onSecureModeToggle(checked: boolean) {
     try {
-      await userApi.localSecureEnsureStream(modelId, (ev) => {
-        if (ev.phase === 'pulling') {
-          installProgress = {
-            ...installProgress,
-            [modelId]: {
-              phase: 'pulling',
-              bytes: ev.completed_bytes,
-              total: ev.total_bytes,
-              status: ev.status,
-            },
-          }
-        } else if (ev.phase === 'error') {
-          installProgress = {
-            ...installProgress,
-            [modelId]: { phase: 'error', error: ev.message },
-          }
-          toastStore.danger(i18n.t('Settings.localSecureInstallError'), {
-            detail: ev.message,
-          })
-        } else {
-          installProgress = { ...installProgress, [modelId]: { phase: ev.phase } }
-        }
-      })
-      // Refresh ready/base flags after the stream completes.
-      await refreshSecureCatalogue()
-      // Drop progress only if the final state was ready — leave errors
-      // visible so the user can read them.
-      if (installProgress[modelId]?.phase === 'ready') {
-        const next = { ...installProgress }
-        delete next[modelId]
-        installProgress = next
-      }
-      toastStore.success(i18n.t('Settings.localSecureInstalledToast'))
+      await modelsStore.save({ local_secure_mode: checked })
+      if (checked) await refreshSecureCatalogue()
     } catch (e) {
-      installProgress = {
-        ...installProgress,
-        [modelId]: { phase: 'error', error: (e as Error).message },
-      }
+      toastStore.danger(i18n.t('Settings.llmSettingsError'), {
+        detail: (e as Error).message,
+      })
+      // Revert the visible form state so the toggle reflects what's
+      // actually persisted server-side.
+      form.local_secure_mode = !checked
     }
+  }
+
+  /** Thin wrapper around the secureInstall store — funnels the
+   *  per-install outcomes through the section's localised toasts. The
+   *  install / cancel bookkeeping itself lives in the store so it
+   *  survives component unmount. */
+  async function installSecure(modelId: string) {
+    await secureInstall.install(modelId, {
+      onCompleted: async () => {
+        await refreshSecureCatalogue()
+        toastStore.success(i18n.t('Settings.localSecureInstalledToast'))
+      },
+      onCancelled: async () => {
+        await refreshSecureCatalogue()
+        toastStore.info(i18n.t('Settings.localSecureCancelled'))
+      },
+      onError: (msg) => {
+        toastStore.danger(i18n.t('Settings.localSecureInstallError'), {
+          detail: msg,
+        })
+      },
+    })
+  }
+
+  function cancelInstall(modelId: string) {
+    secureInstall.cancel(modelId)
   }
 
   async function uninstallSecure(modelId: string) {
@@ -536,8 +538,14 @@
         <!-- v0.5.6 — Modalità sicura locale toggle. ON → swap the free
              URL/api-key fields for the curated picker below. -->
         <div class="flex items-start gap-3 pb-2 border-b border-(--color-surface-200)">
+          <!-- Auto-saves on flip. Persisting only via the section's
+               "Salva modifiche" button confused users (2026-06-07):
+               toggling, leaving Settings, coming back showed the
+               server-side OFF again because the click never reached
+               the save batch. -->
           <Toggle
             bind:checked={form.local_secure_mode}
+            onchange={(v) => void onSecureModeToggle(v)}
             label={i18n.t('Settings.localSecureMode')}
             description={i18n.t('Settings.localSecureModeHint')}
           />
@@ -600,19 +608,37 @@
                     {#if m.ready}
                       <Button size="sm" variant="ghost" onclick={() => void uninstallSecure(m.id)}>
                         <Trash2 size={14} class="mr-1" />
-                        {i18n.t('Common.remove')}
+                        {i18n.t('Settings.remove')}
                       </Button>
                     {:else if prog && prog.phase !== 'error'}
-                      <Button size="sm" disabled>
-                        <Spinner size="sm" class="mr-2" />
-                        {#if prog.phase === 'pulling'}
-                          {i18n.t('Settings.localSecurePulling')} {pct(prog.bytes, prog.total)}
-                        {:else if prog.phase === 'creating'}
-                          {i18n.t('Settings.localSecureCreating')}
-                        {:else}
-                          {i18n.t('Settings.localSecureStarting')}
-                        {/if}
-                      </Button>
+                      <div class="flex items-center gap-2">
+                        <Button size="sm" disabled>
+                          <Spinner size="sm" class="mr-2" />
+                          {#if prog.phase === 'pulling'}
+                            {i18n.t('Settings.localSecurePulling')} {pct(prog.bytes, prog.total)}
+                          {:else if prog.phase === 'creating'}
+                            {i18n.t('Settings.localSecureCreating')}
+                          {:else}
+                            {i18n.t('Settings.localSecureStarting')}
+                          {/if}
+                        </Button>
+                        <!-- Cancel button — only meaningful during
+                             pulling / starting (creating is too quick
+                             for a user click to ever land mid-phase).
+                             Disabled during creating because there's
+                             no clean abort point on the Ollama side
+                             of /api/create. -->
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={prog.phase === 'creating'}
+                          onclick={() => cancelInstall(m.id)}
+                          title={i18n.t('Settings.localSecureCancelHint')}
+                        >
+                          <X size={14} class="mr-1" />
+                          {i18n.t('Common.cancel')}
+                        </Button>
+                      </div>
                     {:else}
                       <Button size="sm" onclick={() => void installSecure(m.id)}>
                         <Download size={14} class="mr-1" />

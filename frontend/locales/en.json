@@ -99,7 +99,11 @@
     "deleteChatDisabledActive": "Close this chat first to delete it",
     "renameChat": "Rename chat",
     "deleteChatTitle": "Delete chat?",
-    "deleteChatBody": "\"{title}\", its messages and the documents uploaded or generated in it will be permanently deleted."
+    "deleteChatBody": "\"{title}\", its messages and the documents uploaded or generated in it will be permanently deleted.",
+    "newChatInProjectTitle": "New chat",
+    "newChatInProjectBody": "You're working inside a project. Do you want to keep the project attached to the new chat?",
+    "newChatKeepProject": "Yes, keep the project",
+    "newChatIndependent": "Independent chat"
   },
   "Account": {
     "title": "Account",
@@ -1229,6 +1233,8 @@
     "localSecureInstalledToast": "Model ready to use",
     "localSecureUninstallError": "Uninstall failed",
     "localSecureUninstalledToast": "Model removed",
+    "localSecureCancelled": "Download cancelled",
+    "localSecureCancelHint": "Cancel the running download",
     "baseUrl": "Base URL",
     "modelRoles": "Model roles",
     "modelRolesHint": "Which model handles each task",

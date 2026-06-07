@@ -95,10 +95,19 @@ export const userApi = {
    * stream reader rather than `EventSource` because EventSource only
    * supports GET, and the route is POST (the body would be empty
    * anyway, but the route shape matters for the auth middleware).
+   *
+   * Pass an `AbortSignal` (from a per-row `AbortController`) to cancel
+   * the install mid-flight. Aborting closes the fetch → axum drops the
+   * SSE stream → ollama-rs drops its `pull_model_stream` → the TCP
+   * connection to Ollama closes → Ollama treats the pull as cancelled.
+   * Parallel installs already worked because each call carries its own
+   * fetch + reader + state; the abort signal is the missing piece that
+   * makes them feel symmetric (start any time, stop any time).
    */
   localSecureEnsureStream: async (
     modelId: string,
     onEvent: (ev: LocalSecureEnsureEvent) => void,
+    signal?: AbortSignal,
   ): Promise<void> => {
     // Reuse the same base + token handling as `api()` so the SSE call
     // hits the same backend instance and carries the auth cookie.
@@ -109,7 +118,7 @@ export const userApi = {
     if (authStore.token) headers.Authorization = `Bearer ${authStore.token}`
     const res = await fetch(
       `${base}/user/local-secure/ensure/${encodeURIComponent(modelId)}`,
-      { method: 'POST', headers },
+      { method: 'POST', headers, signal },
     )
     if (!res.ok || !res.body) {
       throw new Error(`local-secure/ensure failed: HTTP ${res.status}`)
