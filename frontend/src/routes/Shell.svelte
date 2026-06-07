@@ -14,6 +14,7 @@
   import Logo from '$lib/components/ui/Logo.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
   import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte'
+  import Modal from '$lib/components/ui/Modal.svelte'
   import ThemeToggle from '$lib/components/ui/ThemeToggle.svelte'
   import Workflows from './Workflows.svelte'
   import Templates from './Templates.svelte'
@@ -169,9 +170,36 @@
     }
   }
 
+  // When the user clicks "+" while a project-scoped chat is active,
+  // we don't silently inherit the project for the next chat (the
+  // 2026-06-07 report: "ho creato una nuova chat e il progetto è
+  // rimasto assegnato senza chiedermelo"). Ask first.
+  let newChatModalOpen = $state(false)
   function newChat() {
+    if (chatStore.activeProjectId) {
+      newChatModalOpen = true
+      return
+    }
     guardedNav(() => {
       chatStore.newChat()
+      router.go('assistant')
+    })
+  }
+
+  function newChatKeepProject() {
+    newChatModalOpen = false
+    guardedNav(() => {
+      // Default newChat() preserves the composer's project chip —
+      // see chatStore.newChat docstring for why.
+      chatStore.newChat()
+      router.go('assistant')
+    })
+  }
+
+  function newChatIndependent() {
+    newChatModalOpen = false
+    guardedNav(() => {
+      chatStore.newChat({ clearProject: true })
       router.go('assistant')
     })
   }
@@ -430,3 +458,28 @@
   onconfirm={confirmInterrupt}
   oncancel={() => (pendingNav = null)}
 />
+
+<!-- New-chat-in-project confirm. Two action buttons in the footer;
+     the third "cancel" action is implicit via the Modal's own close
+     X (top-right) + Esc + backdrop click — adding it as a third
+     footer button was overflowing the sm container and pushed
+     "Annulla" off-screen. md sizing also gives the two action
+     labels room to breathe. -->
+<Modal
+  open={newChatModalOpen}
+  title={i18n.t('Sidebar.newChatInProjectTitle')}
+  size="md"
+  onclose={() => (newChatModalOpen = false)}
+>
+  <p class="text-sm text-(--color-text-secondary)">
+    {i18n.t('Sidebar.newChatInProjectBody')}
+  </p>
+  {#snippet footer()}
+    <Button variant="secondary" onclick={newChatIndependent}>
+      {i18n.t('Sidebar.newChatIndependent')}
+    </Button>
+    <Button onclick={newChatKeepProject}>
+      {i18n.t('Sidebar.newChatKeepProject')}
+    </Button>
+  {/snippet}
+</Modal>

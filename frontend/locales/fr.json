@@ -99,7 +99,11 @@
     "deleteChatDisabledActive": "Fermez d'abord ce chat pour pouvoir le supprimer",
     "renameChat": "Renommer le chat",
     "deleteChatTitle": "Supprimer le chat ?",
-    "deleteChatBody": "« {title} », ses messages et les documents importés ou générés dans ce chat seront supprimés définitivement."
+    "deleteChatBody": "« {title} », ses messages et les documents importés ou générés dans ce chat seront supprimés définitivement.",
+    "newChatInProjectTitle": "Nouveau chat",
+    "newChatInProjectBody": "Vous travaillez dans un projet. Voulez-vous garder le projet associé au nouveau chat ?",
+    "newChatKeepProject": "Oui, garder le projet",
+    "newChatIndependent": "Chat indépendant"
   },
   "Account": {
     "title": "Compte",
@@ -1206,6 +1210,8 @@
     "localSecureInstalledToast": "Modèle prêt à l'emploi",
     "localSecureUninstallError": "Désinstallation échouée",
     "localSecureUninstalledToast": "Modèle supprimé",
+    "localSecureCancelled": "Téléchargement annulé",
+    "localSecureCancelHint": "Annuler le téléchargement en cours",
     "baseUrl": "URL de base",
     "modelRoles": "Rôles des modèles",
     "modelRolesHint": "Quel modèle gère chaque tâche",

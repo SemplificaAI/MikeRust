@@ -99,7 +99,11 @@
     "deleteChatDisabledActive": "Feche primeiro esta conversa para a poder eliminar",
     "renameChat": "Renomear conversa",
     "deleteChatTitle": "Eliminar o chat?",
-    "deleteChatBody": "“{title}”, as suas mensagens e os documentos carregados ou gerados nele serão eliminados definitivamente."
+    "deleteChatBody": "“{title}”, as suas mensagens e os documentos carregados ou gerados nele serão eliminados definitivamente.",
+    "newChatInProjectTitle": "Novo chat",
+    "newChatInProjectBody": "Estás a trabalhar dentro de um projeto. Queres manter o projeto associado ao novo chat?",
+    "newChatKeepProject": "Sim, manter o projeto",
+    "newChatIndependent": "Chat independente"
   },
   "Account": {
     "title": "Conta",
@@ -1206,6 +1210,8 @@
     "localSecureInstalledToast": "Modelo pronto",
     "localSecureUninstallError": "Desinstalação falhou",
     "localSecureUninstalledToast": "Modelo removido",
+    "localSecureCancelled": "Transferência cancelada",
+    "localSecureCancelHint": "Cancelar a transferência em curso",
     "baseUrl": "URL base",
     "modelRoles": "Funções dos modelos",
     "modelRolesHint": "Que modelo trata de cada tarefa",

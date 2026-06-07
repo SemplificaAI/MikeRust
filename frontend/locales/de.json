@@ -99,7 +99,11 @@
     "deleteChatDisabledActive": "Schließen Sie diesen Chat zuerst, um ihn zu löschen",
     "renameChat": "Chat umbenennen",
     "deleteChatTitle": "Chat löschen?",
-    "deleteChatBody": "„{title}“, seine Nachrichten und die darin hochgeladenen oder erzeugten Dokumente werden endgültig gelöscht."
+    "deleteChatBody": "„{title}“, seine Nachrichten und die darin hochgeladenen oder erzeugten Dokumente werden endgültig gelöscht.",
+    "newChatInProjectTitle": "Neuer Chat",
+    "newChatInProjectBody": "Sie arbeiten in einem Projekt. Soll das Projekt mit dem neuen Chat verknüpft bleiben?",
+    "newChatKeepProject": "Ja, Projekt behalten",
+    "newChatIndependent": "Unabhängiger Chat"
   },
   "Account": {
     "title": "Konto",
@@ -1206,6 +1210,8 @@
     "localSecureInstalledToast": "Modell einsatzbereit",
     "localSecureUninstallError": "Deinstallation fehlgeschlagen",
     "localSecureUninstalledToast": "Modell entfernt",
+    "localSecureCancelled": "Download abgebrochen",
+    "localSecureCancelHint": "Laufenden Download abbrechen",
     "baseUrl": "Basis-URL",
     "modelRoles": "Modellrollen",
     "modelRolesHint": "Welches Modell welche Aufgabe übernimmt",

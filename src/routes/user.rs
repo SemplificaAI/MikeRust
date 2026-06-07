@@ -1269,8 +1269,25 @@ async fn local_secure_models(_auth: AuthUser) -> Json<Value> {
     let installed = crate::llm::ollama_manager::list_installed()
         .await
         .unwrap_or_default();
-    let installed_set: std::collections::HashSet<&str> =
-        installed.iter().map(|s| s.as_str()).collect();
+    // Normalise: Ollama appends `:latest` to any model created or pulled
+    // without an explicit tag (this is what bit us on 2026-06-07:
+    // `ollama create mike-qwen35-4b-fast` lands as
+    // `mike-qwen35-4b-fast:latest`, the bare id never appears in
+    // `ollama list`, so the previous contains check missed every
+    // variant the user actually installed and the UI kept showing
+    // "Installa"). Strip the suffix here and accept both shapes in the
+    // helper below.
+    let installed_set: std::collections::HashSet<String> = installed
+        .iter()
+        .map(|s| {
+            s.strip_suffix(":latest")
+                .map(|x| x.to_string())
+                .unwrap_or_else(|| s.clone())
+        })
+        .collect();
+    let is_installed = |name: &str| -> bool {
+        installed_set.contains(name) || installed_set.contains(&format!("{name}:latest"))
+    };
     let models: Vec<Value> = crate::llm::ollama_manager::CURATED_MODELS
         .iter()
         .map(|m| {
@@ -1284,12 +1301,12 @@ async fn local_secure_models(_auth: AuthUser) -> Json<Value> {
                 // exists. The BASE model alone isn't enough — the
                 // user gets the suppressed-thinking behaviour only
                 // when the derivation is in place.
-                "ready": installed_set.contains(m.id),
+                "ready": is_installed(m.id),
                 // "base_present" lets the UI surface "Pull skipped —
                 // base already on disk, only creating the wrapper"
                 // when the user re-installs after deleting only the
                 // wrapper.
-                "base_present": installed_set.contains(m.base_model),
+                "base_present": is_installed(m.base_model),
             })
         })
         .collect();

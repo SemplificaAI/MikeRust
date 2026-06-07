@@ -168,6 +168,11 @@ function createChatStore() {
   let loadingMessages = $state<boolean>(false)
   let error = $state<string | null>(null)
   let abortCtrl: AbortController | null = null
+  // Monotonic — bumped by `newChat({ clearProject: true })`. The
+  // composer (ChatInput.svelte) watches it to drop its project chip
+  // when the user explicitly says "voglio una chat indipendente"
+  // after a confirm modal in the sidebar.
+  let clearProjectTick = $state(0)
 
   async function refreshChats() {
     loadingChats = true
@@ -214,12 +219,34 @@ function createChatStore() {
 
     refreshChats,
 
-    /** Start a fresh, unsaved chat. */
-    newChat() {
+    /** Start a fresh, unsaved chat.
+     *
+     *  Pass `{ clearProject: true }` to also tell the composer to drop
+     *  any project chip it was carrying. Default (no opts) preserves
+     *  the chip — that's the right behaviour when the user picks
+     *  "Sì, mantieni il progetto" from the new-chat confirm modal in
+     *  Shell.svelte, because ChatInput's existing $effect only loads
+     *  a project, never clears one (an absent `activeProjectId` is a
+     *  no-op there, not a reset signal).
+     *
+     *  The clear is communicated to the composer via the
+     *  `clearProjectTick` getter — a monotonic counter the composer's
+     *  $effect watches, bumping it triggers exactly one chip reset.
+     *  Counter pattern (not a boolean) because consecutive "clear"
+     *  calls without a chip in between still need to fire the effect. */
+    newChat(opts: { clearProject?: boolean } = {}) {
+      if (opts.clearProject) clearProjectTick++
       activeId = null
       messages = []
       error = null
       docViewer.closeAll()
+    },
+
+    /** Monotonic tick bumped on every `newChat({ clearProject: true })`
+     *  call. ChatInput.svelte tracks this to know when to drop its
+     *  project chip on next-chat creation. See [[newChat]] for why. */
+    get clearProjectTick() {
+      return clearProjectTick
     },
 
     async selectChat(id: string) {

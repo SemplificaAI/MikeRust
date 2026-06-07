@@ -207,6 +207,21 @@
       })
   })
 
+  // Explicit "clear chip" signal from the sidebar's new-chat confirm
+  // modal — fires when the user picked "una chat indipendente" while
+  // a project-scoped chat was active. The store-level tick lets us
+  // avoid an otherwise-needed prop or callback drilling. Effect skips
+  // its first run (tick = 0 at mount) to keep the chip on initial
+  // render of a project chat.
+  let lastClearProjectTick = 0
+  $effect(() => {
+    const tick = chatStore.clearProjectTick
+    if (tick !== lastClearProjectTick) {
+      lastClearProjectTick = tick
+      project = null
+    }
+  })
+
   // ── pickers ─────────────────────────────────────────────────────────
   type Kind = 'doc' | 'project' | 'workflow' | 'template'
   let pickerKind = $state<Kind | null>(null)
@@ -278,7 +293,17 @@
         : ''
     try {
       if (kind === 'doc') {
-        const r = await documentsApi.list()
+        // Scope rule (2026-06-07): a chat that lives inside a project
+        // restricts "Sfoglia tutti" to that project's documents only.
+        // A standalone chat (Assistant tool, no project attached)
+        // keeps the full library visible — that's the path the user
+        // uses to add a global doc to a fresh chat. We rely on the
+        // backend `?project_id=…` filter (documents.rs:list_documents)
+        // rather than filtering client-side so we don't ship a
+        // potentially huge JSON list just to throw most of it away.
+        const r = await documentsApi.list(
+          project ? { project_id: project.id } : undefined,
+        )
         pickerItems = r.documents.map((d) => ({
           id: d.id,
           label: d.filename,
