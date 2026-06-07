@@ -13,6 +13,165 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.5.6 — 2026-06-07 ("Modalità sicura locale" — plug-and-play curated Ollama models)
+
+End-to-end opt-in mode that turns MikeRust's local LLM provider into
+a zero-config, locked-down setup: loopback Ollama only, two curated
+quantised models with thinking suppression baked in, install /
+cancel / progress UX. Aimed at users who want a CPU-only,
+air-gapped Italian-first chat without juggling Modelfiles or
+context-window tuning by hand.
+
+### Backend — `src/llm/ollama_manager.rs` + migration 0032
+
+* New module wraps [ollama-rs](https://crates.io/crates/ollama-rs)
+  (0.3) with the only four operations the Settings UI needs:
+  `heartbeat()`, `list_installed()`, `ensure_curated(id)` (returns
+  a Stream<EnsureEvent> covering `started → pulling{…progress…} →
+  creating → ready` plus an `error` terminal), and
+  `uninstall_curated(id)`.
+* Curated allowlist — static `CURATED_MODELS: &[CuratedModel]`
+  with two entries: `mike-qwen35-4b-fast`
+  (`qwen2.5:3b-instruct-q4_K_M` + `/no_think` Qwen-native token in
+  the chat template) and `mike-gemma4-e2b-fast`
+  (`hf.co/unsloth/gemma-4-E2B-it-GGUF:Q4_K_M` + `<think>` /
+  `<thinking>` / `<reasoning>` stop sequences + "rispondi
+  direttamente" system preamble). Adding an entry here cascades
+  through allowlist / Settings UI / chat picker with no other code
+  changes.
+* Per-strategy Modelfile derivation through ollama-rs's structured
+  `CreateModelRequest` builder (the 0.3 client doesn't accept a raw
+  Modelfile blob; it wants `from_model` / `template` / `system` /
+  `parameters(ModelOptions)`). Thinking-suppression is the whole
+  reason these derivations exist — pulling the upstream model
+  alone wouldn't disable chain-of-thought output.
+* `local.rs::resolve_endpoint` gains the secure-mode enforcement:
+  refuse any base URL that isn't loopback (localhost / 127.0.0.1 /
+  [::1]), refuse any model id that isn't on the curated allowlist
+  (normalising `:latest` Ollama tag suffixes before the contains
+  check so a freshly-created tag-less model still matches), and
+  prepend a no-thinking preamble to the system prompt as a
+  belt-and-braces safety net.
+* Migration 0032 adds `user_settings.local_secure_mode INTEGER
+  DEFAULT 0`. Existing installs keep their custom Ollama URL and
+  free-form model id (toggle OFF by default — retro-compat).
+
+### Backend routes — `/user/local-secure/*`
+
+* `GET /heartbeat` — is loopback Ollama serving?
+* `GET /models` — curated catalogue + per-entry `{ ready,
+  base_present }` flags. Both flags normalise the `:latest`
+  suffix Ollama appends to tag-less models, so the Settings UI
+  badge flips to "Installato" the instant the create-model stream
+  resolves (without the normalisation the badge stayed stuck on
+  "Installa" forever after a successful install).
+* `POST /ensure/{id}` — SSE stream of `EnsureEvent`s, forwarded
+  verbatim from the manager. Client disconnect (browser tab close,
+  user-driven AbortController) drops axum's stream → ollama-rs
+  drops its `pull_model_stream` → the TCP socket to Ollama closes
+  → Ollama treats the in-flight pull as cancelled; the partial
+  download stays in the SHA-256 layer cache so a later re-install
+  resumes for free.
+* `DELETE /uninstall/{id}` — removes only the `mike-…-fast`
+  wrapper; the BASE model stays installed in case the user layered
+  other Modelfile derivations on it (e.g. the
+  `mikerust-…:ctxXk` profiles from
+  `scripts/apply-ollama-context-profiles.ps1`).
+
+### Frontend — Settings → Modelli LLM
+
+`ModelsSection.svelte` gains a Toggle at the top of the Local
+provider Card. Flipping it ON:
+
+* **Auto-persists** the choice via the existing `PUT /llm-settings`
+  endpoint (no separate Save button needed — leaving Settings used
+  to silently drop the choice when only the bulk save persisted
+  it). On error the visible toggle reverts so the UI mirrors what's
+  actually stored.
+* Locks the visible "Ollama server" label to
+  `http://localhost:11434` with a padlock glyph.
+* Replaces the free-form URL / api-key inputs with a curated
+  catalogue list. Each entry shows display name, base model id,
+  approximate size, recommended RAM, and one of four states:
+  Installato (badge + Rimuovi), in-flight (disabled progress
+  button + animated brand-coloured bar + cancel button), error
+  (red message under the row, Install still clickable), not
+  installed (Install button with download icon).
+* Surfaces an "Ollama non rilevato" warning + a link to
+  ollama.com/download when the heartbeat fails; Retry re-runs
+  the heartbeat without leaving the section.
+
+The progress map + per-id `AbortController` registry live in a
+**module-singleton store**
+([`frontend/src/lib/stores/secureInstall.svelte.ts`](frontend/src/lib/stores/secureInstall.svelte.ts))
+so they survive the user navigating away from Settings and back.
+The previous component-local design lost the AbortController on
+unmount, the Install button re-enabled itself mid-pull, and a
+second click fired a parallel ensure stream that raced the
+original to completion.
+
+Cancel button next to the in-flight progress (X icon + "Annulla").
+Aborts the fetch → SSE drops → ollama-rs drops the pull → Ollama
+treats it as cancelled. Real download cancellation, not just a
+detached UI spinner.
+
+Parallel installs already worked because each call carries its
+own fetch + reader + state — the Cancel button is what makes them
+feel symmetric (start any time, stop any time).
+
+### Frontend — chat composer
+
+* When `local_secure_mode` is on, the chat-composer model picker
+  collapses to ONLY the two curated `mike-…-fast` entries with
+  their `local:` prefix — ALL cloud providers are hidden even if
+  their API keys are configured. Secure mode is an explicit
+  "I want air-gapped" opt-in so this is the right semantic; the
+  user can flip the toggle off from Settings to get the full
+  picker back.
+
+### Frontend — incidental UX fixes from the same testing session
+
+* **Doc picker scope** — "Sfoglia tutti" inside a project-scoped
+  chat now restricts to the project's documents via
+  `?project_id=…` (server-side filter via
+  `documents.rs::list_documents`'s existing query param);
+  standalone chats keep the global picker unchanged.
+* **New-chat-in-project confirm modal** — clicking + in the
+  sidebar while a project-scoped chat is active now opens a
+  confirm modal: "Vuoi mantenere il progetto associato alla nuova
+  chat?" with two action buttons ("Chat indipendente" / "Sì,
+  mantieni il progetto") plus implicit cancel via the modal X /
+  Esc / backdrop click. `chatStore.newChat({ clearProject: true })`
+  bumps a monotonic `clearProjectTick` that the composer's
+  `$effect` reads to drop its chip — counter pattern so
+  consecutive clear calls without a chip in between still fire
+  the effect. Fixes the long-standing "chip persists silently"
+  bug where the original `$effect` early-returned on null
+  `activeProjectId`.
+
+### Tests
+
+* 6 new tests in `src/llm/ollama_manager.rs` — curated allowlist
+  uniqueness + naming convention, find_curated rejects arbitrary
+  ids, per-strategy `CreateModelRequest` carries the right
+  template / system / stop sequences, `no_think_preamble` is
+  well-formed.
+* 7 new tests in `src/llm/local.rs` — loopback URL classification
+  across IPv4/IPv6/scheme variants, secure-mode rejects
+  non-loopback / uncurated, secure-mode accepts curated on
+  loopback (with and without `:latest` suffix),
+  `effective_system` prepends in secure mode and no-ops otherwise.
+* 15/15 `llm::local` + 6/6 `llm::ollama_manager` all green.
+
+### i18n
+
+Eighteen new keys under `Settings.*` and four under `Sidebar.*`,
+localised in all six locales (it/en/fr/de/es/pt). `Common.remove`
+was a typo — replaced with the existing `Settings.remove` =
+"Rimuovi" anchor present in every locale already.
+
+---
+
 ## v0.5.5 — 2026-06-07 (stable consolidation of the v0.5.4 amendment cycle)
 
 Stable promotion of everything that landed during the v0.5.4
