@@ -50,8 +50,12 @@ pub async fn build_payload(
     read_storage: impl Fn(&str) -> futures_util::future::BoxFuture<'_, Result<Vec<u8>>>,
 ) -> Result<Payload> {
     // ---------- project ----------
-    let p_row: Option<(String, String, Option<String>, String, Option<String>)> = sqlx::query_as(
-        "SELECT id, name, cm_number, created_at, isolation_mode \
+    // domain + isolation_mode were silently dropped in pre-v0.5.4
+    // exports (the latter was even SELECTed and discarded). Both
+    // travel now so the recipient lands on the same domain filter
+    // and retrieval-scope mode the source project had.
+    let p_row: Option<(String, String, Option<String>, String, String, String)> = sqlx::query_as(
+        "SELECT id, name, cm_number, created_at, isolation_mode, domain \
          FROM projects WHERE id = ? AND user_id = ?",
     )
     .bind(project_id)
@@ -59,7 +63,7 @@ pub async fn build_payload(
     .fetch_optional(db)
     .await
     .context("read project")?;
-    let (pid, name, cm_number, created_at, _iso) =
+    let (pid, name, cm_number, created_at, isolation_mode, project_domain) =
         p_row.ok_or_else(|| anyhow!("project not found"))?;
     let project = ProjectRecord {
         id: pid.clone(),
@@ -67,13 +71,31 @@ pub async fn build_payload(
         cm_number,
         created_at,
         original_creator_email: None,
+        domain: Some(project_domain.clone()),
+        isolation_mode: Some(isolation_mode),
     };
 
     // ---------- documents ----------
+    // The SELECT now carries every per-doc field that survives import
+    // intact: domain (project-relative filter), project_folder_id
+    // (sub-folder tree placement), and the accept/reject decision
+    // tuple from migration 0029. None of these used to travel.
     let doc_rows: Vec<(
-        String, String, String, i64, Option<String>, String,
+        String,
+        String,
+        String,
+        i64,
+        Option<String>,
+        String,
+        String,
+        Option<String>,
+        Option<String>,
+        Option<String>,
+        Option<String>,
     )> = sqlx::query_as(
-        "SELECT id, filename, file_type, size_bytes, storage_path, created_at \
+        "SELECT id, filename, file_type, size_bytes, storage_path, created_at, \
+                domain, project_folder_id, \
+                decision, decision_reason, decision_summary \
          FROM documents WHERE user_id = ? AND project_id = ?",
     )
     .bind(user_id)
@@ -83,7 +105,20 @@ pub async fn build_payload(
     .context("read documents")?;
 
     let mut documents: Vec<(DocumentRecord, Vec<u8>)> = Vec::with_capacity(doc_rows.len());
-    for (id, filename, file_type, size_bytes, storage_path, created_at) in doc_rows {
+    for (
+        id,
+        filename,
+        file_type,
+        size_bytes,
+        storage_path,
+        created_at,
+        domain,
+        project_folder_id,
+        decision,
+        decision_reason,
+        decision_summary,
+    ) in doc_rows
+    {
         let bytes = if let Some(key) = storage_path.as_deref() {
             read_storage(key).await.unwrap_or_default()
         } else {
@@ -99,14 +134,19 @@ pub async fn build_payload(
                 size_bytes: Some(size_bytes as u64),
                 sha256: sha,
                 created_at,
+                domain: Some(domain),
+                project_folder_id,
+                decision,
+                decision_reason,
+                decision_summary,
             },
             bytes,
         ));
     }
 
     // ---------- tabular reviews (config only, no cells) ----------
-    let tr_rows: Vec<(String, String, String, String)> = sqlx::query_as(
-        "SELECT id, title, columns_config, created_at \
+    let tr_rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
+        "SELECT id, title, columns_config, created_at, domain \
          FROM tabular_reviews WHERE user_id = ? AND project_id = ?",
     )
     .bind(user_id)
@@ -116,18 +156,25 @@ pub async fn build_payload(
     .context("read tabular_reviews")?;
     let tabular_reviews: Vec<TabularReviewRecord> = tr_rows
         .into_iter()
-        .map(|(id, title, cfg, created_at)| TabularReviewRecord {
+        .map(|(id, title, cfg, created_at, tr_domain)| TabularReviewRecord {
             id,
             title: Some(title),
             columns_config: serde_json::from_str(&cfg).unwrap_or(Value::Array(Vec::new())),
             document_ids: Vec::new(), // only configuration travels
             created_at,
+            domain: Some(tr_domain),
         })
         .collect();
 
     // ---------- workflows (custom only — no built-ins, they're recreated by id) ----------
-    let wf_rows: Vec<(String, String, String)> = sqlx::query_as(
-        "SELECT id, title, prompt_md FROM workflows WHERE user_id = ?",
+    // Pre-v0.5.4 export hard-coded `type = "assistant"` and dropped
+    // `columns_config` / `practice` / `domain`. A custom tabular
+    // workflow therefore arrived monchi: only the prompt body
+    // travelled, the columns vanished, and it was re-typed as an
+    // assistant on the recipient side. All four fields travel now.
+    let wf_rows: Vec<(String, String, String, String, Option<String>, String)> = sqlx::query_as(
+        "SELECT id, title, prompt_md, type, columns_config, domain \
+         FROM workflows WHERE user_id = ?",
     )
     .bind(user_id)
     .fetch_all(db)
@@ -135,13 +182,20 @@ pub async fn build_payload(
     .context("read workflows")?;
     let workflows: Vec<WorkflowRecord> = wf_rows
         .into_iter()
-        .map(|(id, title, prompt_md)| WorkflowRecord {
-            id,
-            title,
-            r#type: "assistant".to_string(),
-            prompt_md: Some(prompt_md),
-            columns_config: None,
-            practice: None,
+        .map(|(id, title, prompt_md, wf_type, cols_cfg, wf_domain)| {
+            let columns_config = cols_cfg
+                .as_deref()
+                .and_then(|s| serde_json::from_str::<Value>(s).ok())
+                .filter(|v| !v.is_null());
+            WorkflowRecord {
+                id,
+                title,
+                r#type: wf_type,
+                prompt_md: Some(prompt_md),
+                columns_config,
+                practice: None,
+                domain: Some(wf_domain),
+            }
         })
         .collect();
 

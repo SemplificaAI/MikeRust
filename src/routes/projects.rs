@@ -637,22 +637,52 @@ async fn import_project(
     let payload = crate::mikeprj::io::unzip_payload(&zip_bytes)
         .map_err(|e| err(StatusCode::BAD_REQUEST, &e.to_string()))?;
 
-    // Create the new project under the importer's account.
+    // Create the new project under the importer's account. v0.5.4
+    // amendment: domain + isolation_mode now travel and are honoured
+    // here (with sensible fallbacks via COALESCE so older archives
+    // that lacked these fields still land on the schema defaults).
     let new_project_id = uuid::Uuid::new_v4().to_string();
+    let project_domain = payload
+        .project
+        .domain
+        .as_deref()
+        .filter(|s| crate::domain::is_valid(s))
+        .unwrap_or("legal");
+    let isolation_mode = payload
+        .project
+        .isolation_mode
+        .as_deref()
+        .filter(|s| *s == "shared" || *s == "strict")
+        .unwrap_or("shared");
     sqlx::query(
-        "INSERT INTO projects (id, user_id, name, cm_number, created_at, updated_at) \
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))",
+        "INSERT INTO projects \
+            (id, user_id, name, cm_number, created_at, updated_at, domain, isolation_mode) \
+         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)",
     )
     .bind(&new_project_id)
     .bind(&auth.user_id)
     .bind(&payload.project.name)
     .bind(payload.project.cm_number.as_deref())
+    .bind(project_domain)
+    .bind(isolation_mode)
     .execute(&state.db)
     .await
     .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
 
     // Documents: write each blob into the importer's storage with a
     // fresh document_id, then row in `documents`.
+    //
+    // v0.5.4 amendment: per-doc domain (falls back to the project's
+    // domain when absent), decision tuple (migration 0029), and the
+    // content_hash (re-derived from sha256 in the manifest so the
+    // recipient's tabular dedup-by-hash works immediately, not only
+    // after a manual re-upload).
+    //
+    // `project_folder_id` is intentionally left NULL on import: the
+    // original folder tree isn't reconstructed in this round —
+    // rebuilding `project_folders` from scratch and remapping every
+    // doc's parent id is its own change; future work tracked
+    // alongside this one.
     let storage = crate::storage::make_storage()
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let mut doc_id_remap: std::collections::HashMap<String, String> =
@@ -663,10 +693,21 @@ async fn import_project(
         let _ = storage
             .put(&storage_key, bytes, "application/octet-stream")
             .await;
+        let doc_domain = doc
+            .domain
+            .as_deref()
+            .filter(|s| crate::domain::is_valid(s))
+            .unwrap_or(project_domain);
+        let decision = doc
+            .decision
+            .as_deref()
+            .filter(|s| *s == "accepted" || *s == "rejected")
+            .unwrap_or("accepted");
         sqlx::query(
             "INSERT INTO documents \
-             (id, user_id, project_id, filename, file_type, size_bytes, storage_path, status, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'ready', datetime('now'))",
+             (id, user_id, project_id, filename, file_type, size_bytes, storage_path, \
+              status, created_at, domain, content_hash, decision, decision_reason, decision_summary) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'ready', datetime('now'), ?, ?, ?, ?, ?)",
         )
         .bind(&new_doc_id)
         .bind(&auth.user_id)
@@ -675,33 +716,48 @@ async fn import_project(
         .bind(doc.file_type.as_deref().unwrap_or("bin"))
         .bind(doc.size_bytes.unwrap_or(bytes.len() as u64) as i64)
         .bind(&storage_key)
+        .bind(doc_domain)
+        .bind(&doc.sha256)
+        .bind(decision)
+        .bind(doc.decision_reason.as_deref())
+        .bind(doc.decision_summary.as_deref())
         .execute(&state.db)
         .await
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
         doc_id_remap.insert(doc.id.clone(), new_doc_id);
     }
 
-    // Tabular reviews: just config, fresh UUIDs.
+    // Tabular reviews: just config, fresh UUIDs. v0.5.4 amendment:
+    // the review-level domain travels and is honoured here.
     for tr in &payload.tabular_reviews {
         let new_id = uuid::Uuid::new_v4().to_string();
         let cfg_str = serde_json::to_string(&tr.columns_config)
             .unwrap_or_else(|_| "[]".to_string());
+        let tr_domain = tr
+            .domain
+            .as_deref()
+            .filter(|s| crate::domain::is_valid(s))
+            .unwrap_or(project_domain);
         let _ = sqlx::query(
             "INSERT INTO tabular_reviews \
-             (id, user_id, project_id, title, columns_config, status, created_at, updated_at) \
-             VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))",
+             (id, user_id, project_id, title, columns_config, status, created_at, updated_at, domain) \
+             VALUES (?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'), ?)",
         )
         .bind(&new_id)
         .bind(&auth.user_id)
         .bind(&new_project_id)
         .bind(tr.title.as_deref().unwrap_or("Untitled Review"))
         .bind(&cfg_str)
+        .bind(tr_domain)
         .execute(&state.db)
         .await;
     }
 
-    // Custom workflows: recreate with fresh UUIDs. Restore the rich
-    // shape (type/practice/columns_config) shipped by 0010_workflows_extend.
+    // Custom workflows: recreate with fresh UUIDs. v0.5.4 amendment:
+    // the workflow-level domain travels so a `medical` custom
+    // workflow exported from a medical project lands as `medical` on
+    // the recipient too (instead of falling back to schema-default
+    // `legal`, which made it invisible to medical-domain pickers).
     for wf in &payload.workflows {
         let new_id = uuid::Uuid::new_v4().to_string();
         let cols_text = wf
@@ -709,10 +765,15 @@ async fn import_project(
             .as_ref()
             .map(|v| v.to_string())
             .unwrap_or_else(|| "[]".to_string());
+        let wf_domain = wf
+            .domain
+            .as_deref()
+            .filter(|s| crate::domain::is_valid(s))
+            .unwrap_or(project_domain);
         let _ = sqlx::query(
             "INSERT INTO workflows \
-             (id, user_id, title, prompt_md, type, practice, columns_config) \
-             VALUES (?, ?, ?, ?, ?, ?, ?)",
+             (id, user_id, title, prompt_md, type, practice, columns_config, domain) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&new_id)
         .bind(&auth.user_id)
@@ -721,6 +782,7 @@ async fn import_project(
         .bind(&wf.r#type)
         .bind(&wf.practice)
         .bind(&cols_text)
+        .bind(wf_domain)
         .execute(&state.db)
         .await;
     }
