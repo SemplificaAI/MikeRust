@@ -77,7 +77,7 @@
     confirmAlwaysEnabled = false,
   }: Props = $props()
 
-  const t = (k: string) => i18n.t(k)
+  const t = (k: string, p?: Record<string, string | number>) => i18n.t(k, p)
 
   let query = $state('')
   let selected = $state<Set<string>>(new Set())
@@ -98,6 +98,14 @@
     })
   )
 
+  // Are all the *visible* (search + filter applied) items selected?
+  // The select-all toggle scopes to the visible set so the user can
+  // select-all-medical-PDFs without affecting other domains they
+  // haven't surfaced.
+  const allVisibleSelected = $derived(
+    filtered.length > 0 && filtered.every((i) => selected.has(i.id))
+  )
+
   function toggle(id: string) {
     if (multi) {
       const next = new Set(selected)
@@ -107,6 +115,16 @@
     } else {
       selected = new Set([id])
     }
+  }
+
+  function toggleAllVisible() {
+    const next = new Set(selected)
+    if (allVisibleSelected) {
+      for (const i of filtered) next.delete(i.id)
+    } else {
+      for (const i of filtered) next.add(i.id)
+    }
+    selected = next
   }
 
   function confirm() {
@@ -130,6 +148,26 @@
         <Select options={filterOptions} bind:value={filterValue} size="sm" class="w-40" />
       {/if}
     </div>
+
+    {#if multi && !loading && filtered.length > 1}
+      <!-- Select-all bar — appears only in multi mode and only when
+           there's more than one visible row (no point on a list of one).
+           Selection state is scoped to the *visible* set so the user
+           can select-all on a search-filtered subset without disturbing
+           selections outside it. -->
+      <div class="flex items-center justify-between px-1 text-xs text-(--color-text-secondary)">
+        <span>
+          {t('PickerModal.selectedCount', { n: selected.size })}
+        </span>
+        <button
+          type="button"
+          onclick={toggleAllVisible}
+          class="font-medium text-(--color-brand-600) hover:text-(--color-brand-700) focus:outline-none"
+        >
+          {allVisibleSelected ? t('PickerModal.deselectAll') : t('PickerModal.selectAll')}
+        </button>
+      </div>
+    {/if}
 
     <div class="h-72 overflow-y-auto -mx-1 px-1">
       {#if loading}

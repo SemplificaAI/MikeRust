@@ -1090,6 +1090,11 @@
   "Nav": {
     "backToProject": "Retour à « {name} »"
   },
+  "PickerModal": {
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "selectedCount": "{n} sélectionné(s)"
+  },
   "Boot": {
     "cannotReach": "Impossible de joindre le backend",
     "cannotReachHint": "Assurez-vous que le backend MikeRust est en cours d'exécution. En développement, lancez-le depuis la racine du dépôt avec",
