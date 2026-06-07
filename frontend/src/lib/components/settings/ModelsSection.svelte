@@ -28,9 +28,6 @@
     local_api_key: string
     local_model: string
     active_provider: LlmProvider | null
-    /** v0.5.6 "Modalità sicura locale" — when true the form swaps the
-     *  free-form URL / api key / model fields for a curated picker. */
-    local_secure_mode: boolean
   }
 
   const s = (v: string | null | undefined): string => v ?? ''
@@ -52,7 +49,6 @@
       local_api_key: s(x.local_api_key),
       local_model: s(x.local_model),
       active_provider: x.active_provider ?? null,
-      local_secure_mode: x.local_secure_mode ?? false,
     }
   }
 </script>
@@ -66,14 +62,10 @@
   import Spinner from '$lib/components/ui/Spinner.svelte'
   import ChipGroup from '$lib/components/ui/ChipGroup.svelte'
   import EmptyState from '$lib/components/ui/EmptyState.svelte'
-  import Toggle from '$lib/components/ui/Toggle.svelte'
   import { modelsStore } from '$lib/stores/models.svelte'
   import { toastStore } from '$lib/stores/toast.svelte'
   import { i18n } from '$lib/stores/i18n.svelte'
   import { api } from '$lib/api/client'
-  import { userApi } from '$lib/api/user'
-  import type { CuratedModelEntry, LocalSecureEnsureEvent } from '$lib/types/user'
-  import { Download, CheckCircle2, AlertCircle, Trash2 } from 'lucide-svelte'
 
   let form = $state<LlmForm>(toForm({}))
   let initialized = $state(false)
@@ -310,106 +302,6 @@
     return null
   }
 
-  // ── v0.5.6 Modalità sicura locale ─────────────────────────────────
-  let secureOllamaRunning = $state<boolean | null>(null)
-  let secureModels = $state<CuratedModelEntry[]>([])
-  let secureLoading = $state(false)
-  // Per-model install progress. Keyed by curated id.
-  let installProgress = $state<Record<string, {
-    phase: LocalSecureEnsureEvent['phase']
-    bytes?: number
-    total?: number
-    status?: string
-    error?: string
-  }>>({})
-
-  async function refreshSecureCatalogue() {
-    secureLoading = true
-    try {
-      const hb = await userApi.localSecureHeartbeat()
-      secureOllamaRunning = hb.ollama_running
-      const m = await userApi.localSecureModels()
-      secureModels = m.models
-    } catch (e) {
-      secureOllamaRunning = false
-      toastStore.danger(i18n.t('Settings.localSecureLoadError'), {
-        detail: (e as Error).message,
-      })
-    } finally {
-      secureLoading = false
-    }
-  }
-
-  async function installSecure(modelId: string) {
-    installProgress = { ...installProgress, [modelId]: { phase: 'started' } }
-    try {
-      await userApi.localSecureEnsureStream(modelId, (ev) => {
-        if (ev.phase === 'pulling') {
-          installProgress = {
-            ...installProgress,
-            [modelId]: {
-              phase: 'pulling',
-              bytes: ev.completed_bytes,
-              total: ev.total_bytes,
-              status: ev.status,
-            },
-          }
-        } else if (ev.phase === 'error') {
-          installProgress = {
-            ...installProgress,
-            [modelId]: { phase: 'error', error: ev.message },
-          }
-          toastStore.danger(i18n.t('Settings.localSecureInstallError'), {
-            detail: ev.message,
-          })
-        } else {
-          installProgress = { ...installProgress, [modelId]: { phase: ev.phase } }
-        }
-      })
-      // Refresh ready/base flags after the stream completes.
-      await refreshSecureCatalogue()
-      // Drop progress only if the final state was ready — leave errors
-      // visible so the user can read them.
-      if (installProgress[modelId]?.phase === 'ready') {
-        const next = { ...installProgress }
-        delete next[modelId]
-        installProgress = next
-      }
-      toastStore.success(i18n.t('Settings.localSecureInstalledToast'))
-    } catch (e) {
-      installProgress = {
-        ...installProgress,
-        [modelId]: { phase: 'error', error: (e as Error).message },
-      }
-    }
-  }
-
-  async function uninstallSecure(modelId: string) {
-    try {
-      await userApi.localSecureUninstall(modelId)
-      await refreshSecureCatalogue()
-      toastStore.success(i18n.t('Settings.localSecureUninstalledToast'))
-    } catch (e) {
-      toastStore.danger(i18n.t('Settings.localSecureUninstallError'), {
-        detail: (e as Error).message,
-      })
-    }
-  }
-
-  // Fetch the catalogue when the user toggles secure mode ON (and the
-  // first time the section mounts in secure mode already).
-  $effect(() => {
-    if (form.local_secure_mode && secureModels.length === 0 && !secureLoading) {
-      void refreshSecureCatalogue()
-    }
-  })
-
-  function pct(b?: number, t?: number): string {
-    if (!t || t === 0) return ''
-    const p = Math.round(((b ?? 0) / t) * 100)
-    return `${p}%`
-  }
-
   async function save() {
     try {
       const main = normalizeRoleModelValue(form.main_model)
@@ -533,134 +425,29 @@
 
     <Card title={i18n.t('Settings.localProvider')}>
       <div class="space-y-3">
-        <!-- v0.5.6 — Modalità sicura locale toggle. ON → swap the free
-             URL/api-key fields for the curated picker below. -->
-        <div class="flex items-start gap-3 pb-2 border-b border-(--color-surface-200)">
-          <Toggle
-            bind:checked={form.local_secure_mode}
-            label={i18n.t('Settings.localSecureMode')}
-            description={i18n.t('Settings.localSecureModeHint')}
-          />
-        </div>
-
-        {#if form.local_secure_mode}
-          <!-- Curated picker. Server: locked to localhost:11434 -->
-          <div class="text-xs text-(--color-text-secondary)">
-            {i18n.t('Settings.localSecureServerLabel')}: <code>http://localhost:11434</code>
-            <span class="ml-1">🔒</span>
-          </div>
-
-          {#if secureLoading && secureModels.length === 0}
-            <div class="flex items-center gap-2 text-sm text-(--color-text-secondary) py-3">
-              <Spinner size="sm" />
-              {i18n.t('Common.loading')}
-            </div>
-          {:else if secureOllamaRunning === false}
-            <div class="flex items-start gap-2 text-sm text-(--color-warning-700) bg-(--color-warning-50) border border-(--color-warning-200) rounded-(--radius-md) p-3">
-              <AlertCircle size={16} class="shrink-0 mt-0.5" />
-              <div>
-                <p class="font-medium">{i18n.t('Settings.localSecureOllamaMissing')}</p>
-                <p class="text-xs mt-1">{i18n.t('Settings.localSecureOllamaMissingHint')}</p>
-                <a
-                  href="https://ollama.com/download"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-xs underline text-(--color-brand-600) hover:text-(--color-brand-700)"
-                >ollama.com/download</a>
-                <Button size="sm" variant="ghost" class="ml-2" onclick={() => void refreshSecureCatalogue()}>
-                  {i18n.t('Common.retry')}
-                </Button>
-              </div>
-            </div>
-          {:else}
-            <ul class="flex flex-col gap-2">
-              {#each secureModels as m (m.id)}
-                {@const prog = installProgress[m.id]}
-                <li class="border border-(--color-surface-200) rounded-(--radius-md) p-3">
-                  <div class="flex items-center gap-3">
-                    <div class="flex-1 min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="text-sm font-medium text-(--color-text-primary) truncate">
-                          {m.display_name}
-                        </span>
-                        {#if m.ready}
-                          <Badge tone="success" size="xs">
-                            <CheckCircle2 size={10} class="mr-1" />
-                            {i18n.t('Settings.localSecureInstalled')}
-                          </Badge>
-                        {/if}
-                      </div>
-                      <p class="text-xs text-(--color-text-secondary) truncate">
-                        {m.base_model}
-                      </p>
-                      <p class="text-xs text-(--color-text-disabled)">
-                        ~{m.approx_size_gb.toFixed(1)} GB · {i18n.t('Settings.localSecureMinRam', { n: m.min_ram_gb })}
-                      </p>
-                    </div>
-                    {#if m.ready}
-                      <Button size="sm" variant="ghost" onclick={() => void uninstallSecure(m.id)}>
-                        <Trash2 size={14} class="mr-1" />
-                        {i18n.t('Common.remove')}
-                      </Button>
-                    {:else if prog && prog.phase !== 'error'}
-                      <Button size="sm" disabled>
-                        <Spinner size="sm" class="mr-2" />
-                        {#if prog.phase === 'pulling'}
-                          {i18n.t('Settings.localSecurePulling')} {pct(prog.bytes, prog.total)}
-                        {:else if prog.phase === 'creating'}
-                          {i18n.t('Settings.localSecureCreating')}
-                        {:else}
-                          {i18n.t('Settings.localSecureStarting')}
-                        {/if}
-                      </Button>
-                    {:else}
-                      <Button size="sm" onclick={() => void installSecure(m.id)}>
-                        <Download size={14} class="mr-1" />
-                        {i18n.t('Settings.localSecureInstall')}
-                      </Button>
-                    {/if}
-                  </div>
-                  {#if prog && prog.phase === 'pulling' && prog.total}
-                    <div class="mt-2 h-1.5 w-full bg-(--color-surface-200) rounded-full overflow-hidden">
-                      <div
-                        class="h-full bg-(--color-brand-500) transition-all"
-                        style="width: {pct(prog.bytes, prog.total)}"
-                      ></div>
-                    </div>
-                  {/if}
-                  {#if prog && prog.phase === 'error'}
-                    <p class="mt-2 text-xs text-(--color-danger-600)">{prog.error}</p>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        {:else}
-          <!-- Free-form path (legacy / power user) -->
-          <div class="grid grid-cols-[1fr_auto] gap-2 items-end">
-            <Input
-              label={i18n.t('Settings.baseUrl')}
-              bind:value={form.local_base_url}
-              placeholder="http://127.0.0.1:11434/v1"
-              autocomplete="off"
-            />
-            <Button
-              size="sm"
-              variant="secondary"
-              disabled={!keySet(form.local_base_url)}
-              loading={localModelsLoading}
-              onclick={() => void refreshLocalRuntimeModels()}
-            >
-              Refresh
-            </Button>
-          </div>
+        <div class="grid grid-cols-[1fr_auto] gap-2 items-end">
           <Input
-            label={i18n.t('Settings.apiKeyOptional')}
-            type="password"
-            bind:value={form.local_api_key}
+            label={i18n.t('Settings.baseUrl')}
+            bind:value={form.local_base_url}
+            placeholder="http://127.0.0.1:11434/v1"
             autocomplete="off"
           />
-        {/if}
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={!keySet(form.local_base_url)}
+            loading={localModelsLoading}
+            onclick={() => void refreshLocalRuntimeModels()}
+          >
+            Refresh
+          </Button>
+        </div>
+        <Input
+          label={i18n.t('Settings.apiKeyOptional')}
+          type="password"
+          bind:value={form.local_api_key}
+          autocomplete="off"
+        />
       </div>
     </Card>
 
