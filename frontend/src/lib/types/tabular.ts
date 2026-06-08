@@ -8,7 +8,12 @@ import type { WorkflowColumn } from './workflow'
 /** One extracted value for a (document, column) pair. */
 export interface TabularCell {
   key: string
-  status: 'pending' | 'generating' | 'done' | 'error'
+  /** `rate_limited` (v0.6.3) is the transient state of a cell whose
+   *  last backend call returned 429; a frontend timer is scheduled
+   *  to retry it via /regenerate-cell with linear backoff. Renders
+   *  as an Hourglass icon, distinct from the red AlertCircle that
+   *  signals a permanent failure. */
+  status: 'pending' | 'generating' | 'done' | 'error' | 'rate_limited'
   content: string
 }
 

@@ -13,7 +13,7 @@
   import Modal from '$lib/components/ui/Modal.svelte'
   import PickerModal from '$lib/components/ui/PickerModal.svelte'
   import type { PickerItem } from '$lib/components/ui/PickerModal.svelte'
-  import { tabularApi, streamGenerate } from '$lib/api/tabular'
+  import { tabularApi, streamGenerate, cancelRateLimitRetries } from '$lib/api/tabular'
   import { documentsApi } from '$lib/api/documents'
   import { projectsApi } from '$lib/api/projects'
   import { docViewer } from '$lib/stores/doc-viewer.svelte'
@@ -21,7 +21,7 @@
   import { i18n } from '$lib/stores/i18n.svelte'
   import { domainLabel } from '$lib/types/domain'
   import type { TabularReview, TabularRow, TabularCell } from '$lib/types/tabular'
-  import { ArrowLeft, Play, Plus, Eraser, AlertCircle, RefreshCw, FileText, Download } from 'lucide-svelte'
+  import { ArrowLeft, Play, Plus, Eraser, AlertCircle, Hourglass, RefreshCw, FileText, Download } from 'lucide-svelte'
 
   let { id, onback }: { id: string; onback: () => void } = $props()
 
@@ -119,6 +119,10 @@
     abortCtrl?.abort()
     abortCtrl = null
     running = false
+    // Cancel any pending frontend rate-limit retries — leaving
+    // them armed would fire setTimeout callbacks against a
+    // run the user already aborted, causing zombie cell updates.
+    cancelRateLimitRetries(id)
   }
 
   // ── clear ────────────────────────────────────────────────────────
@@ -415,6 +419,21 @@
                         {:else if cell.status === 'generating'}
                           <span class="inline-flex items-center gap-1 text-(--color-text-secondary)">
                             <Spinner size="sm" />
+                          </span>
+                        {:else if cell.status === 'rate_limited'}
+                          <!-- v0.6.3 — transient 429 with auto-retry
+                               scheduled. Hourglass icon + tooltip
+                               with the countdown text from
+                               cell.content (e.g. "Tentativo 3/10
+                               fra 15s"). Distinct from the red
+                               AlertCircle so the user can tell
+                               apart "we're waiting for Mistral to
+                               cool down" from "permanently failed". -->
+                          <span
+                            class="inline-flex items-center gap-1 text-(--color-warning-700)"
+                            title={cell.content}
+                          >
+                            <Hourglass size={13} />
                           </span>
                         {:else if cell.status === 'error'}
                           <span class="inline-flex items-center gap-1 text-(--color-danger-500)">

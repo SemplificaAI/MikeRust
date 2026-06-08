@@ -104,6 +104,129 @@ export interface GenerateCallbacks {
   onDone: () => void
 }
 
+// ---------------------------------------------------------------------------
+// v0.6.3 — Frontend rate-limit retry loop for Mistral 429 cells.
+//
+// Backend layers already in place:
+//   * v0.6.1 — Mistral retry-with-backoff (1s/2s/4s, total ~7s) on
+//     POST /chat/completions.
+//   * v0.6.2 — Process-global Semaphore (1 permit) so MikeRust never
+//     issues two Mistral calls concurrently.
+//
+// Those two protect a SINGLE Mistral call against transient 429.
+// They don't help when a tabular review queues 24 cells through
+// the semaphore: cell #1 succeeds in ~1s, cell #2 in ~2s, … cell
+// #24 has been waiting 24s by then. If Mistral's quota state
+// shifts during that window (per-minute reset, monthly quota cliff)
+// the backend's own retry budget exhausts on the bottom cells and
+// the user sees them as red exclamations.
+//
+// This frontend layer wraps the picture: every cell that lands as
+// `status: "error"` with a 429-ish content gets:
+//   1. UI flipped to `rate_limited` (hourglass icon, not red X).
+//   2. Scheduled retry via POST /regenerate-cell after a delay
+//      that grows linearly: attempt N → N × 5s.
+//   3. After MAX_RATE_LIMIT_RETRIES (10) attempts (~50s last wait,
+//      ~275s cumulative) we give up and surface the original error.
+// ---------------------------------------------------------------------------
+
+const RATE_LIMIT_RETRIES = new Map<string, { attempts: number; timer?: number }>()
+const MAX_RATE_LIMIT_RETRIES = 10
+const BACKOFF_BASE_MS = 5000
+
+function cellRetryKey(reviewId: string, rowId: string, columnKey: string): string {
+  return `${reviewId}/${rowId}/${columnKey}`
+}
+
+/** Heuristic match against the Italian backend error string + the
+ *  raw status code. Matches both `Mistral 429:` and "rate limit". */
+function isRateLimitError(content: string): boolean {
+  return /\b429\b|rate[\s_]?limit/i.test(content)
+}
+
+function scheduleRateLimitRetry(
+  reviewId: string,
+  rowId: string,
+  columnKey: string,
+  cb: GenerateCallbacks,
+): void {
+  const key = cellRetryKey(reviewId, rowId, columnKey)
+  const state = RATE_LIMIT_RETRIES.get(key) ?? { attempts: 0 }
+  state.attempts++
+
+  if (state.attempts > MAX_RATE_LIMIT_RETRIES) {
+    // Final give-up — surface the error pill and clear state.
+    console.warn('[tabular] cell rate-limit exhausted', {
+      reviewId,
+      rowId,
+      columnKey,
+      attempts: state.attempts,
+    })
+    RATE_LIMIT_RETRIES.delete(key)
+    cb.onCell(
+      rowId,
+      columnKey,
+      'error',
+      `Rate limit non risolto dopo ${MAX_RATE_LIMIT_RETRIES} tentativi.`,
+    )
+    return
+  }
+
+  const delayMs = BACKOFF_BASE_MS * state.attempts
+  console.warn('[tabular] cell rate-limited, scheduling retry', {
+    reviewId,
+    rowId,
+    columnKey,
+    attempt: `${state.attempts}/${MAX_RATE_LIMIT_RETRIES}`,
+    delayMs,
+  })
+
+  // UI: hourglass + countdown text. Re-emitted on every retry so
+  // the user sees the attempt counter tick up.
+  cb.onCell(
+    rowId,
+    columnKey,
+    'rate_limited',
+    `Tentativo ${state.attempts}/${MAX_RATE_LIMIT_RETRIES} fra ${Math.round(
+      delayMs / 1000,
+    )}s`,
+  )
+
+  state.timer = window.setTimeout(async () => {
+    try {
+      const r = await tabularApi.regenerateCell(reviewId, rowId, columnKey)
+      const newStatus = String(r.status ?? '')
+      const newContent = String(r.content ?? '')
+      if (newStatus === 'error' && isRateLimitError(newContent)) {
+        // Still rate-limited — loop with growing backoff.
+        scheduleRateLimitRetry(reviewId, rowId, columnKey, cb)
+      } else {
+        // Either success or a different (permanent) error — flush
+        // the retry state and let the UI render the result.
+        RATE_LIMIT_RETRIES.delete(key)
+        cb.onCell(rowId, columnKey, newStatus, newContent)
+      }
+    } catch (e) {
+      RATE_LIMIT_RETRIES.delete(key)
+      cb.onCell(rowId, columnKey, 'error', (e as Error).message)
+    }
+  }, delayMs) as unknown as number
+
+  RATE_LIMIT_RETRIES.set(key, state)
+}
+
+/** Cancel every scheduled rate-limit retry for a given review.
+ *  Call from the host when the user clicks "Interrompi" or starts
+ *  a fresh "Genera" — otherwise the stale timers fire against the
+ *  new run and produce confused per-cell updates. */
+export function cancelRateLimitRetries(reviewId: string): void {
+  for (const [key, state] of RATE_LIMIT_RETRIES.entries()) {
+    if (!key.startsWith(`${reviewId}/`)) continue
+    if (state.timer != null) window.clearTimeout(state.timer)
+    RATE_LIMIT_RETRIES.delete(key)
+  }
+}
+
 /**
  * Stream a review run. POSTs to `/tabular-review/{id}/generate` and
  * parses the `data: {type}` SSE stream — `cell_update` events update
@@ -175,12 +298,34 @@ export function streamGenerate(id: string, cb: GenerateCallbacks): AbortControll
           continue
         }
         if (ev.type === 'cell_update') {
-          cb.onCell(
-            String(ev.row_id ?? ''),
-            String(ev.column_key ?? ''),
-            String(ev.status ?? ''),
-            String(ev.content ?? ''),
-          )
+          const rowId = String(ev.row_id ?? '')
+          const columnKey = String(ev.column_key ?? '')
+          const status = String(ev.status ?? '')
+          const content = String(ev.content ?? '')
+          // v0.6.3 diagnostic: every per-cell error gets logged so
+          // the DevTools console matches the visual cell pills. This
+          // is the path silently missed by v0.6.2's hook — cell
+          // errors come through cell_update events, not the
+          // stream-level `error` event.
+          if (status === 'error') {
+            console.warn('[tabular] cell error:', content, {
+              reviewId: id,
+              rowId,
+              columnKey,
+            })
+          }
+          // v0.6.3: detect 429-class errors and rewrite the status
+          // to `rate_limited`, then schedule a frontend-side retry
+          // with growing backoff (5s × attempt — 5s, 10s, 15s…).
+          // This sits ON TOP of the backend's 3-attempt retry
+          // (v0.6.1) + 1-permit semaphore (v0.6.2); together the
+          // three layers handle Experiment-tier 429 storms
+          // gracefully even on big tabular reviews.
+          if (status === 'error' && isRateLimitError(content)) {
+            scheduleRateLimitRetry(id, rowId, columnKey, cb)
+            return
+          }
+          cb.onCell(rowId, columnKey, status, content)
         } else if (ev.type === 'error') {
           // v0.6.2 diagnostic hook: log the backend SSE error event
           // verbatim with the review id so the user can correlate

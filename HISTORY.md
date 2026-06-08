@@ -13,6 +13,86 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.6.3 — 2026-06-08 (hotfix — tabular per-cell rate-limit retry loop + hourglass UI)
+
+v0.6.2's process-global Mistral semaphore (1 permit) capped
+concurrency to 1 RPS but didn't help when a tabular review queues
+24+ cells: cell #24 has been waiting 24s by the time its turn
+comes, and if Mistral's quota window shifts during that wait
+(per-minute reset cliff, monthly quota approached, transient
+upstream throttle) the backend's own retry budget exhausts and
+the cell lands as a red exclamation pill — visually identical to
+a permanent error.
+
+This release adds a **frontend-side retry loop** on top of the
+backend's two layers:
+
+  1. v0.6.1 — backend retry-with-backoff (3 attempts, ~7s)
+  2. v0.6.2 — process-global semaphore (1 permit, serialised)
+  3. **v0.6.3 — frontend rate-limit retry (this release)**
+
+When a cell_update SSE event arrives with `status: "error"` and the
+content matches a 429-class signature (`\b429\b|rate[\s_]?limit`),
+the frontend:
+
+  * Rewrites the cell status to `rate_limited` (new transient state
+    in `TabularCell.status` union) — distinct from the permanent
+    `error` so the UI can render an **Hourglass icon** instead of
+    the red AlertCircle.
+  * Schedules a retry via `POST /tabular-review/{id}/regenerate-cell`
+    after a **linearly-growing backoff**: attempt N → N × 5s.
+  * On success → cell flips to `done` and the retry state is
+    cleared.
+  * Still 429 → loop with the next backoff (attempt 2 = 10s,
+    3 = 15s, …).
+  * After `MAX_RATE_LIMIT_RETRIES = 10` attempts (~275s cumulative
+    wait) — give up and surface the original error as permanent.
+
+A `cancelRateLimitRetries(reviewId)` helper is exposed and called
+from the "Interrompi" / "Genera" actions in
+`TabularDetail.svelte` so stale `setTimeout` callbacks don't fire
+against a fresh run.
+
+### Diagnostics
+
+The v0.6.2 console.warn hook only covered stream-level `error`
+events. Per-cell errors come through `cell_update` events with
+`status: "error"` — that's why the user reported "non ho ricevuto
+alcun errore" despite seeing red pills. v0.6.3 fixes the gap:
+every `cell_update` with `status === "error"` now logs to the
+DevTools console with `[tabular] cell error:` prefix + the
+reviewId / rowId / columnKey context. The user can press F12 and
+correlate visual pills with backend errors verbatim.
+
+Additionally, every retry scheduled by the new loop emits
+`[tabular] cell rate-limited, scheduling retry` + attempt count +
+delay, so the user can watch the recovery in real time.
+
+### UI
+
+`TabularDetail.svelte` gains a fourth case in the cell-status
+switch: `rate_limited` renders the lucide `Hourglass` icon in
+the `--color-warning-700` tone, with the cell's content string
+(e.g. "Tentativo 3/10 fra 15s") attached as the `title` tooltip
+for hover-discoverability.
+
+### Why linear (not exponential) backoff
+
+User-driven product spec: the retry attempt × 5s gives the user a
+predictable mental model ("attempt N waits roughly N × 5s, the
+hourglass goes away after ~5min") that exponential would muddle
+("waited 256s? 512s? do I keep waiting?"). For the cell-extraction
+use case where ~10 attempts is the cap, linear gets us to ~50s
+last wait, ~275s total — close enough to "a quick coffee".
+
+### Tests
+
+No new backend tests (this release is frontend-only). The 24/24
+`llm::mistral` from v0.6.2 stay green; the frontend changes are
+covered by svelte-check (0 errors).
+
+---
+
 ## v0.6.2 — 2026-06-08 (hotfix — Mistral concurrency semaphore + JS console diagnostics)
 
 The retry-with-backoff added in v0.6.1 helped one-off 429 spikes
