@@ -819,6 +819,7 @@ mod tests {
             claude_api_key: None,
             gemini_api_key: None,
             gemini_region: None,
+            chat_id: None,
         }
     }
 

@@ -3,6 +3,7 @@ pub mod claude;
 pub mod gemini;
 pub mod local;
 pub mod ollama_manager;
+pub mod mistral;
 pub mod builtin_tools;
 pub mod summarize;
 pub mod hyde;
@@ -17,12 +18,13 @@ pub type BoxStream = Pin<Box<dyn Stream<Item = Result<StreamEvent>> + Send>>;
 
 pub fn provider_for_model(model: &str) -> Provider {
     // Explicit prefixes set by the model picker for user-configured
-    // providers. Mistral exposes an OpenAI-compatible API, so it rides
-    // the same `Provider::OpenAI` → local::stream path.
-    if model.starts_with("openai:")
-        || model.starts_with("local:")
-        || model.starts_with("mistral:")
-    {
+    // providers. As of v0.6.0 Mistral has a dedicated provider path
+    // (parallel_tool_calls / safe_prompt / prompt_cache_key) and no
+    // longer rides the generic OpenAI-compat shim.
+    if model.starts_with("mistral:") {
+        return Provider::Mistral;
+    }
+    if model.starts_with("openai:") || model.starts_with("local:") {
         return Provider::OpenAI;
     }
     if model.starts_with("claude") {
@@ -120,6 +122,7 @@ pub async fn stream_chat(params: StreamParams) -> Result<BoxStream> {
         Provider::Claude => claude::stream(params).await,
         Provider::OpenAI => local::stream(params).await,
         Provider::Gemini => gemini::stream(params).await,
+        Provider::Mistral => mistral::stream(params).await,
     }
 }
 
@@ -136,11 +139,13 @@ pub async fn complete_text(model: &str, system: Option<&str>, user: &str) -> Res
         claude_api_key: None,
         gemini_api_key: None,
         gemini_region: None,
+        chat_id: None,
     };
     match provider_for_model(model) {
         Provider::Claude => claude::complete(params).await,
         Provider::OpenAI => local::complete(params).await,
         Provider::Gemini => gemini::complete(params).await,
+        Provider::Mistral => mistral::complete(params).await,
     }
 }
 

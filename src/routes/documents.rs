@@ -332,12 +332,15 @@ async fn generate_rejection_summary(
         claude_api_key: creds.claude_api_key.clone(),
         gemini_api_key: creds.gemini_api_key.clone(),
         gemini_region: creds.gemini_region.clone(),
+        // Doc-summarisation is one-shot — no Mistral cache benefit.
+        chat_id: None,
     };
 
     let summary = match crate::llm::provider_for_model(model) {
         crate::llm::Provider::Claude => crate::llm::claude::complete(params).await?,
         crate::llm::Provider::OpenAI => crate::llm::local::complete(params).await?,
         crate::llm::Provider::Gemini => crate::llm::gemini::complete(params).await?,
+        crate::llm::Provider::Mistral => crate::llm::mistral::complete(params).await?,
     };
     Ok(summary.trim().to_string())
 }

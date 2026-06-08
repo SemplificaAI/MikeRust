@@ -812,12 +812,17 @@ async fn extract_cell(
         claude_api_key: settings.claude_api_key.clone(),
         gemini_api_key: settings.gemini_api_key.clone(),
         gemini_region: settings.gemini_region.clone(),
+        // Tabular-cell extraction is per-row one-shot; Mistral
+        // prompt-cache wouldn't help (each cell has a different
+        // user prompt). Could be revisited if we batch cells.
+        chat_id: None,
     };
 
     let result = match llm::provider_for_model(model) {
         llm::Provider::Claude => llm::claude::complete(params).await,
         llm::Provider::OpenAI => llm::local::complete(params).await,
         llm::Provider::Gemini => llm::gemini::complete(params).await,
+        llm::Provider::Mistral => llm::mistral::complete(params).await,
     };
     result
         .map(|t| t.trim().to_string())

@@ -4,7 +4,18 @@ use serde::{Deserialize, Serialize};
 pub enum Provider {
     Claude,
     Gemini,
-    OpenAI, // any OpenAI-compatible endpoint (vLLM, Infomaniak, etc.)
+    /// Any OpenAI-compatible endpoint — OpenAI cloud, local Ollama,
+    /// vLLM, Infomaniak, etc. Routed through `src/llm/local.rs`.
+    OpenAI,
+    /// Mistral La Plateforme (`api.mistral.ai`). Split from OpenAI
+    /// path because Mistral has provider-specific knobs we want to
+    /// always send: `parallel_tool_calls: false` (sequential tool
+    /// calling for predictable legal-workflow runs),
+    /// `prompt_cache_key` (charges 10% of normal token price on
+    /// cached prefixes — huge on long conversations), plus
+    /// Mistral-specific error mapping (401/403/422/429 with
+    /// retry-after parsing). Routed through `src/llm/mistral.rs`.
+    Mistral,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -187,6 +198,15 @@ pub struct StreamParams {
     /// Gemini API calls. None or "global" → public endpoint. Preview models
     /// always force global; the `gemini::base_url` builder enforces this.
     pub gemini_region: Option<String>,
+    /// Chat row id when the call is part of an actual conversation
+    /// (Some(uuid) on the user-driven /chat path), None for one-shot
+    /// callers like title generation, HyDE, or summarisation. Used by
+    /// the Mistral provider to derive a stable `prompt_cache_key`
+    /// (`mike_chat_{chat_id}`) — Mistral charges 10% of normal token
+    /// price on cache hits, which on long legal conversations with
+    /// stable system prompt + attached documents is a 70-90% cost
+    /// reduction. None disables caching for that call.
+    pub chat_id: Option<String>,
 }
 
 impl StreamParams {

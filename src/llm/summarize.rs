@@ -223,12 +223,15 @@ pub async fn summarize_old_turns(
         claude_api_key: creds.claude_api_key.clone(),
         gemini_api_key: creds.gemini_api_key.clone(),
         gemini_region: creds.gemini_region.clone(),
+        // Summarisation is one-shot — no cache benefit.
+        chat_id: None,
     };
 
     let summary = match super::provider_for_model(target_model) {
         super::Provider::Claude => super::claude::complete(params).await?,
         super::Provider::OpenAI => super::local::complete(params).await?,
         super::Provider::Gemini => super::gemini::complete(params).await?,
+        super::Provider::Mistral => super::mistral::complete(params).await?,
     };
 
     Ok(Message::system(format!(

@@ -201,7 +201,12 @@ fn effective_system(params: &StreamParams) -> String {
     }
 }
 
-fn to_wire_messages(system: &str, messages: &[Message]) -> Vec<serde_json::Value> {
+/// Shared OpenAI-compatible message-wire formatting. Used by both
+/// the generic [`local::stream`] path and the Mistral-dedicated
+/// [`super::mistral::stream`] — same JSON shape since Mistral's
+/// `/chat/completions` endpoint mirrors OpenAI's. Exposed
+/// `pub(crate)` so we don't duplicate the tool-call replay logic.
+pub(crate) fn to_wire_messages(system: &str, messages: &[Message]) -> Vec<serde_json::Value> {
     let mut out = Vec::new();
     if !system.is_empty() {
         out.push(json!({ "role": "system", "content": system }));
@@ -376,7 +381,12 @@ fn parse_sse_line(line: &str) -> Result<StreamEvent> {
         .ok_or_else(|| anyhow!("empty SSE line"))
 }
 
-fn parse_sse_line_opt(line: &str) -> Option<StreamEvent> {
+/// Parse one SSE record body emitted by an OpenAI-shape chat
+/// completions stream. Returns `Some` for content / tool / done
+/// events; `None` for keep-alive comments, unparseable lines, or
+/// empty deltas. Pub(crate) so [`super::mistral`] can reuse it —
+/// Mistral's SSE format is byte-identical to OpenAI's.
+pub(crate) fn parse_sse_line_opt(line: &str) -> Option<StreamEvent> {
     if !line.starts_with("data: ") { return None; }
     let data = line[6..].trim();
     if data == "[DONE]" { return Some(StreamEvent::Done); }
@@ -487,6 +497,7 @@ mod tests {
                 model: model.to_string(),
                 secure_mode,
             }),
+            chat_id: None,
             claude_api_key: None,
             gemini_api_key: None,
             gemini_region: None,

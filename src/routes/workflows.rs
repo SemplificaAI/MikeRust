@@ -476,11 +476,14 @@ async fn translate_prompt(
         claude_api_key: settings.claude_api_key.clone(),
         gemini_api_key: settings.gemini_api_key.clone(),
         gemini_region: settings.gemini_region.clone(),
+        // Translation is one-shot — no Mistral cache benefit.
+        chat_id: None,
     };
     let translated = match llm::provider_for_model(&model) {
         llm::Provider::Claude => llm::claude::complete(params).await,
         llm::Provider::OpenAI => llm::local::complete(params).await,
         llm::Provider::Gemini => llm::gemini::complete(params).await,
+        llm::Provider::Mistral => llm::mistral::complete(params).await,
     }
     .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
 

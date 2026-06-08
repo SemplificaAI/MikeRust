@@ -3724,6 +3724,9 @@ async fn stream_chat_root(
                 claude_api_key: claude_key.clone(),
                 gemini_api_key: gemini_key.clone(),
                 gemini_region: gemini_region.clone(),
+                // Used by the Mistral provider to derive a stable
+                // prompt_cache_key. Other providers ignore this field.
+                chat_id: Some(chat_id_clone.clone()),
             };
 
             let stream = llm::stream_chat(params).await;
@@ -5847,6 +5850,10 @@ async fn post_message(
         claude_api_key: user_settings.as_ref().and_then(|s| s.claude_api_key.clone()),
         gemini_api_key: user_settings.as_ref().and_then(|s| s.gemini_api_key.clone()),
         gemini_region: user_settings.as_ref().and_then(|s| s.gemini_region.clone()),
+        // This is the non-chat endpoint (no Mistral cache key
+        // benefit on one-shot calls); pass through the route's
+        // chat_id anyway so future-Mistral can opt-in.
+        chat_id: Some(chat_id.clone()),
     };
 
     // SSE stream
@@ -6072,12 +6079,15 @@ async fn generate_title(
         claude_api_key: user_settings.as_ref().and_then(|s| s.claude_api_key.clone()),
         gemini_api_key: user_settings.as_ref().and_then(|s| s.gemini_api_key.clone()),
         gemini_region: user_settings.as_ref().and_then(|s| s.gemini_region.clone()),
+        // Title generation is one-shot — no Mistral cache benefit.
+        chat_id: None,
     };
 
     let title_text = match llm::provider_for_model(&title_model) {
         llm::Provider::Claude => llm::claude::complete(params).await,
         llm::Provider::OpenAI => llm::local::complete(params).await,
         llm::Provider::Gemini => llm::gemini::complete(params).await,
+        llm::Provider::Mistral => llm::mistral::complete(params).await,
     }
     .map_err(|e| err(StatusCode::BAD_GATEWAY, &e.to_string()))?;
 
