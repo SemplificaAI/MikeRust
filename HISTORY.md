@@ -13,6 +13,40 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.6.6 — 2026-06-08 (hotfix — Mistral profile picker auto-saves on click)
+
+The Mistral profile picker added in v0.5.6 (Equilibrato / Premium)
+and extended in v0.6.5 (Veloce) only mutated the local form state.
+Persistence required the user to click "Salva modifiche" at the
+bottom of the section — confusing because the highlight on the
+picked profile *suggested* the choice was committed, but a
+re-entry to Settings (or a fresh chat turn) would still hit the
+previously-saved role models.
+
+v0.6.6 turns `applyMistralProfile` into an async function that
+immediately persists the three role assignments via
+`modelsStore.save({ main_model, title_model, tabular_model })`
+before showing the success toast. On a save failure (network drop,
+backend 5xx) the form reverts to the previous snapshot so the
+"Attivo" badge keeps pointing at what's actually persisted — no
+lying about the state.
+
+Side benefit: the existing `activeMistralProfile` derived state
+already reads `form.main_model` etc., which on next component
+mount initialises from `modelsStore.settings`. So with persistence
+now happening on every click, the picker correctly highlights the
+last-chosen profile when the user re-enters
+Settings → Modelli LLM — even after a full app restart, because
+the settings are read from the DB via GET /llm-settings on mount.
+
+Single behaviour change, no schema migration, no API contract
+change. svelte-check 0 errors. The three onclick handlers in the
+profile picker grid now use `void applyMistralProfile(...)` to
+acknowledge the unawaited promise (errors are caught inside the
+function).
+
+---
+
 ## v0.6.5 — 2026-06-08 (Mistral "Fast" profile preset)
 
 Adds a third Mistral profile preset alongside "Equilibrato" and

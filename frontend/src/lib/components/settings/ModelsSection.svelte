@@ -480,18 +480,50 @@
     return 'custom'
   })
 
-  function applyMistralProfile(profile: 'fast' | 'balanced' | 'premium') {
+  async function applyMistralProfile(profile: 'fast' | 'balanced' | 'premium') {
     const preset = MISTRAL_PRESETS[profile]
+    // Snapshot the previous role assignments so we can revert the
+    // form on a save failure (network drop, 5xx). Without this the
+    // user would see the highlight jump to the new profile but the
+    // backend state stays old — confusing.
+    const before = {
+      main_model: form.main_model,
+      title_model: form.title_model,
+      tabular_model: form.tabular_model,
+    }
     form.main_model = preset.main
     form.title_model = preset.title
     form.tabular_model = preset.tabular
-    const toastKey =
-      profile === 'fast'
-        ? 'Settings.mistralProfileFastApplied'
-        : profile === 'premium'
-          ? 'Settings.mistralProfilePremiumApplied'
-          : 'Settings.mistralProfileBalancedApplied'
-    toastStore.info(i18n.t(toastKey))
+    try {
+      // Persist immediately. The earlier behaviour (only sync to
+      // the form, save on the section's "Salva modifiche" button)
+      // confused users: clicking a profile felt like a no-op until
+      // they realised they had to click Save. Now profile clicks
+      // are committed in one shot, and the `activeMistralProfile`
+      // highlight on the next re-entry comes straight from the
+      // persisted `modelsStore.settings.*` fields.
+      await modelsStore.save({
+        main_model: preset.main,
+        title_model: preset.title,
+        tabular_model: preset.tabular,
+      })
+      const toastKey =
+        profile === 'fast'
+          ? 'Settings.mistralProfileFastApplied'
+          : profile === 'premium'
+            ? 'Settings.mistralProfilePremiumApplied'
+            : 'Settings.mistralProfileBalancedApplied'
+      toastStore.info(i18n.t(toastKey))
+    } catch (e) {
+      // Revert the visible form so the highlight reflects what's
+      // actually persisted server-side.
+      form.main_model = before.main_model
+      form.title_model = before.title_model
+      form.tabular_model = before.tabular_model
+      toastStore.danger(i18n.t('Settings.llmSettingsError'), {
+        detail: (e as Error).message,
+      })
+    }
   }
 
   async function save() {
@@ -734,7 +766,7 @@
             <button
               type="button"
               disabled={!keySet(form.mistral_api_key)}
-              onclick={() => applyMistralProfile('fast')}
+              onclick={() => void applyMistralProfile('fast')}
               class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
                      {activeMistralProfile === 'fast'
                        ? 'border-(--color-brand-500) bg-(--color-brand-50)'
@@ -760,7 +792,7 @@
             <button
               type="button"
               disabled={!keySet(form.mistral_api_key)}
-              onclick={() => applyMistralProfile('balanced')}
+              onclick={() => void applyMistralProfile('balanced')}
               class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
                      {activeMistralProfile === 'balanced'
                        ? 'border-(--color-brand-500) bg-(--color-brand-50)'
@@ -786,7 +818,7 @@
             <button
               type="button"
               disabled={!keySet(form.mistral_api_key)}
-              onclick={() => applyMistralProfile('premium')}
+              onclick={() => void applyMistralProfile('premium')}
               class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
                      {activeMistralProfile === 'premium'
                        ? 'border-(--color-brand-500) bg-(--color-brand-50)'
