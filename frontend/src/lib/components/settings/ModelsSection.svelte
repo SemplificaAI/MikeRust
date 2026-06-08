@@ -412,6 +412,68 @@
     return `${p}%`
   }
 
+  // ── Mistral role-model profiles ───────────────────────────────────
+  // Two opinionated presets the user can apply with one click, plus
+  // an implicit "custom" fall-through when the role assignments
+  // don't match either preset. The presets fill main / title /
+  // tabular role models with Mistral ids; clicking again with the
+  // same preset is a no-op (idempotent). The toggle is disabled
+  // when no API key is configured — otherwise we'd save role
+  // assignments that the chat dispatcher would fail to fulfil.
+  type MistralProfile = 'balanced' | 'premium' | 'custom'
+
+  const MISTRAL_PRESETS: Record<Exclude<MistralProfile, 'custom'>, {
+    main: string
+    title: string
+    tabular: string
+  }> = {
+    // Default sweet spot. Large 3 ($0.5/$1.5 per Mtok, vision +
+    // function calling + 128K) covers the bulk of legal chat;
+    // Ministral 3B ($0.1/$0.1) crunches chat titles for cents per
+    // thousand. Both share 128K context.
+    balanced: {
+      main: 'mistral:mistral-large-latest',
+      title: 'mistral:ministral-3b-latest',
+      tabular: 'mistral:mistral-large-latest',
+    },
+    // Frontier path. Medium 3.5 ($1.5/$7.5) is Mistral's current
+    // top-of-line multimodal; Small 4 ($0.1/$0.3) is a better title
+    // model than Ministral when the user is okay paying ~3× for it
+    // (they're already paying Medium's premium).
+    premium: {
+      main: 'mistral:mistral-medium-latest',
+      title: 'mistral:mistral-small-latest',
+      tabular: 'mistral:mistral-medium-latest',
+    },
+  }
+
+  const activeMistralProfile = $derived.by<MistralProfile>(() => {
+    for (const [profile, models] of Object.entries(MISTRAL_PRESETS)) {
+      if (
+        form.main_model === models.main &&
+        form.title_model === models.title &&
+        form.tabular_model === models.tabular
+      ) {
+        return profile as MistralProfile
+      }
+    }
+    return 'custom'
+  })
+
+  function applyMistralProfile(profile: 'balanced' | 'premium') {
+    const preset = MISTRAL_PRESETS[profile]
+    form.main_model = preset.main
+    form.title_model = preset.title
+    form.tabular_model = preset.tabular
+    toastStore.info(
+      i18n.t(
+        profile === 'premium'
+          ? 'Settings.mistralProfilePremiumApplied'
+          : 'Settings.mistralProfileBalancedApplied',
+      ),
+    )
+  }
+
   async function save() {
     try {
       const main = normalizeRoleModelValue(form.main_model)
@@ -530,6 +592,78 @@
           autocomplete="off"
         />
         <Select label={i18n.t('Settings.model')} options={modelOptions('mistral')} bind:value={form.mistral_model} />
+
+        <!-- Profile preset picker. Sets main_model / title_model /
+             tabular_model to a curated combination of Mistral models
+             in one click. Active state is computed from the current
+             role assignments so the user immediately sees which
+             profile they're on (or "Personalizzato" when their
+             choices don't match any preset). Disabled when no API
+             key is set — clicking would assign Mistral roles that
+             the chat dispatcher can't fulfil. -->
+        <div class="pt-2 border-t border-(--color-surface-200)">
+          <p class="text-xs font-medium text-(--color-text-secondary) mb-2">
+            {i18n.t('Settings.mistralProfileTitle')}
+          </p>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!keySet(form.mistral_api_key)}
+              onclick={() => applyMistralProfile('balanced')}
+              class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
+                     {activeMistralProfile === 'balanced'
+                       ? 'border-(--color-brand-500) bg-(--color-brand-50)'
+                       : 'border-(--color-surface-300) hover:border-(--color-surface-400)'}
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-(--color-text-primary)">
+                  {i18n.t('Settings.mistralProfileBalanced')}
+                </span>
+                {#if activeMistralProfile === 'balanced'}
+                  <Badge tone="brand" size="xs">{i18n.t('Settings.mistralProfileActive')}</Badge>
+                {/if}
+              </div>
+              <p class="text-xs text-(--color-text-secondary) mt-1">
+                {i18n.t('Settings.mistralProfileBalancedHint')}
+              </p>
+              <p class="text-[11px] text-(--color-text-disabled) mt-1 font-mono">
+                Large 3 · Ministral 3B · Large 3
+              </p>
+            </button>
+
+            <button
+              type="button"
+              disabled={!keySet(form.mistral_api_key)}
+              onclick={() => applyMistralProfile('premium')}
+              class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
+                     {activeMistralProfile === 'premium'
+                       ? 'border-(--color-brand-500) bg-(--color-brand-50)'
+                       : 'border-(--color-surface-300) hover:border-(--color-surface-400)'}
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-(--color-text-primary)">
+                  {i18n.t('Settings.mistralProfilePremium')}
+                </span>
+                {#if activeMistralProfile === 'premium'}
+                  <Badge tone="brand" size="xs">{i18n.t('Settings.mistralProfileActive')}</Badge>
+                {/if}
+              </div>
+              <p class="text-xs text-(--color-text-secondary) mt-1">
+                {i18n.t('Settings.mistralProfilePremiumHint')}
+              </p>
+              <p class="text-[11px] text-(--color-text-disabled) mt-1 font-mono">
+                Medium 3.5 · Small 4 · Medium 3.5
+              </p>
+            </button>
+          </div>
+          {#if activeMistralProfile === 'custom' && keySet(form.mistral_api_key)}
+            <p class="text-xs text-(--color-text-disabled) mt-2 italic">
+              {i18n.t('Settings.mistralProfileCustomNote')}
+            </p>
+          {/if}
+        </div>
       </div>
     </Card>
 
