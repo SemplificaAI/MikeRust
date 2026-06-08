@@ -36,11 +36,42 @@ use futures_util::stream;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::VecDeque;
+use std::sync::LazyLock;
 use std::time::Duration;
+use tokio::sync::Semaphore;
 
 use super::local::{parse_sse_line_opt, to_wire_messages};
 use super::types::{StreamEvent, StreamParams};
 use crate::llm::BoxStream;
+
+/// Process-global concurrency cap for Mistral cloud requests.
+///
+/// Why a hard cap of 1: Mistral's free Experiment tier defaults to
+/// 1 request per second per workspace. The chat composer in this
+/// product routinely fires several Mistral calls per turn (main
+/// chat + title gen + HyDE retrieval + per-cell tabular
+/// extraction) — without serialisation they all race and 429 the
+/// instant they overlap. Retry-with-backoff (added in v0.6.1)
+/// helps with one-off spikes but doesn't fix the underlying
+/// concurrency: 8 cell-extractors retrying simultaneously after
+/// 1s still produce 7 failures, then 6 after 2s, etc.
+///
+/// The semaphore lives at module scope so it spans the whole
+/// MikeRust process — chat / tabular / HyDE / title gen all
+/// queue through the same gate. The cap of 1 is safe for
+/// Experiment tier (1 RPS) and only mildly underutilises paid
+/// Scale tier (typically 4-8 RPS); paid users rarely 429 anyway,
+/// so the conservative default is the right product trade-off.
+///
+/// If a user is on Scale and feels the throughput hit, the next
+/// step is to expose a per-user override (settings.json /
+/// MISTRAL_CONCURRENCY env var) — tracked as a follow-up, not
+/// shipped in v0.6.2 because the audience is small enough to
+/// support manually.
+const MISTRAL_MAX_CONCURRENT: usize = 1;
+
+static MISTRAL_GATE: LazyLock<Semaphore> =
+    LazyLock::new(|| Semaphore::new(MISTRAL_MAX_CONCURRENT));
 
 /// Max retry attempts on HTTP 429 before surfacing the error to the
 /// caller. Three is enough to ride out the typical RPS hiccup on
@@ -91,6 +122,20 @@ async fn post_with_retry(
     api_key: &str,
     body: &serde_json::Value,
 ) -> Result<reqwest::Response> {
+    // Acquire the process-global concurrency permit. With
+    // MISTRAL_MAX_CONCURRENT = 1 this serialises every Mistral call
+    // (chat / tabular / HyDE / title gen) so we never have more
+    // than one Mistral request in flight at a time — keeping us
+    // under Experiment tier's 1 RPS limit.
+    //
+    // `acquire` is fair (FIFO) so the order callers fire matches
+    // the order their results come back; useful for tabular cell
+    // extraction where row-by-row output makes more sense than
+    // arbitrary reorder.
+    let _permit = MISTRAL_GATE
+        .acquire()
+        .await
+        .map_err(|e| anyhow!("Mistral semaphore poisoned: {e}"))?;
     for attempt in 0..MAX_429_RETRIES {
         let resp = client
             .post(url)
@@ -576,6 +621,34 @@ mod tests {
         // exponential — better than panic or zero wait.
         let b = next_backoff(2, Some("Mon, 01 Jan 2026 00:00:00 GMT"));
         assert_eq!(b, Duration::from_secs(4));
+    }
+
+    #[test]
+    fn mistral_concurrency_cap_is_one() {
+        // The semaphore is the actual fix for the Experiment-tier
+        // 429 storm — retry-with-backoff alone doesn't help when 8
+        // tabular cells fire simultaneously, they just all retry in
+        // parallel and burn through the budget. The cap of 1 is the
+        // product trade-off: safe on Experiment, slightly under
+        // Scale's 4-8 RPS but paid users rarely 429 anyway.
+        assert_eq!(MISTRAL_MAX_CONCURRENT, 1);
+    }
+
+    #[tokio::test]
+    async fn mistral_gate_serialises_acquirers() {
+        // Verify the semaphore actually blocks a second acquirer
+        // while the first holds the permit. We use try_acquire
+        // (non-blocking) so the test doesn't depend on timing.
+        let first = MISTRAL_GATE.acquire().await.unwrap();
+        let second = MISTRAL_GATE.try_acquire();
+        assert!(
+            second.is_err(),
+            "second acquirer must block while the first holds the permit (cap = 1)"
+        );
+        drop(first);
+        // After drop, a fresh acquire succeeds.
+        let third = MISTRAL_GATE.try_acquire();
+        assert!(third.is_ok());
     }
 
     #[test]

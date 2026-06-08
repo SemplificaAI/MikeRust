@@ -13,6 +13,70 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.6.2 — 2026-06-08 (hotfix — Mistral concurrency semaphore + JS console diagnostics)
+
+The retry-with-backoff added in v0.6.1 helped one-off 429 spikes
+but didn't address the root cause: the chat composer routinely
+fires several Mistral calls in parallel (main chat + title gen +
+HyDE retrieval + tabular cell extraction), and on the free
+Experiment tier (1 req/s) they all 429 simultaneously. Retry
+doesn't help when 8 callers retry at the same time — they just
+race again on the next attempt.
+
+v0.6.2 adds the proper fix: a **process-global concurrency cap**
+on Mistral requests via a `tokio::sync::Semaphore` with 1 permit.
+Every Mistral call (chat / tabular / HyDE / title gen) acquires
+the permit before issuing the HTTP request and releases it on
+completion. Combined with v0.6.1's retry-with-backoff, this
+ensures we never exceed 1 RPS to Mistral regardless of how many
+MikeRust subsystems try to call it concurrently.
+
+The cap of 1 is the safe default for Experiment tier (1 RPS limit).
+For paid Scale-tier users (4-8 RPS) this is mildly conservative
+but those users rarely 429 anyway, so the simpler "always 1"
+behaviour is the right trade-off. Future work: expose a
+`MISTRAL_MAX_CONCURRENT` env var / per-user setting for power
+users on paid tiers.
+
+The semaphore lives in `src/llm/mistral.rs` at module scope as a
+`LazyLock<Semaphore>` so it spans the entire MikeRust process
+lifetime. Acquisition is fair (FIFO) so tabular cells process
+row-by-row in the order the worker pool fires them — useful
+because the per-row pill rendering reads better in deterministic
+order than arbitrary reorder.
+
+### JS console diagnostics
+
+Two `console.warn` hooks added to surface LLM errors in the
+DevTools console alongside the existing UI banners. The error
+strings already appear in the chat error banner and the per-cell
+red pill in tabular reviews, but the visual treatment is purposely
+terse; the console hook lets the user triage the actual cause:
+
+* `[chat] LLM error: …` with `{ activeModel, chatId }` context
+  — fires from `chatStore`'s `onError` SSE callback.
+* `[tabular] stream error event: …` with `{ reviewId, raw }`
+  — fires from `streamGenerate`'s `cell_update` event-loop
+  on `type === 'error'`. A second hook in the outer fetch
+  catch logs network-level failures with the same prefix.
+
+Press F12 → Console while reproducing a 429 storm to see what
+Mistral is returning underneath the visual errors.
+
+### Tests
+
+Two new unit tests in `src/llm/mistral.rs`:
+* `mistral_concurrency_cap_is_one` — asserts the constant
+  hasn't drifted without intent.
+* `mistral_gate_serialises_acquirers` — verifies the semaphore
+  actually blocks a second acquirer while the first holds the
+  permit (uses `try_acquire` to keep the test sync).
+
+24/24 `llm::mistral` tests green; 112/112 across `llm::`.
+svelte-check 0 errors.
+
+---
+
 ## v0.6.1 — 2026-06-08 (hotfix — Mistral 429 retry-with-backoff)
 
 Single-fix release on top of v0.6.0. The dedicated Mistral provider

@@ -549,6 +549,18 @@ function createChatStore() {
             if (m) m.citations = list.map((c) => toCitation(c as Record<string, unknown>))
           },
           onError: (msg) => {
+            // Surface to the chat UI banner AND the DevTools console.
+            // The browser-side console.warn is the v0.6.2 diagnostic
+            // hook: when the backend retry-with-backoff + semaphore
+            // gate can't fully mask a Mistral 429 (genuinely
+            // exhausted quota, or an upstream outage), this is
+            // where the user sees the structured error in the
+            // Developer Tools (F12 → Console) for triage.
+            console.warn(
+              '[chat] LLM error:',
+              msg,
+              { activeModel: streamingModel, chatId: activeId },
+            )
             error = msg
           },
           onDone: () => {

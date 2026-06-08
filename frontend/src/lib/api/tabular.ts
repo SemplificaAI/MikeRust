@@ -130,7 +130,18 @@ export function streamGenerate(id: string, cb: GenerateCallbacks): AbortControll
         },
       )
     } catch (e) {
-      if ((e as Error).name !== 'AbortError') cb.onError((e as Error).message)
+      const err = e as Error
+      if (err.name !== 'AbortError') {
+        // v0.6.2 diagnostic hook: surface tabular cell errors in
+        // the DevTools console too. The tabular UI renders a small
+        // red exclamation per failed cell which doesn't carry the
+        // backend error string; the console.warn is where the user
+        // can triage 429 storms vs auth failures vs network drops.
+        console.warn('[tabular] generate stream failed:', err.message, {
+          reviewId: id,
+        })
+        cb.onError(err.message)
+      }
       cb.onDone()
       return
     }
@@ -171,6 +182,14 @@ export function streamGenerate(id: string, cb: GenerateCallbacks): AbortControll
             String(ev.content ?? ''),
           )
         } else if (ev.type === 'error') {
+          // v0.6.2 diagnostic hook: log the backend SSE error event
+          // verbatim with the review id so the user can correlate
+          // failed cell pills with their backend cause (typically
+          // Mistral 429 cascade or auth failure).
+          console.warn('[tabular] stream error event:', ev.message, {
+            reviewId: id,
+            raw: ev,
+          })
           cb.onError(String(ev.message ?? 'stream error'))
         }
       }
