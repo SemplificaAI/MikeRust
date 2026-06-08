@@ -37,8 +37,8 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::VecDeque;
 use std::sync::LazyLock;
-use std::time::Duration;
-use tokio::sync::Semaphore;
+use std::time::{Duration, Instant};
+use tokio::sync::{Mutex, Semaphore};
 
 use super::local::{parse_sse_line_opt, to_wire_messages};
 use super::types::{StreamEvent, StreamParams};
@@ -72,6 +72,33 @@ const MISTRAL_MAX_CONCURRENT: usize = 1;
 
 static MISTRAL_GATE: LazyLock<Semaphore> =
     LazyLock::new(|| Semaphore::new(MISTRAL_MAX_CONCURRENT));
+
+/// Minimum wall-clock spacing between two consecutive Mistral calls.
+///
+/// Why a spacing on top of the v0.6.2 semaphore: the semaphore caps
+/// CONCURRENCY (no two requests in flight at once) but doesn't cap
+/// THROUGHPUT. If call A takes 0.3s, call B starts at t=0.3s and
+/// finishes at t=0.6s — that's two calls in the same wall-clock
+/// second, and Mistral Experiment tier (1 RPS via token bucket)
+/// 429s the second one.
+///
+/// v0.6.2 worked for slow calls (Mistral Large 3 typically takes
+/// 1-3s per turn) but broke down for fast title-generation calls
+/// to Ministral 3B (~0.3-0.5s) or whenever the user's tabular
+/// review burned through many cheap cells in a row.
+///
+/// 1100ms (vs the nominal 1000ms) gives ~100ms of safety margin
+/// against Mistral's bucket-refill granularity. Slows worst-case
+/// throughput from 1.00 RPS to 0.91 RPS — acceptable for the
+/// product, drops the 429 rate to near zero on Experiment.
+const MISTRAL_MIN_INTERVAL: Duration = Duration::from_millis(1100);
+
+/// Wall-clock timestamp of the most recently *issued* Mistral
+/// request. Read and written under the semaphore, so only one
+/// task touches it at a time. `Instant::now()` at startup so the
+/// first call doesn't pay an initial pause.
+static MISTRAL_LAST_CALL: LazyLock<Mutex<Instant>> =
+    LazyLock::new(|| Mutex::new(Instant::now() - MISTRAL_MIN_INTERVAL));
 
 /// Max retry attempts on HTTP 429 before surfacing the error to the
 /// caller. Three is enough to ride out the typical RPS hiccup on
@@ -136,6 +163,27 @@ async fn post_with_retry(
         .acquire()
         .await
         .map_err(|e| anyhow!("Mistral semaphore poisoned: {e}"))?;
+
+    // v0.6.4 — enforce minimum spacing between consecutive Mistral
+    // requests. The semaphore alone is concurrency control; this
+    // converts it into a true rate limiter (≤ 1 RPS) by sleeping
+    // until at least MISTRAL_MIN_INTERVAL has passed since the
+    // previous request was issued. The mutex is held only briefly
+    // — under the semaphore's mutual exclusion the lock acquisition
+    // is uncontended in steady state.
+    {
+        let mut last = MISTRAL_LAST_CALL.lock().await;
+        let elapsed = last.elapsed();
+        if elapsed < MISTRAL_MIN_INTERVAL {
+            let wait = MISTRAL_MIN_INTERVAL - elapsed;
+            tracing::debug!(
+                "[llm/mistral] rate-limit spacing: sleeping {wait:?} (since last call: {elapsed:?})"
+            );
+            tokio::time::sleep(wait).await;
+        }
+        *last = Instant::now();
+    }
+
     for attempt in 0..MAX_429_RETRIES {
         let resp = client
             .post(url)
@@ -621,6 +669,19 @@ mod tests {
         // exponential — better than panic or zero wait.
         let b = next_backoff(2, Some("Mon, 01 Jan 2026 00:00:00 GMT"));
         assert_eq!(b, Duration::from_secs(4));
+    }
+
+    #[test]
+    fn mistral_min_interval_is_at_least_one_second() {
+        // v0.6.4 — Mistral Experiment is nominally 1 RPS via token
+        // bucket; we ship 1100ms (10% safety margin) so brief bursts
+        // don't 429. Pin the constant so a well-meaning future PR
+        // doesn't accidentally drop below 1s and re-introduce the
+        // 429 cascade.
+        assert!(
+            MISTRAL_MIN_INTERVAL.as_millis() >= 1000,
+            "MISTRAL_MIN_INTERVAL must be >= 1000ms — Mistral Experiment tier is 1 RPS"
+        );
     }
 
     #[test]

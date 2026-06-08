@@ -13,6 +13,96 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.6.4 — 2026-06-08 (hotfix — Mistral 1-RPS spacing + global cursor-pointer)
+
+Two issues addressed:
+
+### 1. Mistral 429 cascade despite the v0.6.2 semaphore
+
+The semaphore added in v0.6.2 caps **concurrency** (at most one
+Mistral request in flight at a time) but doesn't cap
+**throughput** — a fast call to Ministral 3B (~0.3s) followed
+immediately by the next gates produces 2 RPS in the same wall-clock
+second, and Mistral Experiment's token-bucket rate-limiter
+(nominally 1 RPS) 429s the second one.
+
+The user logs from a 24-cell tabular review on v0.6.3 confirmed
+the failure mode: cells fired sequentially through the semaphore
+but ~half of them still 429'd because the calls were spaced
+~0.5s apart, not ~1s.
+
+v0.6.4 adds a **minimum-spacing rate limiter** on top of the
+v0.6.2 semaphore:
+
+```rust
+static MISTRAL_MIN_INTERVAL: Duration = Duration::from_millis(1100);
+static MISTRAL_LAST_CALL: LazyLock<Mutex<Instant>> = ...;
+
+async fn post_with_retry(...) {
+    let _permit = MISTRAL_GATE.acquire().await?;
+    {
+        let mut last = MISTRAL_LAST_CALL.lock().await;
+        let elapsed = last.elapsed();
+        if elapsed < MISTRAL_MIN_INTERVAL {
+            tokio::time::sleep(MISTRAL_MIN_INTERVAL - elapsed).await;
+        }
+        *last = Instant::now();
+    }
+    // ... existing retry loop ...
+}
+```
+
+The 1100ms (vs nominal 1000ms) gives a 10% safety margin against
+Mistral's bucket-refill granularity. Worst-case effective
+throughput drops from 1.00 RPS to 0.91 RPS — irrelevant for the
+chat composer (which already pays multi-second LLM latency) and
+acceptable for tabular extraction (24 cells × 1.1s ≈ 26s vs
+24 cells × 1.0s = 24s).
+
+The mutex is held only briefly: the semaphore's mutual exclusion
+guarantees zero lock contention in steady state. Combined with
+the three frontend / backend retry layers (v0.6.1, v0.6.2, v0.6.3),
+the Experiment-tier 429 rate should now be essentially zero
+under normal use.
+
+### 2. Cursor-pointer on every clickable element
+
+Tailwind v4's preflight removed the default `cursor: pointer`
+from `<button>` in some browser combinations. For a Tauri shell
+aimed at non-technical legal users that's the wrong default —
+the pointing-finger is the universal "this is clickable" signal.
+v0.6.4 restores it globally in `frontend/src/app.css` via a
+single rule:
+
+```css
+button:not(:disabled):not([aria-disabled="true"]),
+a[href],
+label[for],
+[role="button"]:not([aria-disabled="true"]),
+[role="link"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]),
+[role="tab"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+summary {
+  cursor: pointer;
+}
+```
+
+Covers all standard ARIA roles for clickable surfaces. Excluded:
+`:disabled` and `[aria-disabled="true"]` keep their
+`not-allowed` cursor.
+
+### Tests
+
+One new pinning test: `mistral_min_interval_is_at_least_one_second`
+prevents a future PR from accidentally dropping below the 1 RPS
+floor. 25/25 `llm::mistral` green. No frontend tests on the
+cursor change (single CSS rule, manually verified across the
+sidebar, model picker, tabs, file pills, attach menu, settings
+toggles).
+
+---
+
 ## v0.6.3 — 2026-06-08 (hotfix — tabular per-cell rate-limit retry loop + hourglass UI)
 
 v0.6.2's process-global Mistral semaphore (1 permit) capped

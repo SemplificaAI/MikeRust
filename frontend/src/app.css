@@ -129,6 +129,34 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* v0.6.4 — affordance hint on clickable elements.
+ *
+ * Tailwind v4 (preflight) removes the default `cursor: pointer` from
+ * `<button>` in some browser/version combos because the OS-default
+ * has been moving toward arrow-on-button. For a Tauri-shell app
+ * aimed at non-technical legal users that's the wrong default — the
+ * pointing-finger is the universal "this is clickable" signal that
+ * survived 30 years of UX research. We restore it globally.
+ *
+ * Excludes `:disabled` (where the cursor is `not-allowed`, set on
+ * the component classes already) and `[aria-disabled="true"]` for
+ * components that disable via aria instead of the native attribute.
+ *
+ * `<a>` with href, `<label>` with for, and the various `role`
+ * variants of clickable surfaces (`button`, `link`, `menuitem`,
+ * `tab`, `option`) are covered the same way. */
+button:not(:disabled):not([aria-disabled="true"]),
+a[href],
+label[for],
+[role="button"]:not([aria-disabled="true"]),
+[role="link"]:not([aria-disabled="true"]),
+[role="menuitem"]:not([aria-disabled="true"]),
+[role="tab"]:not([aria-disabled="true"]),
+[role="option"]:not([aria-disabled="true"]),
+summary {
+  cursor: pointer;
+}
+
 #app {
   min-height: 100%;
   display: grid;
