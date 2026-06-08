@@ -288,12 +288,17 @@
     return [...out, ...nonLocal, ...local]
   })
 
+  // Order = data-sovereignty / data-residency. Local first (data
+  // never leaves the device), then EU-hosted Mistral, then the three
+  // US providers. The order is intentional — it's the same logic that
+  // drives the card layout below: the user reads top-to-bottom and
+  // the most "private" choice is the first thing in view.
   const providerChips = $derived([
-    { value: 'anthropic', label: 'Anthropic', disabled: !configuredProviders.has('anthropic') },
+    { value: 'local', label: i18n.t('Settings.providerLocal'), disabled: !configuredProviders.has('local') },
+    { value: 'mistral', label: 'Mistral', disabled: !configuredProviders.has('mistral') },
     { value: 'google', label: 'Google', disabled: !configuredProviders.has('google') },
     { value: 'openai', label: 'OpenAI', disabled: !configuredProviders.has('openai') },
-    { value: 'mistral', label: 'Mistral', disabled: !configuredProviders.has('mistral') },
-    { value: 'local', label: i18n.t('Settings.providerLocal'), disabled: !configuredProviders.has('local') },
+    { value: 'anthropic', label: 'Anthropic', disabled: !configuredProviders.has('anthropic') },
   ])
 
   function normalizeRoleModelValue(value: string): string {
@@ -520,153 +525,11 @@
       />
     </Card>
 
-    <Card>
-      {#snippet header()}
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-(--color-text-primary)">Anthropic (Claude)</h3>
-          {#if keySet(form.claude_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
-        </div>
-      {/snippet}
-      <Input
-        label={i18n.t('Settings.apiKey')}
-        type="password"
-        bind:value={form.claude_api_key}
-        placeholder="sk-ant-…"
-        autocomplete="off"
-      />
-    </Card>
-
-    <Card>
-      {#snippet header()}
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-(--color-text-primary)">Google Gemini</h3>
-          {#if keySet(form.gemini_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
-        </div>
-      {/snippet}
-      <div class="space-y-3">
-        <Input
-          label="API key"
-          type="password"
-          bind:value={form.gemini_api_key}
-          placeholder="AIza…"
-          autocomplete="off"
-        />
-        <div class="grid grid-cols-2 gap-3">
-          <Select label={i18n.t('Settings.model')} options={modelOptions('google')} bind:value={form.gemini_model} />
-          <Select label={i18n.t('Settings.region')} options={regionOptions} bind:value={form.gemini_region} />
-        </div>
-      </div>
-    </Card>
-
-    <Card>
-      {#snippet header()}
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-(--color-text-primary)">OpenAI</h3>
-          {#if keySet(form.openai_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
-        </div>
-      {/snippet}
-      <div class="space-y-3">
-        <Input
-          label="API key"
-          type="password"
-          bind:value={form.openai_api_key}
-          placeholder="sk-…"
-          autocomplete="off"
-        />
-        <Select label={i18n.t('Settings.model')} options={modelOptions('openai')} bind:value={form.openai_model} />
-      </div>
-    </Card>
-
-    <Card>
-      {#snippet header()}
-        <div class="flex items-center gap-2">
-          <h3 class="text-sm font-semibold text-(--color-text-primary)">Mistral AI</h3>
-          {#if keySet(form.mistral_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
-        </div>
-      {/snippet}
-      <div class="space-y-3">
-        <Input
-          label="API key"
-          type="password"
-          bind:value={form.mistral_api_key}
-          autocomplete="off"
-        />
-        <Select label={i18n.t('Settings.model')} options={modelOptions('mistral')} bind:value={form.mistral_model} />
-
-        <!-- Profile preset picker. Sets main_model / title_model /
-             tabular_model to a curated combination of Mistral models
-             in one click. Active state is computed from the current
-             role assignments so the user immediately sees which
-             profile they're on (or "Personalizzato" when their
-             choices don't match any preset). Disabled when no API
-             key is set — clicking would assign Mistral roles that
-             the chat dispatcher can't fulfil. -->
-        <div class="pt-2 border-t border-(--color-surface-200)">
-          <p class="text-xs font-medium text-(--color-text-secondary) mb-2">
-            {i18n.t('Settings.mistralProfileTitle')}
-          </p>
-          <div class="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              disabled={!keySet(form.mistral_api_key)}
-              onclick={() => applyMistralProfile('balanced')}
-              class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
-                     {activeMistralProfile === 'balanced'
-                       ? 'border-(--color-brand-500) bg-(--color-brand-50)'
-                       : 'border-(--color-surface-300) hover:border-(--color-surface-400)'}
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-(--color-text-primary)">
-                  {i18n.t('Settings.mistralProfileBalanced')}
-                </span>
-                {#if activeMistralProfile === 'balanced'}
-                  <Badge tone="brand" size="xs">{i18n.t('Settings.mistralProfileActive')}</Badge>
-                {/if}
-              </div>
-              <p class="text-xs text-(--color-text-secondary) mt-1">
-                {i18n.t('Settings.mistralProfileBalancedHint')}
-              </p>
-              <p class="text-[11px] text-(--color-text-disabled) mt-1 font-mono">
-                Large 3 · Ministral 3B · Large 3
-              </p>
-            </button>
-
-            <button
-              type="button"
-              disabled={!keySet(form.mistral_api_key)}
-              onclick={() => applyMistralProfile('premium')}
-              class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
-                     {activeMistralProfile === 'premium'
-                       ? 'border-(--color-brand-500) bg-(--color-brand-50)'
-                       : 'border-(--color-surface-300) hover:border-(--color-surface-400)'}
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-(--color-text-primary)">
-                  {i18n.t('Settings.mistralProfilePremium')}
-                </span>
-                {#if activeMistralProfile === 'premium'}
-                  <Badge tone="brand" size="xs">{i18n.t('Settings.mistralProfileActive')}</Badge>
-                {/if}
-              </div>
-              <p class="text-xs text-(--color-text-secondary) mt-1">
-                {i18n.t('Settings.mistralProfilePremiumHint')}
-              </p>
-              <p class="text-[11px] text-(--color-text-disabled) mt-1 font-mono">
-                Medium 3.5 · Small 4 · Medium 3.5
-              </p>
-            </button>
-          </div>
-          {#if activeMistralProfile === 'custom' && keySet(form.mistral_api_key)}
-            <p class="text-xs text-(--color-text-disabled) mt-2 italic">
-              {i18n.t('Settings.mistralProfileCustomNote')}
-            </p>
-          {/if}
-        </div>
-      </div>
-    </Card>
-
+    <!-- Provider cards ordered by data-residency (local → EU → US).
+         Matches the chip order above and signals to legal-target users
+         that the choices nearest the top keep their data closest to
+         them. Local first (data never leaves device), then EU-hosted
+         Mistral, then the US providers Google/OpenAI/Anthropic. -->
     <Card title={i18n.t('Settings.localProvider')}>
       <div class="space-y-3">
         <!-- v0.5.6 — Modalità sicura locale toggle. ON → swap the free
@@ -822,6 +685,153 @@
           />
         {/if}
       </div>
+    </Card>
+
+    <Card>
+      {#snippet header()}
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-(--color-text-primary)">Mistral AI</h3>
+          {#if keySet(form.mistral_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
+        </div>
+      {/snippet}
+      <div class="space-y-3">
+        <Input
+          label="API key"
+          type="password"
+          bind:value={form.mistral_api_key}
+          autocomplete="off"
+        />
+        <Select label={i18n.t('Settings.model')} options={modelOptions('mistral')} bind:value={form.mistral_model} />
+
+        <!-- Profile preset picker. Sets main_model / title_model /
+             tabular_model to a curated combination of Mistral models
+             in one click. Active state is computed from the current
+             role assignments so the user immediately sees which
+             profile they're on (or "Personalizzato" when their
+             choices don't match any preset). Disabled when no API
+             key is set — clicking would assign Mistral roles that
+             the chat dispatcher can't fulfil. -->
+        <div class="pt-2 border-t border-(--color-surface-200)">
+          <p class="text-xs font-medium text-(--color-text-secondary) mb-2">
+            {i18n.t('Settings.mistralProfileTitle')}
+          </p>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              disabled={!keySet(form.mistral_api_key)}
+              onclick={() => applyMistralProfile('balanced')}
+              class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
+                     {activeMistralProfile === 'balanced'
+                       ? 'border-(--color-brand-500) bg-(--color-brand-50)'
+                       : 'border-(--color-surface-300) hover:border-(--color-surface-400)'}
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-(--color-text-primary)">
+                  {i18n.t('Settings.mistralProfileBalanced')}
+                </span>
+                {#if activeMistralProfile === 'balanced'}
+                  <Badge tone="brand" size="xs">{i18n.t('Settings.mistralProfileActive')}</Badge>
+                {/if}
+              </div>
+              <p class="text-xs text-(--color-text-secondary) mt-1">
+                {i18n.t('Settings.mistralProfileBalancedHint')}
+              </p>
+              <p class="text-[11px] text-(--color-text-disabled) mt-1 font-mono">
+                Large 3 · Ministral 3B · Large 3
+              </p>
+            </button>
+
+            <button
+              type="button"
+              disabled={!keySet(form.mistral_api_key)}
+              onclick={() => applyMistralProfile('premium')}
+              class="text-left px-3 py-2 rounded-(--radius-md) border transition-colors duration-(--transition-fast)
+                     {activeMistralProfile === 'premium'
+                       ? 'border-(--color-brand-500) bg-(--color-brand-50)'
+                       : 'border-(--color-surface-300) hover:border-(--color-surface-400)'}
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div class="flex items-center gap-2">
+                <span class="text-sm font-medium text-(--color-text-primary)">
+                  {i18n.t('Settings.mistralProfilePremium')}
+                </span>
+                {#if activeMistralProfile === 'premium'}
+                  <Badge tone="brand" size="xs">{i18n.t('Settings.mistralProfileActive')}</Badge>
+                {/if}
+              </div>
+              <p class="text-xs text-(--color-text-secondary) mt-1">
+                {i18n.t('Settings.mistralProfilePremiumHint')}
+              </p>
+              <p class="text-[11px] text-(--color-text-disabled) mt-1 font-mono">
+                Medium 3.5 · Small 4 · Medium 3.5
+              </p>
+            </button>
+          </div>
+          {#if activeMistralProfile === 'custom' && keySet(form.mistral_api_key)}
+            <p class="text-xs text-(--color-text-disabled) mt-2 italic">
+              {i18n.t('Settings.mistralProfileCustomNote')}
+            </p>
+          {/if}
+        </div>
+      </div>
+    </Card>
+
+    <Card>
+      {#snippet header()}
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-(--color-text-primary)">Google Gemini</h3>
+          {#if keySet(form.gemini_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
+        </div>
+      {/snippet}
+      <div class="space-y-3">
+        <Input
+          label="API key"
+          type="password"
+          bind:value={form.gemini_api_key}
+          placeholder="AIza…"
+          autocomplete="off"
+        />
+        <div class="grid grid-cols-2 gap-3">
+          <Select label={i18n.t('Settings.model')} options={modelOptions('google')} bind:value={form.gemini_model} />
+          <Select label={i18n.t('Settings.region')} options={regionOptions} bind:value={form.gemini_region} />
+        </div>
+      </div>
+    </Card>
+
+    <Card>
+      {#snippet header()}
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-(--color-text-primary)">OpenAI</h3>
+          {#if keySet(form.openai_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
+        </div>
+      {/snippet}
+      <div class="space-y-3">
+        <Input
+          label="API key"
+          type="password"
+          bind:value={form.openai_api_key}
+          placeholder="sk-…"
+          autocomplete="off"
+        />
+        <Select label={i18n.t('Settings.model')} options={modelOptions('openai')} bind:value={form.openai_model} />
+      </div>
+    </Card>
+
+    <Card>
+      {#snippet header()}
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-semibold text-(--color-text-primary)">Anthropic (Claude)</h3>
+          {#if keySet(form.claude_api_key)}<Badge tone="success" size="xs">{i18n.t('Settings.keySet')}</Badge>{/if}
+        </div>
+      {/snippet}
+      <Input
+        label={i18n.t('Settings.apiKey')}
+        type="password"
+        bind:value={form.claude_api_key}
+        placeholder="sk-ant-…"
+        autocomplete="off"
+      />
     </Card>
 
     <Card title={i18n.t('Settings.modelRoles')} subtitle={i18n.t('Settings.modelRolesHint')}>
