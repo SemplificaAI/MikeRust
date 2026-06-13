@@ -1,11 +1,20 @@
 # Upstream sync policy — willchen96/mike → MikeRust
 
 MikeRust forked the upstream Mike project at TypeScript+Express+Supabase
-stage and **replaced the entire backend** with Rust+axum+SQLite. The
-frontend is largely inherited but has accumulated MikeRust-specific
-additions (EUR-Lex corpus panel, Italian Legal Corpus, hash-keyed
-chat-attachment cache, async-MCP progress indicator, settings TabGroups,
-etc).
+stage and **replaced the entire backend** with Rust+axum+SQLite
+(2026-05-08). The frontend was subsequently **rewritten clean-room in
+Svelte 5 + Vite + Tailwind v4** (2026-05-17 — see HISTORY.md and
+`docs/mikerust-ui-rewrite-plan.md`); the legacy Next.js/React UI was
+removed from the repository. Both layers are therefore now original
+work: the only remaining tie to upstream is the **AGPL-3.0 licence**
+and the conceptual API contracts.
+
+> **Sync implication:** because the frontend is no longer the upstream
+> React code, "Apply"/"Adapt" of upstream *frontend* commits below now
+> means **porting the behaviour** into the Svelte components, never
+> cherry-picking React source. Shared-component fixes (citation
+> rendering, doc viewer, chat input) map to their Svelte equivalents
+> under `frontend/src/lib/components/`, not to inherited files.
 
 This document records how to keep an eye on upstream without inheriting
 divergence-noise, and the audit log of past sync passes.
@@ -34,9 +43,15 @@ and triage each one into:
   access", "authorization", "boundary check"). Even if the upstream
   endpoint shape is different, the threat model often carries over —
   worth a 10-minute audit of the analog route in MikeRust.
-- **Frontend bug fixes** in shared components (`AssistantMessage`,
-  `DocPanel`, `DocView`, `ChatInput`, citation rendering). MikeRust
-  uses these largely intact.
+- **Frontend bug fixes** in the components upstream calls
+  `AssistantMessage` / `DocPanel` / `DocView` / `ChatInput` / citation
+  rendering. MikeRust no longer shares that React source — the
+  equivalents are the Svelte components under
+  `frontend/src/lib/components/` (`chat/ChatMessage.svelte`,
+  `documents/DocViewerPanel.svelte`, `chat/ChatInput.svelte`, the
+  citation-pill renderer). Treat an upstream fix here as a **behaviour
+  bug report**: reproduce it against the Svelte component and fix it
+  there, don't port the React diff.
 - **i18n key additions**. If upstream adds new English copy, mirror
   the IT translation.
 

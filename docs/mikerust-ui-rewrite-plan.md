@@ -1,5 +1,17 @@
 # MikeRust — Piano di riscrittura UI clean-room
 
+> ✅ **ESEGUITO — riscrittura completata il 2026-05-17** (vedi HISTORY.md
+> «Clean-room frontend rewrite (React → Svelte 5)»). Il frontend
+> Next.js/React legacy è stato rimosso dal repository; `frontend/` è oggi
+> l'applicazione Svelte 5 clean-room descritta in questo piano. Il
+> documento è conservato come **piano storico e razionale legale** della
+> riscrittura: alcuni path citati riflettono la struttura
+> *pre-esecuzione* (es. `frontendMike/messages/` → oggi
+> `frontend/locales/`; `config/workflows/` → oggi
+> `config/workflow-presets/`) e non vanno letti come layout attuale. Per
+> lo stato corrente fai riferimento al codice in `frontend/` e al
+> README §Frontend.
+
 **Stack target:** Tauri 2 · Svelte 5 (runes) · TypeScript · Tailwind CSS v4 · Vite
 **Obiettivo:** eliminare qualsiasi derivazione AGPL dal frontend, mantenendo backend Rust, schema DB e compatibilità workflow / template JSON / preset bundle MikeRust.
 
