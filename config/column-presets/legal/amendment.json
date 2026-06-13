@@ -1,8 +1,8 @@
 {
-    "name": "Amendment",
+    "name": "Modifiche",
     "match_pattern": "\\bamendment\\b|\\bvariation\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "Summarize the amendment provisions: how amendments may be made, who must consent, and any formality requirements such as writing or signature."
+    "prompt": "Riassumi le clausole di modifica: con quali modalità possono essere apportate le modifiche, chi deve prestare il consenso ed eventuali requisiti di forma quali la forma scritta o la sottoscrizione."
 }

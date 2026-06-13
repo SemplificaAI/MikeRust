@@ -1,106 +1,106 @@
 {
   "id": "builtin-employment-agreement",
-  "title": "Employment Agreement Review",
+  "title": "Revisione contratto di lavoro subordinato",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Employment",
+  "practice": "Diritto del lavoro",
   "columns_config": [
     {
       "index": 0,
-      "name": "Employer",
+      "name": "Datore di lavoro",
       "format": "text",
-      "prompt": "Who is the employer under this agreement? State the full legal name and jurisdiction of incorporation or establishment."
+      "prompt": "Chi è il datore di lavoro in questo contratto? Indica la denominazione legale completa e la giurisdizione di costituzione o di stabilimento."
     },
     {
       "index": 1,
-      "name": "Employee",
+      "name": "Lavoratore",
       "format": "text",
-      "prompt": "Who is the employee under this agreement? State their full name and, if provided, their address or location."
+      "prompt": "Chi è il lavoratore in questo contratto? Indica il nome completo e, se previsto, l'indirizzo o la sede di lavoro."
     },
     {
       "index": 2,
-      "name": "Date",
+      "name": "Data",
       "format": "date",
-      "prompt": "What is the date of this employment agreement? If a commencement date or start date differs from the signing date, state both."
+      "prompt": "Qual è la data di questo contratto di lavoro? Se la data di inizio o di decorrenza del rapporto è diversa dalla data di sottoscrizione, indica entrambe."
     },
     {
       "index": 3,
-      "name": "Title",
+      "name": "Qualifica",
       "format": "text",
-      "prompt": "What is the employee's job title or position as stated in this agreement? If a reporting line is specified, include it."
+      "prompt": "Qual è la qualifica o la posizione del lavoratore indicata in questo contratto? Se è specificata una linea gerarchica di riporto, includila."
     },
     {
       "index": 4,
-      "name": "Compensation",
+      "name": "Retribuzione",
       "format": "text",
-      "prompt": "What is the employee's compensation under this agreement? State the base salary or wage, the currency, and the payment frequency (e.g. monthly, bi-weekly). Include any guaranteed bonus, commission, or other fixed remuneration elements."
+      "prompt": "Qual è la retribuzione del lavoratore prevista da questo contratto? Indica la retribuzione base o il salario, la valuta e la periodicità di pagamento (ad es. mensile, quindicinale). Includi eventuali bonus garantiti, provvigioni o altri elementi retributivi fissi."
     },
     {
       "index": 5,
-      "name": "Full Time / Part Time",
+      "name": "Tempo pieno / Tempo parziale",
       "format": "tag",
-      "prompt": "Is this a full-time or part-time position? If part-time, state the number of days or hours per week where specified.",
-      "tags": ["Full Time", "Part Time"]
+      "prompt": "Si tratta di una posizione a tempo pieno o a tempo parziale? Se a tempo parziale, indica il numero di giorni o di ore settimanali, ove specificato.",
+      "tags": ["Tempo pieno", "Tempo parziale"]
     },
     {
       "index": 6,
-      "name": "Independent Contractor?",
+      "name": "Lavoratore autonomo?",
       "format": "yes_no",
-      "prompt": "Does the agreement characterise the worker as an independent contractor rather than an employee? Answer Yes if the agreement uses contractor, consultant, or self-employed language. Note any provisions that address the nature of the relationship."
+      "prompt": "Il contratto qualifica il prestatore come lavoratore autonomo anziché come lavoratore subordinato? Rispondi Sì se il contratto utilizza termini quali collaboratore autonomo, consulente o libero professionista. Segnala eventuali clausole che disciplinano la natura del rapporto."
     },
     {
       "index": 7,
-      "name": "Benefits",
+      "name": "Benefit",
       "format": "bulleted_list",
-      "prompt": "What benefits are the employee entitled to under this agreement? List each benefit (e.g. health insurance, pension/retirement contributions, life assurance, car allowance, share options, expense reimbursement). Note any eligibility conditions or limits."
+      "prompt": "Quali benefit spettano al lavoratore in base a questo contratto? Elenca ciascun benefit (ad es. assistenza sanitaria, contributi previdenziali/integrativi, assicurazione sulla vita, auto aziendale, stock option, rimborso spese). Segnala eventuali condizioni di accesso o limiti."
     },
     {
       "index": 8,
-      "name": "Notice Period (Employer to Employee)",
+      "name": "Preavviso (dal datore al lavoratore)",
       "format": "text",
-      "prompt": "What notice must the employer give to terminate the employee's employment (other than for cause)? State the notice period and any provisions for payment in lieu of notice."
+      "prompt": "Quale preavviso deve dare il datore di lavoro per recedere dal rapporto (al di fuori dei casi di giusta causa)? Indica il periodo di preavviso e l'eventuale previsione di indennità sostitutiva del preavviso."
     },
     {
       "index": 9,
-      "name": "Notice Period (Employee to Employer)",
+      "name": "Preavviso (dal lavoratore al datore)",
       "format": "text",
-      "prompt": "What notice must the employee give to resign? State the notice period and any provisions for payment in lieu of notice or garden leave."
+      "prompt": "Quale preavviso deve dare il lavoratore per dimettersi? Indica il periodo di preavviso e l'eventuale previsione di indennità sostitutiva del preavviso o di esonero dal servizio (garden leave)."
     },
     {
       "index": 10,
-      "name": "Overtime",
+      "name": "Lavoro straordinario",
       "format": "text",
-      "prompt": "What provisions apply to overtime? Is the employee eligible for overtime pay, and if so at what rate? Or does the agreement state that the salary is inclusive of any overtime? Note any opt-out of statutory working time limits."
+      "prompt": "Quali clausole si applicano al lavoro straordinario? Il lavoratore ha diritto alla retribuzione per lo straordinario e, in tal caso, a quale maggiorazione? Oppure il contratto prevede che la retribuzione sia comprensiva di ogni eventuale straordinario? Segnala eventuali deroghe ai limiti legali di orario di lavoro."
     },
     {
       "index": 11,
-      "name": "Working Hours",
+      "name": "Orario di lavoro",
       "format": "text",
-      "prompt": "What working hours are specified in this agreement? State the normal hours of work, any flexibility provisions, and whether the employee is expected to work additional hours as required."
+      "prompt": "Quale orario di lavoro è previsto in questo contratto? Indica l'orario normale di lavoro, eventuali clausole di flessibilità e se è previsto che il lavoratore presti ore aggiuntive ove necessario."
     },
     {
       "index": 12,
-      "name": "Variation",
+      "name": "Modifica delle condizioni",
       "format": "text",
-      "prompt": "What provisions govern variation of the terms of this agreement? Can the employer unilaterally vary terms, or is the employee's consent required? Note any specific terms that are stated to be variable without consent."
+      "prompt": "Quali clausole disciplinano la modifica delle condizioni di questo contratto? Il datore di lavoro può modificare unilateralmente le condizioni, oppure è richiesto il consenso del lavoratore? Segnala eventuali condizioni specifiche che sono dichiarate modificabili senza consenso."
     },
     {
       "index": 13,
-      "name": "Intellectual Property Assignment",
+      "name": "Cessione della proprietà intellettuale",
       "format": "text",
-      "prompt": "What intellectual property assignment provisions are included? Does the employee assign to the employer all IP created in the course of employment? Are there any carve-outs for pre-existing IP or inventions created outside working hours? Note any moral rights waiver."
+      "prompt": "Quali clausole di cessione della proprietà intellettuale sono incluse? Il lavoratore cede al datore di lavoro tutta la proprietà intellettuale creata nello svolgimento del rapporto? Sono previste deroghe per la PI preesistente o per le invenzioni create al di fuori dell'orario di lavoro? Segnala eventuali rinunce ai diritti morali."
     },
     {
       "index": 14,
-      "name": "Grounds for Termination",
+      "name": "Motivi di risoluzione",
       "format": "bulleted_list",
-      "prompt": "What grounds for summary dismissal or termination for cause are set out in the agreement? List each ground (e.g. gross misconduct, breach of confidentiality, insolvency, criminal conviction). Note whether summary dismissal is without notice or payment in lieu."
+      "prompt": "Quali motivi di licenziamento in tronco o di risoluzione per giusta causa sono previsti nel contratto? Elenca ciascun motivo (ad es. colpa grave, violazione degli obblighi di riservatezza, insolvenza, condanna penale). Indica se il licenziamento in tronco avviene senza preavviso o indennità sostitutiva."
     },
     {
       "index": 15,
-      "name": "Annual Leave Entitlement",
+      "name": "Ferie annuali",
       "format": "text",
-      "prompt": "What is the employee's annual leave entitlement? State the number of days (or weeks) per year, whether this is inclusive of or in addition to public holidays, and any provisions for accrual, carry-over, or payment of untaken leave on termination."
+      "prompt": "Qual è il diritto alle ferie annuali del lavoratore? Indica il numero di giorni (o settimane) all'anno, se tale periodo è comprensivo o aggiuntivo rispetto alle festività, ed eventuali clausole sulla maturazione, il riporto o la monetizzazione delle ferie non godute alla cessazione del rapporto."
     }
   ]
 }

@@ -1,51 +1,51 @@
 {
   "id": "builtin-ediscovery",
-  "title": "E-Discovery Review",
+  "title": "Analisi e-Discovery",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Litigation",
+  "practice": "Contenzioso",
   "columns_config": [
     {
       "index": 0,
-      "name": "Date",
+      "name": "Data",
       "format": "date",
-      "prompt": "What is the date of this document? For emails or correspondence, use the date sent. For other documents, use the date of creation, signature, or the most prominent date shown."
+      "prompt": "Qual è la data di questo documento? Per le e-mail o la corrispondenza, usa la data di invio. Per gli altri documenti, usa la data di creazione, di sottoscrizione o la data più evidente riportata."
     },
     {
       "index": 1,
-      "name": "Type of Document",
+      "name": "Tipo di documento",
       "format": "text",
-      "prompt": "What type of document is this? (e.g. email, memorandum, letter, contract, report, meeting minutes, text message, invoice, presentation). Be specific."
+      "prompt": "Di che tipo di documento si tratta? (ad es. e-mail, memorandum, lettera, contratto, relazione, verbale di riunione, messaggio di testo, fattura, presentazione). Sii specifico."
     },
     {
       "index": 2,
-      "name": "Sender",
+      "name": "Mittente",
       "format": "text",
-      "prompt": "Who is the sender or author of this document? State their full name, title, and organisation where identifiable."
+      "prompt": "Chi è il mittente o l'autore di questo documento? Indica nome completo, qualifica e organizzazione, ove identificabili."
     },
     {
       "index": 3,
-      "name": "Recipient(s)",
+      "name": "Destinatario/i",
       "format": "bulleted_list",
-      "prompt": "Who are the recipients of this document? List all To, CC, and BCC recipients where identifiable. State their full name, title, and organisation for each. Note whether they appear in To, CC, or BCC fields."
+      "prompt": "Chi sono i destinatari di questo documento? Elenca tutti i destinatari in A, CC e CCN, ove identificabili. Per ciascuno indica nome completo, qualifica e organizzazione. Precisa se compaiono nei campi A, CC o CCN."
     },
     {
       "index": 4,
-      "name": "Summary",
+      "name": "Sintesi",
       "format": "text",
-      "prompt": "Provide a concise factual summary of the content of this document in 2–4 sentences. Focus on the key subject matter, any decisions made, actions requested, or information conveyed. Do not include legal conclusions."
+      "prompt": "Fornisci una sintesi fattuale e concisa del contenuto di questo documento in 2-4 frasi. Concentrati sull'oggetto principale, su eventuali decisioni assunte, azioni richieste o informazioni trasmesse. Non includere conclusioni di natura giuridica."
     },
     {
       "index": 5,
-      "name": "Persons Mentioned",
+      "name": "Persone menzionate",
       "format": "bulleted_list",
-      "prompt": "List all individuals mentioned in this document (other than the sender and recipients already identified). For each person, state their name and, if discernible, their role or organisation."
+      "prompt": "Elenca tutte le persone fisiche menzionate in questo documento (diverse dal mittente e dai destinatari già individuati). Per ciascuna persona indica il nome e, se desumibile, il ruolo o l'organizzazione."
     },
     {
       "index": 6,
-      "name": "Privileged?",
+      "name": "Coperto da segreto professionale?",
       "format": "yes_no",
-      "prompt": "Does this document appear to be legally privileged? Answer Yes if it appears to be a communication between a lawyer and client made for the dominant purpose of obtaining or giving legal advice, or created for the dominant purpose of litigation. Answer No otherwise. If uncertain, note the basis for uncertainty."
+      "prompt": "Questo documento sembra essere coperto da segreto professionale o riservatezza legale? Rispondi Sì se appare essere una comunicazione tra avvocato e cliente effettuata allo scopo prevalente di ottenere o fornire consulenza legale, oppure creata allo scopo prevalente di un contenzioso. Rispondi No negli altri casi. In caso di incertezza, indica le ragioni dell'incertezza."
     }
   ]
 }

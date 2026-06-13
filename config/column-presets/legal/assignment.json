@@ -1,8 +1,8 @@
 {
-    "name": "Assignment",
+    "name": "Cessione del contratto",
     "match_pattern": "\\bassign(ment|ability)?\\b",
     "match_flags": "i",
     "format": "yes_no",
     "domain": "legal",
-    "prompt": "Is assignment of this agreement permitted without the other party's consent?"
+    "prompt": "La cessione del presente contratto è consentita senza il consenso dell'altra parte?"
 }

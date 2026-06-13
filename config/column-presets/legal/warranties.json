@@ -1,8 +1,8 @@
 {
-    "name": "Warranties",
+    "name": "Dichiarazioni e garanzie",
     "match_pattern": "\\bwarrant(y|ies|ing)\\b|\\brepresentations?\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "Identify and describe key representations and warranties provided by any party, including the scope of such assurances and any specific time periods or conditions applicable to them. In particular highlight any non-standard warranties."
+    "prompt": "Individua e descrivi le principali dichiarazioni e garanzie prestate da ciascuna parte, compreso l'ambito di tali assicurazioni ed eventuali termini temporali o condizioni ad esse applicabili. In particolare, evidenzia eventuali garanzie non standard."
 }

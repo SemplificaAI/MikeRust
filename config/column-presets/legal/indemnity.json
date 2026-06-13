@@ -1,8 +1,8 @@
 {
-    "name": "Indemnity",
+    "name": "Manleva (indennizzo)",
     "match_pattern": "\\bindemni(ty|ties|fication)\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "Summarize the indemnity provisions: who indemnifies whom, the scope of indemnified losses, any liability caps or exclusions, and key claims procedures."
+    "prompt": "Riassumi le clausole di manleva: chi manleva chi, l'ambito dei danni indennizzabili, eventuali massimali o esclusioni di responsabilità e le principali procedure di gestione delle richieste di risarcimento."
 }

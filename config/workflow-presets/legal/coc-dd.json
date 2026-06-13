@@ -1,53 +1,53 @@
 {
   "id": "builtin-coc-dd",
-  "title": "Change of Control Review",
+  "title": "Verifica clausole di cambio di controllo (due diligence)",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Corporate",
-  "prompt_md": "## Change of Control Due Diligence Review\n\nThis workflow performs a change of control due diligence review across the selected documents.",
+  "practice": "Societario",
+  "prompt_md": "## Verifica due diligence delle clausole di cambio di controllo\n\nQuesto workflow esegue una verifica di due diligence sulle clausole di cambio di controllo nei documenti selezionati.",
   "columns_config": [
     {
       "index": 0,
-      "name": "Parties",
+      "name": "Parti",
       "format": "bulleted_list",
-      "prompt": "Identify all parties to this agreement. For each party state their full legal name and their role (e.g. counterparty, licensor, lender, supplier)."
+      "prompt": "Individua tutte le parti del contratto. Per ciascuna parte indica la denominazione legale completa e il ruolo (ad es. controparte, licenziante, finanziatore, fornitore)."
     },
     {
       "index": 1,
-      "name": "Date",
+      "name": "Data",
       "format": "date",
-      "prompt": "What is the date of this agreement? If a commencement date differs from the signing date, state both."
+      "prompt": "Qual è la data del contratto? Se la data di decorrenza è diversa da quella di sottoscrizione, indica entrambe."
     },
     {
       "index": 2,
-      "name": "Term",
+      "name": "Durata",
       "format": "text",
-      "prompt": "What is the term or duration of this agreement? State the start and end dates or the length of the term."
+      "prompt": "Qual è la durata del contratto? Indica le date di inizio e di scadenza oppure la lunghezza del periodo contrattuale."
     },
     {
       "index": 3,
-      "name": "Change of Control Clause",
-      "prompt": "Identify and summarize the change of control clause(s) in this document. Quote the exact triggering language and specify what constitutes a 'change of control'."
+      "name": "Clausola di cambio di controllo",
+      "prompt": "Individua e sintetizza la o le clausole di cambio di controllo presenti nel documento. Cita testualmente la formulazione che fa scattare la clausola e specifica cosa costituisce un \"cambio di controllo\"."
     },
     {
       "index": 4,
-      "name": "Consent Required",
-      "prompt": "Does a change of control require prior consent from any party? Identify who must consent, the notice period, and any conditions."
+      "name": "Consenso richiesto",
+      "prompt": "Un cambio di controllo richiede il preventivo consenso di una delle parti? Individua chi deve prestare il consenso, il termine di preavviso ed eventuali condizioni."
     },
     {
       "index": 5,
-      "name": "Termination Rights",
-      "prompt": "What termination rights arise upon a change of control? Who can terminate, and what are the notice requirements?"
+      "name": "Diritti di risoluzione e recesso",
+      "prompt": "Quali diritti di risoluzione e recesso sorgono in caso di cambio di controllo? Chi può recedere e quali sono i requisiti di preavviso?"
     },
     {
       "index": 6,
-      "name": "Put/Call Options",
-      "prompt": "Are there any put or call options triggered by a change of control? Summarize the terms, pricing, and exercise period."
+      "name": "Opzioni put/call",
+      "prompt": "Esistono opzioni put o call attivate da un cambio di controllo? Sintetizza i termini, il prezzo e il periodo di esercizio."
     },
     {
       "index": 7,
-      "name": "Financial Implications",
-      "prompt": "What are the financial implications of a change of control? Include any fees, payments, accelerated obligations, or pricing adjustments."
+      "name": "Implicazioni finanziarie",
+      "prompt": "Quali sono le implicazioni finanziarie di un cambio di controllo? Includi eventuali commissioni, pagamenti, obbligazioni anticipate o adeguamenti di prezzo."
     }
   ]
 }

@@ -1,64 +1,64 @@
 {
   "id": "builtin-nda",
-  "title": "NDA Review",
+  "title": "Revisione accordo di riservatezza (NDA)",
   "type": "tabular",
   "domain": "legal",
-  "practice": "General Transactions",
+  "practice": "Operazioni generali",
   "columns_config": [
     {
       "index": 0,
-      "name": "Direction",
+      "name": "Tipologia",
       "format": "tag",
-      "prompt": "Is this NDA mutual (both parties owe confidentiality obligations to each other) or unilateral (only one party owes confidentiality obligations)? Identify the direction and name the disclosing and receiving party or parties.",
-      "tags": ["Mutual", "Unilateral"]
+      "prompt": "Questo NDA è reciproco (entrambe le parti assumono obblighi di riservatezza l'una verso l'altra) o unilaterale (solo una parte assume obblighi di riservatezza)? Individua la tipologia e indica la parte divulgante e la parte ricevente (o le parti).",
+      "tags": ["Reciproco", "Unilaterale"]
     },
     {
       "index": 1,
-      "name": "Definition of Confidential Information",
+      "name": "Definizione di Informazioni Riservate",
       "format": "text",
-      "prompt": "How is 'Confidential Information' defined in this agreement? Is it broadly or narrowly drafted? Does it require information to be marked as confidential, or is all information shared in connection with the purpose automatically covered? Note any express inclusions or exclusions."
+      "prompt": "Come sono definite le 'Informazioni Riservate' in questo accordo? La definizione è ampia o restrittiva? Richiede che le informazioni siano contrassegnate come riservate, oppure sono automaticamente coperte tutte le informazioni condivise in relazione alla finalità? Segnala eventuali inclusioni o esclusioni espresse."
     },
     {
       "index": 2,
-      "name": "Obligations of Receiving Party",
+      "name": "Obblighi della Parte Ricevente",
       "format": "bulleted_list",
-      "prompt": "What are the key obligations of the receiving party in respect of the confidential information? List each obligation (e.g. keep confidential, not disclose to third parties, use only for the permitted purpose, apply a specific standard of care, restrict access to need-to-know personnel)."
+      "prompt": "Quali sono gli obblighi principali della parte ricevente in relazione alle informazioni riservate? Elenca ciascun obbligo (ad es. mantenere la riservatezza, non divulgare a terzi, utilizzare solo per la finalità consentita, applicare uno specifico grado di diligenza, limitare l'accesso al personale che ne ha effettiva necessità)."
     },
     {
       "index": 3,
-      "name": "Standard Carveouts Present?",
+      "name": "Sono presenti le deroghe standard?",
       "format": "yes_no",
-      "prompt": "Does the agreement include the standard carveouts to confidentiality obligations? Answer Yes if the agreement excludes information that: (a) is or becomes publicly available without breach; (b) was already known to the receiving party; (c) is independently developed; and (d) is received from a third party without restriction. Note any carveouts that are missing or are drafted differently from the standard formulation."
+      "prompt": "L'accordo include le deroghe standard agli obblighi di riservatezza? Rispondi Sì se l'accordo esclude le informazioni che: (a) sono o diventano di pubblico dominio senza violazione; (b) erano già note alla parte ricevente; (c) sono sviluppate autonomamente; e (d) sono ricevute da un terzo senza vincoli. Segnala eventuali deroghe mancanti o formulate diversamente rispetto alla formulazione standard."
     },
     {
       "index": 4,
-      "name": "Permitted Disclosures",
+      "name": "Divulgazioni consentite",
       "format": "bulleted_list",
-      "prompt": "To whom may the receiving party disclose confidential information? List each category of permitted recipient (e.g. employees, professional advisers, affiliates, financing parties, regulatory authorities). Note whether onward disclosure requires the recipient to be bound by equivalent obligations."
+      "prompt": "A chi può la parte ricevente divulgare le informazioni riservate? Elenca ciascuna categoria di destinatario consentito (ad es. dipendenti, consulenti professionali, società del gruppo, soggetti finanziatori, autorità di vigilanza). Indica se l'ulteriore divulgazione richiede che il destinatario sia vincolato da obblighi equivalenti."
     },
     {
       "index": 5,
-      "name": "Term and Duration",
+      "name": "Durata",
       "format": "text",
-      "prompt": "What is the term of this NDA and how long do the confidentiality obligations last? State the initial term of the agreement and the duration of the confidentiality obligations (noting whether they survive termination and for how long)."
+      "prompt": "Qual è la durata di questo NDA e per quanto tempo permangono gli obblighi di riservatezza? Indica la durata iniziale dell'accordo e la durata degli obblighi di riservatezza (precisando se sopravvivono alla risoluzione e per quanto tempo)."
     },
     {
       "index": 6,
-      "name": "Return and Destruction",
+      "name": "Restituzione e distruzione",
       "format": "text",
-      "prompt": "What obligations apply on expiry or termination regarding return or destruction of confidential information? Is there a choice between return and destruction? Must destruction be certified? Are there any retention exceptions (e.g. for regulatory purposes, IT backup systems)?"
+      "prompt": "Quali obblighi si applicano alla scadenza o alla risoluzione in merito alla restituzione o distruzione delle informazioni riservate? È prevista una scelta tra restituzione e distruzione? La distruzione deve essere certificata? Sono previste eccezioni di conservazione (ad es. per finalità regolamentari, sistemi di backup informatici)?"
     },
     {
       "index": 7,
-      "name": "Remedies",
+      "name": "Rimedi",
       "format": "text",
-      "prompt": "What remedies are available for breach of the confidentiality obligations? Does the agreement acknowledge that damages may be inadequate and that injunctive relief or specific performance is available? Are there any agreed liquidated damages or indemnities for breach?"
+      "prompt": "Quali rimedi sono disponibili in caso di violazione degli obblighi di riservatezza? L'accordo riconosce che il risarcimento del danno possa essere inadeguato e che siano disponibili provvedimenti inibitori o l'esecuzione in forma specifica? Sono previste penali o manleve concordate in caso di violazione?"
     },
     {
       "index": 8,
-      "name": "Governing Law and Jurisdiction",
+      "name": "Legge applicabile e foro competente",
       "format": "text",
-      "prompt": "What governing law applies to this agreement and which courts have jurisdiction? State the chosen law, the forum, and whether jurisdiction is exclusive or non-exclusive."
+      "prompt": "Quale legge applicabile regola questo accordo e quali tribunali hanno competenza? Indica la legge scelta, il foro e se la competenza è esclusiva o non esclusiva."
     }
   ]
 }

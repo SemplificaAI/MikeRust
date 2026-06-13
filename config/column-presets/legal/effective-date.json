@@ -1,8 +1,8 @@
 {
-    "name": "Effective Date",
+    "name": "Data di efficacia",
     "match_pattern": "\\beffective date\\b",
     "match_flags": "i",
     "format": "date",
     "domain": "legal",
-    "prompt": "State only the effective date of this agreement in DD Mon YYYY format, e.g. \"2 Jan 2026\". If not explicitly stated, write \"Not specified\"."
+    "prompt": "Indica esclusivamente la data di efficacia del presente contratto nel formato GG Mese AAAA, ad es. \"2 gen 2026\". Se non è espressamente indicata, scrivi \"Non specificata\"."
 }

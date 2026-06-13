@@ -1,8 +1,8 @@
 {
-    "name": "Confidentiality",
+    "name": "Riservatezza",
     "match_pattern": "\\bconfidential(ity)?\\b|\\bnon-?disclosure\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "Summarize the confidentiality obligations: scope of confidential information, permitted disclosures, use restrictions, duration, and key carve-outs or exceptions."
+    "prompt": "Riassumi gli obblighi di riservatezza: ambito delle Informazioni Riservate, divulgazioni consentite, limiti di utilizzo, durata e principali deroghe o esclusioni."
 }

@@ -1,87 +1,87 @@
 {
   "id": "builtin-spa",
-  "title": "SPA Review",
+  "title": "Revisione contratto di compravendita di partecipazioni (SPA)",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Corporate",
+  "practice": "Diritto societario",
   "columns_config": [
     {
       "index": 0,
-      "name": "Parties",
+      "name": "Parti",
       "format": "bulleted_list",
-      "prompt": "Identify all parties to this share purchase agreement. For each, state their full legal name, jurisdiction of incorporation (if stated), and their role (e.g. seller, buyer, target company, warrantor, guarantor)."
+      "prompt": "Individua tutte le parti di questo contratto di compravendita di partecipazioni. Per ciascuna, indica la denominazione legale completa, la giurisdizione di costituzione (se indicata) e il ruolo (ad es. venditore, acquirente, società target, soggetto che presta le garanzie, garante)."
     },
     {
       "index": 1,
-      "name": "Date",
+      "name": "Data",
       "format": "date",
-      "prompt": "What is the date of this share purchase agreement?"
+      "prompt": "Qual è la data di questo contratto di compravendita di partecipazioni?"
     },
     {
       "index": 2,
-      "name": "Transaction",
+      "name": "Operazione",
       "format": "text",
-      "prompt": "Summarise the transaction. What shares or interests are being acquired, in which target company or companies, and what is the nature of the transaction (e.g. 100% acquisition, majority stake, minority investment)?"
+      "prompt": "Riassumi l'operazione. Quali azioni o partecipazioni vengono acquisite, in quale società o società target, e qual è la natura dell'operazione (ad es. acquisizione del 100%, partecipazione di maggioranza, investimento di minoranza)?"
     },
     {
       "index": 3,
-      "name": "Consideration",
+      "name": "Corrispettivo",
       "format": "monetary_amount",
-      "prompt": "What is the consideration payable under this agreement? State the total headline price, the currency, and the structure (e.g. cash, shares, loan notes, deferred consideration, earnout). If the price is subject to adjustment (e.g. locked box, completion accounts), describe the mechanism."
+      "prompt": "Qual è il corrispettivo dovuto in base a questo contratto? Indica il prezzo complessivo dichiarato, la valuta e la struttura (ad es. contanti, azioni, loan notes, corrispettivo differito, earnout). Se il prezzo è soggetto a rettifica (ad es. locked box, completion accounts), descrivi il meccanismo."
     },
     {
       "index": 4,
-      "name": "Key Conditions Precedent",
+      "name": "Principali condizioni sospensive",
       "format": "bulleted_list",
-      "prompt": "List the key conditions precedent (CPs) to completion. For each CP, state what must be satisfied or waived and by whom. Identify any long-stop date by which CPs must be satisfied."
+      "prompt": "Elenca le principali condizioni sospensive (CP) al perfezionamento. Per ciascuna CP, indica cosa deve essere soddisfatto o rinunciato e da parte di chi. Individua l'eventuale long-stop date entro cui le CP devono essere soddisfatte."
     },
     {
       "index": 5,
-      "name": "Completion Date",
+      "name": "Data di perfezionamento",
       "format": "text",
-      "prompt": "When does completion occur? State how many business days after satisfaction or waiver of all CPs completion must occur, and/or any fixed outside date for completion. Note whether there is any obligation to complete by a specific date after signing."
+      "prompt": "Quando avviene il perfezionamento (closing)? Indica entro quanti giorni lavorativi dal soddisfacimento o dalla rinuncia di tutte le CP deve avvenire il perfezionamento e/o l'eventuale data limite fissa per il perfezionamento. Indica se sussiste un obbligo di perfezionare entro una data determinata successiva alla sottoscrizione."
     },
     {
       "index": 6,
-      "name": "Warranties",
+      "name": "Dichiarazioni e garanzie",
       "format": "text",
-      "prompt": "Summarise the warranty package. Who gives the warranties (e.g. seller, management, all sellers jointly and severally)? Are there business warranties and/or title warranties? Identify the scope of any warranty disclosure process and any limitations on warranty claims (e.g. time limits, minimum claim thresholds, aggregate cap)."
+      "prompt": "Riassumi il pacchetto di dichiarazioni e garanzie. Chi presta le garanzie (ad es. il venditore, il management, tutti i venditori in solido)? Sono previste garanzie sull'attività (business warranties) e/o garanzie sulla titolarità (title warranties)? Individua l'ambito di un'eventuale procedura di disclosure delle garanzie ed eventuali limitazioni alle pretese in garanzia (ad es. termini, soglie minime di pretesa, massimale complessivo)."
     },
     {
       "index": 7,
-      "name": "Indemnities",
+      "name": "Manleve",
       "format": "text",
-      "prompt": "Are there specific indemnities in this agreement? If so, list the key indemnities given, by whom, and for what potential liabilities (e.g. tax indemnity, environmental indemnity, litigation indemnity). Note any time limits or caps applicable to indemnity claims."
+      "prompt": "Sono previste manleve specifiche in questo contratto? In tal caso, elenca le principali manleve prestate, da parte di chi e per quali potenziali responsabilità (ad es. manleva fiscale, manleva ambientale, manleva per contenziosi). Segnala eventuali termini o massimali applicabili alle pretese di manleva."
     },
     {
       "index": 8,
-      "name": "Limitation of Liability",
+      "name": "Limitazione di responsabilità",
       "format": "text",
-      "prompt": "What limitations on liability apply to warranty and indemnity claims? Identify the aggregate cap (and how it is calculated, e.g. as a percentage of consideration), any separate cap for fundamental warranties or indemnities, minimum claim thresholds (de minimis and basket/deductible), and time limits for bringing claims."
+      "prompt": "Quali limitazioni di responsabilità si applicano alle pretese in garanzia e di manleva? Individua il massimale complessivo (e come è calcolato, ad es. come percentuale del corrispettivo), eventuali massimali distinti per le garanzie fondamentali o le manleve, le soglie minime di pretesa (de minimis e basket/franchigia) e i termini per l'esercizio delle pretese."
     },
     {
       "index": 9,
-      "name": "Covenants",
+      "name": "Patti accessori (covenant)",
       "format": "text",
-      "prompt": "What restrictive or other covenants are given by the seller or management? Include non-compete, non-solicitation, and non-dealing covenants, stating the scope (activities and geography) and duration of each."
+      "prompt": "Quali patti restrittivi o altri covenant sono prestati dal venditore o dal management? Includi i patti di non concorrenza, non sollecitazione e non distrazione di clientela, indicando l'ambito (attività e area geografica) e la durata di ciascuno."
     },
     {
       "index": 10,
-      "name": "Exclusivity",
+      "name": "Esclusiva",
       "format": "text",
-      "prompt": "Is there an exclusivity or no-shop provision in this agreement? If so, state the period of exclusivity, what activities are restricted (e.g. soliciting competing offers, engaging with third parties), and any carve-outs or break fee arrangements."
+      "prompt": "È prevista una clausola di esclusiva o di no-shop in questo contratto? In tal caso, indica il periodo di esclusiva, quali attività sono limitate (ad es. sollecitazione di offerte concorrenti, contatti con terzi) ed eventuali deroghe o accordi di break fee."
     },
     {
       "index": 11,
-      "name": "Governing Law and Jurisdiction",
+      "name": "Legge applicabile e foro competente",
       "format": "text",
-      "prompt": "What governing law applies to this agreement and what courts or arbitral tribunals have jurisdiction? State the chosen law, the forum for disputes, and whether jurisdiction is exclusive or non-exclusive."
+      "prompt": "Quale legge applicabile regola questo contratto e quali tribunali o collegi arbitrali hanno competenza? Indica la legge scelta, il foro per le controversie e se la competenza è esclusiva o non esclusiva."
     },
     {
       "index": 12,
-      "name": "Dispute Resolution",
+      "name": "Risoluzione delle controversie",
       "format": "text",
-      "prompt": "How are disputes to be resolved under this agreement? Identify whether disputes go to litigation or arbitration, the chosen seat or forum, the applicable rules (if arbitration), and any mandatory pre-dispute escalation steps."
+      "prompt": "Come devono essere risolte le controversie in base a questo contratto? Individua se le controversie sono devolute al contenzioso ordinario o all'arbitrato, la sede o il foro scelti, le regole applicabili (in caso di arbitrato) ed eventuali fasi di escalation obbligatorie prima dell'avvio del procedimento."
     }
   ]
 }

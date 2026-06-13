@@ -1,117 +1,117 @@
 {
   "id": "builtin-commercial-agreement",
-  "title": "Commercial Agreement Review",
+  "title": "Analisi del contratto commerciale",
   "type": "tabular",
   "domain": "legal",
-  "practice": "General Transactions",
+  "practice": "Operazioni commerciali",
   "columns_config": [
     {
       "index": 0,
-      "name": "Parties",
+      "name": "Parti",
       "format": "bulleted_list",
-      "prompt": "Identify all parties to this agreement. For each party state their full legal name, jurisdiction of incorporation (if stated), and their role in the agreement (e.g. supplier, customer, licensor)."
+      "prompt": "Individua tutte le parti del contratto. Per ciascuna parte indica la denominazione legale completa, l'ordinamento di costituzione (se indicato) e il ruolo svolto nel contratto (ad es. fornitore, cliente, licenziante)."
     },
     {
       "index": 1,
-      "name": "Scope of Work",
+      "name": "Oggetto della prestazione",
       "format": "text",
-      "prompt": "Summarise the scope of work or services to be provided under this agreement. What are the key deliverables, obligations, or services? Identify any limitations or exclusions to the scope."
+      "prompt": "Sintetizza l'oggetto della prestazione o dei servizi da rendere in base al contratto. Quali sono le principali forniture, obbligazioni o servizi? Individua eventuali limitazioni o esclusioni dall'oggetto."
     },
     {
       "index": 2,
-      "name": "Amends Earlier Agreement",
+      "name": "Modifica un contratto precedente",
       "format": "yes_no",
-      "prompt": "Does this agreement amend, restate, supplement, or replace an earlier agreement? If yes, identify the earlier agreement by name and date."
+      "prompt": "Il presente contratto modifica, riformula, integra o sostituisce un contratto precedente? In caso affermativo, individua il contratto precedente indicandone denominazione e data."
     },
     {
       "index": 3,
-      "name": "Effective Date",
+      "name": "Data di efficacia",
       "format": "date",
-      "prompt": "What is the effective date or commencement date of this agreement? If no explicit date is stated, note when it is deemed to take effect."
+      "prompt": "Qual è la data di efficacia o di decorrenza del contratto? Se non è indicata una data espressa, precisa da quando si considera efficace."
     },
     {
       "index": 4,
-      "name": "Term",
+      "name": "Durata",
       "format": "text",
-      "prompt": "What is the duration or term of this agreement? State the initial term length and any conditions that affect the duration."
+      "prompt": "Qual è la durata del contratto? Indica la lunghezza del periodo iniziale ed eventuali condizioni che incidono sulla durata."
     },
     {
       "index": 5,
-      "name": "Renewal",
+      "name": "Rinnovo",
       "format": "text",
-      "prompt": "What renewal provisions apply? Specify whether renewal is automatic or requires notice, the renewal period, and any conditions or notice periods required to prevent automatic renewal."
+      "prompt": "Quali disposizioni si applicano al rinnovo? Precisa se il rinnovo è automatico o richiede un preavviso, il periodo di rinnovo ed eventuali condizioni o termini di preavviso necessari per impedire il rinnovo automatico."
     },
     {
       "index": 6,
-      "name": "Pricing",
+      "name": "Corrispettivo",
       "format": "text",
-      "prompt": "What is the pricing structure under this agreement? Identify all fees, rates, charges, and payment terms including currency, payment schedule, and invoicing requirements."
+      "prompt": "Qual è la struttura del corrispettivo previsto dal contratto? Individua tutte le commissioni, tariffe, oneri e condizioni di pagamento, inclusi la valuta, lo scadenzario dei pagamenti e i requisiti di fatturazione."
     },
     {
       "index": 7,
-      "name": "Price Adjustments",
+      "name": "Adeguamenti del prezzo",
       "format": "text",
-      "prompt": "Are there any price adjustment mechanisms in this agreement? Identify any indexation, CPI/RPI linkage, benchmarking, volume-based adjustments, or other mechanisms that allow prices to change over the term."
+      "prompt": "Sono previsti meccanismi di adeguamento del prezzo nel contratto? Individua eventuali indicizzazioni, collegamenti a indici dei prezzi al consumo, benchmarking, adeguamenti basati sui volumi o altri meccanismi che consentono la variazione dei prezzi nel corso della durata."
     },
     {
       "index": 8,
-      "name": "Penalties for Late Payment",
+      "name": "Penali per ritardato pagamento",
       "format": "text",
-      "prompt": "What penalties or consequences apply for late payment? Include any interest rates on overdue amounts, suspension rights, or other remedies available to the payee."
+      "prompt": "Quali penali o conseguenze si applicano in caso di ritardato pagamento? Includi eventuali interessi di mora sugli importi scaduti, diritti di sospensione o altri rimedi a disposizione del creditore."
     },
     {
       "index": 9,
-      "name": "Estimated Contract Value",
+      "name": "Valore stimato del contratto",
       "format": "monetary_amount",
-      "prompt": "What is the total estimated or stated contract value? If no single figure is given, calculate or estimate based on stated rates and term. State the currency and any assumptions made."
+      "prompt": "Qual è il valore complessivo stimato o indicato del contratto? Se non è riportata una cifra unica, calcola o stima il valore in base alle tariffe e alla durata indicate. Specifica la valuta ed eventuali assunzioni adottate."
     },
     {
       "index": 10,
-      "name": "Limitation of Liability",
+      "name": "Limitazione di responsabilità",
       "format": "text",
-      "prompt": "What limitations of liability apply? Identify any caps on liability (including how they are calculated), exclusions of consequential or indirect loss, and any carve-outs from the cap (e.g. fraud, death, IP infringement)."
+      "prompt": "Quali limitazioni di responsabilità si applicano? Individua eventuali massimali di responsabilità (incluso il metodo di calcolo), le esclusioni di danni indiretti o conseguenti ed eventuali deroghe al massimale (ad es. dolo, morte, violazione di diritti di proprietà intellettuale)."
     },
     {
       "index": 11,
-      "name": "IP Ownership and Licensing",
+      "name": "Titolarità e licenza della proprietà intellettuale",
       "format": "text",
-      "prompt": "How is intellectual property ownership and licensing addressed? Identify who owns pre-existing IP, who owns newly created IP, and what licences are granted to each party. Note any restrictions on use."
+      "prompt": "Come sono disciplinate la titolarità e la concessione in licenza della proprietà intellettuale? Individua chi è titolare della proprietà intellettuale preesistente, chi è titolare di quella di nuova creazione e quali licenze sono concesse a ciascuna parte. Segnala eventuali restrizioni all'utilizzo."
     },
     {
       "index": 12,
-      "name": "Change of Control",
+      "name": "Cambio di controllo",
       "format": "text",
-      "prompt": "Is there a change of control provision? If so, describe what constitutes a change of control, whether consent is required, and what rights (e.g. termination, assignment) are triggered."
+      "prompt": "È prevista una clausola di cambio di controllo? In caso affermativo, descrivi cosa costituisce un cambio di controllo, se è richiesto il consenso e quali diritti (ad es. risoluzione, cessione) vengono attivati."
     },
     {
       "index": 13,
-      "name": "Force Majeure",
+      "name": "Forza maggiore",
       "format": "text",
-      "prompt": "Summarise the force majeure clause. What events qualify, what obligations are suspended, how long must the event persist before termination is permitted, and what notice is required?"
+      "prompt": "Sintetizza la clausola di forza maggiore. Quali eventi rilevano, quali obbligazioni vengono sospese, per quanto tempo deve persistere l'evento prima che sia consentita la risoluzione e quale preavviso è richiesto?"
     },
     {
       "index": 14,
-      "name": "Termination Rights",
+      "name": "Diritti di risoluzione e recesso",
       "format": "text",
-      "prompt": "What are the termination rights of each party? Identify termination for convenience (including notice period), termination for cause (including cure periods), and the consequences of termination (e.g. payment obligations, survival of terms)."
+      "prompt": "Quali sono i diritti di risoluzione e recesso di ciascuna parte? Individua il recesso ad nutum (incluso il termine di preavviso), la risoluzione per inadempimento (inclusi i termini per la sanatoria) e le conseguenze dello scioglimento del contratto (ad es. obbligazioni di pagamento, sopravvivenza di clausole)."
     },
     {
       "index": 15,
-      "name": "Liquidated Damages",
+      "name": "Penale (liquidated damages)",
       "format": "text",
-      "prompt": "Are there any liquidated damages provisions? If so, identify what triggers them, the applicable rate or formula, any cap on aggregate liquidated damages, and whether they are the exclusive remedy."
+      "prompt": "Sono previste clausole penali (liquidated damages)? In caso affermativo, individua cosa le fa scattare, la tariffa o la formula applicabile, l'eventuale massimale sull'importo complessivo della penale e se essa costituisce il rimedio esclusivo."
     },
     {
       "index": 16,
-      "name": "Governing Law",
+      "name": "Legge applicabile",
       "format": "text",
-      "prompt": "What governing law applies to this agreement? State the jurisdiction and any specific legal system referenced."
+      "prompt": "Quale legge applicabile disciplina il contratto? Indica l'ordinamento ed eventuali sistemi giuridici specifici richiamati."
     },
     {
       "index": 17,
-      "name": "Dispute Resolution",
+      "name": "Risoluzione delle controversie",
       "format": "text",
-      "prompt": "How are disputes resolved under this agreement? Identify whether disputes go to litigation or arbitration, the chosen forum or seat, any escalation or mediation steps required before formal proceedings, and the language of proceedings."
+      "prompt": "Come vengono risolte le controversie ai sensi del contratto? Individua se le controversie sono devolute alla giurisdizione ordinaria o all'arbitrato, il foro competente o la sede dell'arbitrato, eventuali fasi di escalation o mediazione richieste prima del procedimento formale e la lingua del procedimento."
     }
   ]
 }

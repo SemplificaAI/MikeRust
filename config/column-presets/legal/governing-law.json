@@ -1,8 +1,8 @@
 {
-    "name": "Governing Law",
+    "name": "Legge applicabile",
     "match_pattern": "\\bgoverning law\\b|\\bjurisdiction\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "State only the governing law of this agreement using the short-form jurisdiction name, e.g. \"New York Law\", \"English Law\", \"Indian Law\", \"PRC Law\". No other text."
+    "prompt": "Indica esclusivamente la legge applicabile al presente contratto utilizzando la denominazione abbreviata dell'ordinamento, ad es. \"Legge italiana\", \"Legge dello Stato di New York\", \"Legge inglese\", \"Legge della RPC\". Nessun altro testo."
 }

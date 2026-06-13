@@ -1,8 +1,8 @@
 {
-    "name": "Change of Control",
+    "name": "Cambio di controllo",
     "match_pattern": "\\bchange of control\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "Identify any change of control provisions. Summarize the trigger events, consequences, consent requirements, and any related termination or acceleration rights. Be concise."
+    "prompt": "Individua le eventuali clausole di cambio di controllo. Riassumi gli eventi che ne determinano l'attivazione, le conseguenze, i requisiti di consenso ed eventuali diritti collegati di risoluzione o di decadenza dal beneficio del termine. Sii conciso."
 }

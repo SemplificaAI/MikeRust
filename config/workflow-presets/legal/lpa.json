@@ -1,129 +1,129 @@
 {
   "id": "builtin-lpa",
-  "title": "Limited Partnership Agreement Review",
+  "title": "Revisione del regolamento del fondo (LPA)",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Private Equity",
+  "practice": "Private equity",
   "columns_config": [
     {
       "index": 0,
       "name": "General Partner",
       "format": "text",
-      "prompt": "Identify the General Partner(s) of the fund. State the full legal name, jurisdiction of establishment, and any affiliated management entity (e.g. the fund manager or investment adviser) named in the agreement."
+      "prompt": "Individua il General Partner (o i General Partner) del fondo. Indica la denominazione legale completa, la giurisdizione di stabilimento ed eventuali entità di gestione collegate (ad es. il gestore del fondo o l'advisor) indicate nell'accordo."
     },
     {
       "index": 1,
-      "name": "Fund Name & Jurisdiction",
+      "name": "Denominazione e giurisdizione del fondo",
       "format": "text",
-      "prompt": "What is the full name of the fund and in which jurisdiction is the limited partnership established or registered?"
+      "prompt": "Qual è la denominazione completa del fondo e in quale giurisdizione è stabilita o registrata la limited partnership?"
     },
     {
       "index": 2,
-      "name": "Total Committed Capital",
+      "name": "Capitale complessivo sottoscritto",
       "format": "monetary_amount",
-      "prompt": "What is the total committed capital of the fund? State the target size, any hard cap, the currency, and the closing date or dates if specified."
+      "prompt": "Qual è il capitale complessivo sottoscritto del fondo? Indica la dimensione obiettivo (target), l'eventuale hard cap, la valuta e la data o le date di closing, se specificate."
     },
     {
       "index": 3,
-      "name": "Capital Calls & Drawdowns",
+      "name": "Richiami di capitale e versamenti",
       "format": "text",
-      "prompt": "How and when may the GP call capital from LPs? State the notice period for capital calls, the mechanics for issuing a call notice, any limit on the frequency or size of calls, and whether undrawn commitments can be recalled after repayment."
+      "prompt": "Come e quando può il GP richiamare capitale dai LP? Indica il termine di preavviso per i richiami di capitale, le modalità di emissione dell'avviso di richiamo, eventuali limiti alla frequenza o all'entità dei richiami, e se gli impegni non versati possano essere nuovamente richiamati dopo il rimborso."
     },
     {
       "index": 4,
-      "name": "Penalties for Failure to Fund",
+      "name": "Penali per mancato versamento",
       "format": "text",
-      "prompt": "What are the consequences if an LP fails to fund a capital call? Describe any penalties (e.g. interest on the shortfall, dilution of interest, forced transfer at a discount, loss of voting or distribution rights, exclusion from future investments). Are there any cure periods before penalties apply?"
+      "prompt": "Quali sono le conseguenze se un LP non ottempera a un richiamo di capitale? Descrivi eventuali penali (ad es. interessi sull'importo non versato, diluizione della quota, cessione forzosa a sconto, perdita dei diritti di voto o di distribuzione, esclusione dai futuri investimenti). Sono previsti termini di sanatoria prima dell'applicazione delle penali?"
     },
     {
       "index": 5,
-      "name": "Investment Scope & Restrictions",
+      "name": "Ambito e restrizioni di investimento",
       "format": "text",
-      "prompt": "What is the fund's stated investment strategy, scope, and any restrictions? Include permitted sectors, geographies, investment stages, instrument types, and any concentration limits (e.g. maximum % of committed capital per single investment). Note how much discretion the GP has to deviate from the stated strategy."
+      "prompt": "Qual è la strategia di investimento dichiarata del fondo, il suo ambito ed eventuali restrizioni? Includi i settori consentiti, le aree geografiche, gli stadi di investimento, le tipologie di strumenti ed eventuali limiti di concentrazione (ad es. percentuale massima del capitale sottoscritto per singolo investimento). Indica quanta discrezionalità ha il GP di discostarsi dalla strategia dichiarata."
     },
     {
       "index": 6,
-      "name": "Fund Term",
+      "name": "Durata del fondo",
       "format": "text",
-      "prompt": "What is the term of the fund? State the initial term (e.g. 10 years from final closing), any permitted extension periods (e.g. 2 × 1-year extensions), who has the right to approve extensions (GP alone or with LP/LPAC consent), and any early termination mechanics."
+      "prompt": "Qual è la durata del fondo? Indica la durata iniziale (ad es. 10 anni dal closing finale), eventuali periodi di proroga consentiti (ad es. 2 proroghe da 1 anno), chi ha il diritto di approvare le proroghe (il GP da solo o con il consenso dei LP/LPAC) ed eventuali meccanismi di scioglimento anticipato."
     },
     {
       "index": 7,
-      "name": "Management Fee",
+      "name": "Commissione di gestione",
       "format": "text",
-      "prompt": "What management fee is payable to the GP or manager? State the fee rate, the basis on which it is calculated (e.g. committed capital during the investment period, then invested or net asset value thereafter), any step-downs over the fund life, and the payment frequency."
+      "prompt": "Quale commissione di gestione è dovuta al GP o al gestore? Indica l'aliquota della commissione, la base di calcolo (ad es. capitale sottoscritto durante il periodo di investimento, poi capitale investito o valore netto degli attivi successivamente), eventuali riduzioni progressive (step-down) nel corso della vita del fondo e la periodicità di pagamento."
     },
     {
       "index": 8,
-      "name": "Carried Interest",
+      "name": "Carried interest",
       "format": "text",
-      "prompt": "What carried interest (carry) is payable to the GP? State the carry percentage, the structure (European/fund-level waterfall vs American/deal-by-deal), and identify each step of the distribution waterfall in sequence (e.g. return of capital, preferred return, GP catch-up, then profit split)."
+      "prompt": "Quale carried interest (carry) è dovuto al GP? Indica la percentuale di carry, la struttura (waterfall a livello di fondo/europea vs deal-by-deal/americana) e individua in sequenza ciascuna fase della cascata di distribuzione (ad es. restituzione del capitale, rendimento preferenziale, catch-up del GP, quindi ripartizione degli utili)."
     },
     {
       "index": 9,
-      "name": "Preferred Return (Hurdle Rate)",
+      "name": "Rendimento preferenziale (hurdle rate)",
       "format": "percentage",
-      "prompt": "Is there a preferred return or hurdle rate that LPs must receive before the GP earns carry? State the rate, whether it is compounded (and on what basis), and how it is calculated (e.g. on invested capital, on contributed capital). If there is no preferred return, state this explicitly."
+      "prompt": "È previsto un rendimento preferenziale o hurdle rate che i LP devono percepire prima che il GP maturi il carry? Indica l'aliquota, se è capitalizzata (e su quale base) e come è calcolata (ad es. sul capitale investito, sul capitale versato). Se non è previsto alcun rendimento preferenziale, indicalo espressamente."
     },
     {
       "index": 10,
-      "name": "GP Catch-Up",
+      "name": "Catch-up del GP",
       "format": "text",
-      "prompt": "Is there a GP catch-up mechanism after the preferred return is met? If so, describe how it operates: what percentage of distributions go to the GP during the catch-up, and what economic result the catch-up is designed to achieve (e.g. the GP receives 20% of all profits to date)."
+      "prompt": "È previsto un meccanismo di catch-up del GP dopo il raggiungimento del rendimento preferenziale? In tal caso, descrivi come opera: quale percentuale delle distribuzioni va al GP durante il catch-up e quale risultato economico il catch-up è destinato a conseguire (ad es. il GP riceve il 20% di tutti gli utili maturati fino a quel momento)."
     },
     {
       "index": 11,
       "name": "Clawback",
       "format": "text",
-      "prompt": "Is there a clawback obligation on the GP if it receives excess carry? State whether the clawback is calculated at fund level or individual partner level, when it is triggered, any cap or limit on the clawback obligation, and whether there is any escrow or security arrangement to support the GP's clawback obligation."
+      "prompt": "È previsto un obbligo di clawback a carico del GP qualora riceva un carry eccedente? Indica se il clawback è calcolato a livello di fondo o di singolo partner, quando si attiva, eventuali limiti o massimali all'obbligo di clawback e se esistono meccanismi di deposito a garanzia (escrow) o garanzie a supporto dell'obbligo di clawback del GP."
     },
     {
       "index": 12,
-      "name": "Fees & Expenses (Beyond Management Fee)",
+      "name": "Commissioni e spese (oltre la commissione di gestione)",
       "format": "bulleted_list",
-      "prompt": "What fees and expenses are charged to the fund or LPs beyond the management fee? List each category (e.g. transaction fees, monitoring fees, broken deal costs, formation expenses, legal fees, fund administration costs, organisational expenses). For each, state who bears the cost and whether any amounts are offset against the management fee."
+      "prompt": "Quali commissioni e spese sono addebitate al fondo o ai LP oltre alla commissione di gestione? Elenca ciascuna categoria (ad es. commissioni di transazione, commissioni di monitoraggio, costi per operazioni non perfezionate, spese di costituzione, spese legali, costi di amministrazione del fondo, spese organizzative). Per ciascuna, indica chi sostiene il costo e se eventuali importi sono compensati con la commissione di gestione."
     },
     {
       "index": 13,
-      "name": "Distributions",
+      "name": "Distribuzioni",
       "format": "text",
-      "prompt": "How and when are distributions made to LPs? Describe the timing of distributions (e.g. upon realisation of investments or at the GP's discretion), whether the GP can reinvest proceeds within the investment period, and whether distributions may be made in-kind (i.e. as securities rather than cash)."
+      "prompt": "Come e quando vengono effettuate le distribuzioni ai LP? Descrivi la tempistica delle distribuzioni (ad es. al realizzo degli investimenti o a discrezione del GP), se il GP può reinvestire i proventi nel corso del periodo di investimento e se le distribuzioni possano avvenire in natura (cioè in titoli anziché in contanti)."
     },
     {
       "index": 14,
-      "name": "Key Person Clause",
+      "name": "Clausola key person",
       "format": "text",
-      "prompt": "Is there a key person clause? Identify the designated key persons. What triggers the key person event (e.g. departure, incapacity, reduced time commitment below a threshold)? What are the consequences (e.g. suspension of the investment period)? Do LPs have any right to terminate or vote on continuation following a key person event?"
+      "prompt": "È prevista una clausola key person? Individua le persone chiave designate. Cosa attiva l'evento key person (ad es. abbandono, incapacità, riduzione dell'impegno temporale al di sotto di una soglia)? Quali sono le conseguenze (ad es. sospensione del periodo di investimento)? I LP hanno il diritto di recedere o di votare sulla continuazione a seguito di un evento key person?"
     },
     {
       "index": 15,
-      "name": "Removal of the GP",
+      "name": "Revoca del GP",
       "format": "text",
-      "prompt": "Under what circumstances can the GP be removed? Distinguish between removal for cause (e.g. fraud, gross negligence, wilful misconduct — state the LP voting threshold required) and removal without cause (state the LP voting threshold and any associated consequences such as carried interest treatment on removal)."
+      "prompt": "In quali circostanze può essere revocato il GP? Distingui tra revoca per giusta causa (ad es. frode, colpa grave, dolo — indica la soglia di voto dei LP richiesta) e revoca senza giusta causa (indica la soglia di voto dei LP e le eventuali conseguenze, come il trattamento del carried interest in caso di revoca)."
     },
     {
       "index": 16,
-      "name": "Advisory Committee (LPAC)",
+      "name": "Comitato consultivo (LPAC)",
       "format": "text",
-      "prompt": "Is there an LP Advisory Committee (LPAC) or similar governance body? If so, describe its composition, how members are selected, its key powers and responsibilities (e.g. approving conflicts of interest, valuations, extensions, related-party transactions), and whether its approval is binding or merely advisory."
+      "prompt": "È previsto un Comitato consultivo dei LP (LPAC) o un analogo organo di governance? In tal caso, descrivi la sua composizione, le modalità di selezione dei membri, i suoi poteri e responsabilità principali (ad es. approvazione di conflitti di interesse, valutazioni, proroghe, operazioni con parti correlate) e se la sua approvazione sia vincolante o meramente consultiva."
     },
     {
       "index": 17,
-      "name": "Transfer Restrictions",
+      "name": "Restrizioni al trasferimento",
       "format": "text",
-      "prompt": "What restrictions apply to an LP transferring or assigning its interest in the fund? Is GP consent required? Are there any permitted transfer exceptions (e.g. to affiliates)? Are secondary market sales permitted and, if so, subject to what conditions or rights of first refusal?"
+      "prompt": "Quali restrizioni si applicano al trasferimento o alla cessione da parte di un LP della propria quota nel fondo? È richiesto il consenso del GP? Sono previste eccezioni per trasferimenti consentiti (ad es. a società del gruppo)? Le cessioni sul mercato secondario sono consentite e, in tal caso, a quali condizioni o diritti di prelazione?"
     },
     {
       "index": 18,
-      "name": "Conflicts of Interest",
+      "name": "Conflitti di interesse",
       "format": "text",
-      "prompt": "How does the agreement address conflicts of interest? Describe the deal allocation policy across funds, any co-investment rights granted to LPs, restrictions on related-party transactions, and the role of the LPAC in reviewing or approving conflicts. Note any specific conflict scenarios expressly contemplated."
+      "prompt": "Come affronta l'accordo i conflitti di interesse? Descrivi la politica di allocazione delle operazioni tra i fondi, eventuali diritti di co-investimento concessi ai LP, le restrizioni alle operazioni con parti correlate e il ruolo del LPAC nell'esaminare o approvare i conflitti. Segnala eventuali specifiche ipotesi di conflitto espressamente contemplate."
     },
     {
       "index": 19,
-      "name": "Governing Law",
+      "name": "Legge applicabile",
       "format": "text",
-      "prompt": "What governing law applies to this agreement and which courts or arbitral tribunals have jurisdiction over disputes?"
+      "prompt": "Quale legge applicabile regola questo accordo e quali tribunali o collegi arbitrali hanno competenza sulle controversie?"
     }
   ]
 }

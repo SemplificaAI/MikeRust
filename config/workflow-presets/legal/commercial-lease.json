@@ -1,129 +1,129 @@
 {
   "id": "builtin-commercial-lease",
-  "title": "Commercial Lease Review",
+  "title": "Analisi della locazione commerciale",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Real Estate",
+  "practice": "Immobiliare",
   "columns_config": [
     {
       "index": 0,
-      "name": "Landlord",
+      "name": "Locatore",
       "format": "text",
-      "prompt": "Who is the landlord under this lease? State the full legal name, jurisdiction of incorporation or registration (if applicable), and any registered address or title number stated."
+      "prompt": "Chi è il locatore in base a questo contratto di locazione? Indica la denominazione legale completa, l'ordinamento di costituzione o registrazione (se applicabile) ed eventuale sede legale o riferimento catastale indicato."
     },
     {
       "index": 1,
-      "name": "Tenant",
+      "name": "Conduttore",
       "format": "text",
-      "prompt": "Who is the tenant under this lease? State the full legal name, jurisdiction of incorporation or registration (if applicable), and any registered address stated."
+      "prompt": "Chi è il conduttore in base a questo contratto di locazione? Indica la denominazione legale completa, l'ordinamento di costituzione o registrazione (se applicabile) ed eventuale sede legale indicata."
     },
     {
       "index": 2,
-      "name": "Guarantor",
+      "name": "Garante",
       "format": "text",
-      "prompt": "Is there a guarantor under this lease? If so, state the guarantor's full legal name and the scope of the guarantee (e.g. full guarantee of the tenant's obligations, or limited to specific obligations). If there is no guarantor, state this explicitly."
+      "prompt": "È previsto un garante in questo contratto di locazione? In caso affermativo, indica la denominazione legale completa del garante e l'ambito della garanzia (ad es. garanzia integrale delle obbligazioni del conduttore o limitata a specifiche obbligazioni). Se non vi è alcun garante, indicalo espressamente."
     },
     {
       "index": 3,
-      "name": "Premises",
+      "name": "Immobile",
       "format": "text",
-      "prompt": "Describe the premises demised under this lease. Include the address, floor(s), unit reference, net internal area (if stated), and any areas included or excluded from the demise (e.g. common parts, roof, structure, car parking)."
+      "prompt": "Descrivi l'immobile concesso in locazione con questo contratto. Includi l'indirizzo, il piano o i piani, l'identificativo dell'unità, la superficie netta interna (se indicata) ed eventuali aree incluse o escluse dalla locazione (ad es. parti comuni, copertura, struttura, posti auto)."
     },
     {
       "index": 4,
-      "name": "Date of Lease",
+      "name": "Data del contratto",
       "format": "date",
-      "prompt": "What is the date of this lease? If the lease is undated or if the term commencement date differs from the execution date, note both."
+      "prompt": "Qual è la data del contratto di locazione? Se il contratto è privo di data o se la data di decorrenza differisce dalla data di sottoscrizione, indica entrambe."
     },
     {
       "index": 5,
-      "name": "Term",
+      "name": "Durata",
       "format": "text",
-      "prompt": "What is the contractual term of this lease? State the length of the term and the term commencement and expiry dates."
+      "prompt": "Qual è la durata contrattuale della locazione? Indica la lunghezza del periodo e le date di inizio e di scadenza."
     },
     {
       "index": 6,
-      "name": "Rent",
+      "name": "Canone",
       "format": "monetary_amount",
-      "prompt": "What is the initial annual rent payable under this lease? State the amount, the currency, the payment frequency (e.g. quarterly in advance), and the payment dates. Note any rent-free period or initial concessionary rent."
+      "prompt": "Qual è il canone annuo iniziale dovuto in base a questo contratto di locazione? Indica l'importo, la valuta, la periodicità del pagamento (ad es. trimestrale anticipato) e le date di pagamento. Segnala eventuali periodi di franchigia (rent-free) o canone agevolato iniziale."
     },
     {
       "index": 7,
-      "name": "Rent Review",
+      "name": "Aggiornamento del canone",
       "format": "text",
-      "prompt": "Are there rent review provisions? If so, state the review dates or frequency, the review mechanism (e.g. open market rent review, RPI/CPI indexation, fixed uplift), whether the review is upward-only, any assumptions and disregards applicable to an open market review, and the dispute resolution mechanism if the parties cannot agree the reviewed rent."
+      "prompt": "Sono previste disposizioni di aggiornamento del canone? In caso affermativo, indica le date o la frequenza dell'aggiornamento, il meccanismo di revisione (ad es. revisione al valore di mercato, indicizzazione ISTAT/indice dei prezzi al consumo, incremento fisso), se la revisione è solo al rialzo, eventuali assunzioni e fattori da non considerare in una revisione al valore di mercato, e il meccanismo di risoluzione delle controversie qualora le parti non concordino il canone aggiornato."
     },
     {
       "index": 8,
-      "name": "Service Charge",
+      "name": "Oneri accessori (spese condominiali)",
       "format": "text",
-      "prompt": "Is the tenant liable for a service charge? If so, describe what costs are included within the service charge, the tenant's apportionment or percentage share, any cap on the service charge, and how the service charge is administered and reconciled."
+      "prompt": "Il conduttore è tenuto al pagamento di oneri accessori o spese condominiali? In caso affermativo, descrivi quali costi sono inclusi negli oneri accessori, la quota di ripartizione o la percentuale a carico del conduttore, eventuali massimali e le modalità di amministrazione e conguaglio."
     },
     {
       "index": 9,
-      "name": "Insurance",
+      "name": "Assicurazione",
       "format": "text",
-      "prompt": "What are the insurance obligations under this lease? State who insures (landlord or tenant), what risks must be insured, who bears the insurance premium cost, and the tenant's obligations in respect of the landlord's insurance (e.g. not to vitiate the policy, to pay the premium as additional rent)."
+      "prompt": "Quali sono gli obblighi assicurativi previsti dal contratto? Indica chi assicura (locatore o conduttore), quali rischi devono essere coperti, chi sostiene il costo del premio e gli obblighi del conduttore rispetto all'assicurazione del locatore (ad es. non rendere inefficace la polizza, corrispondere il premio come canone aggiuntivo)."
     },
     {
       "index": 10,
-      "name": "Permitted Use",
+      "name": "Uso consentito",
       "format": "text",
-      "prompt": "What is the permitted use of the premises under this lease? State the use class or specific use permitted and identify any restrictions on use. Note whether the landlord's consent is required to change use and on what basis consent may be withheld."
+      "prompt": "Qual è l'uso consentito dell'immobile in base a questo contratto? Indica la destinazione d'uso o l'uso specifico consentito e individua eventuali restrizioni all'uso. Precisa se è richiesto il consenso del locatore per modificare la destinazione e su quali basi il consenso può essere negato."
     },
     {
       "index": 11,
-      "name": "Repair & Maintenance",
+      "name": "Manutenzione e riparazioni",
       "format": "text",
-      "prompt": "Who is responsible for repair and maintenance of the premises? Describe the extent of the tenant's repairing obligation (e.g. full repairing, internal repairing only, subject to a schedule of condition). State the landlord's repairing obligations, if any, in respect of the structure, exterior, or common parts."
+      "prompt": "Chi è responsabile della manutenzione e delle riparazioni dell'immobile? Descrivi l'estensione dell'obbligo di manutenzione a carico del conduttore (ad es. manutenzione integrale, solo manutenzione interna, soggetta a un verbale di stato dei luoghi). Indica gli eventuali obblighi di manutenzione del locatore relativi a struttura, parti esterne o parti comuni."
     },
     {
       "index": 12,
-      "name": "Alterations",
+      "name": "Modifiche e migliorie",
       "format": "text",
-      "prompt": "What alterations may the tenant make to the premises? Distinguish between structural and non-structural alterations. Is landlord consent required, and if so on what basis may it be withheld? Must the tenant reinstate alterations at the end of the term?"
+      "prompt": "Quali modifiche può apportare il conduttore all'immobile? Distingui tra modifiche strutturali e non strutturali. È richiesto il consenso del locatore e, in tal caso, su quali basi può essere negato? Il conduttore è tenuto a ripristinare lo stato originario al termine della locazione?"
     },
     {
       "index": 13,
-      "name": "Assignment & Subletting",
+      "name": "Cessione e sublocazione",
       "format": "text",
-      "prompt": "What rights does the tenant have to assign or sublet the premises? State whether assignment and subletting are permitted with landlord consent, on what grounds consent may be withheld, any conditions to be satisfied (e.g. an authorised guarantee agreement on assignment, rent at no less than the passing rent on subletting), and whether any dealings are prohibited outright."
+      "prompt": "Quali diritti ha il conduttore di cedere il contratto o sublocare l'immobile? Indica se la cessione e la sublocazione sono consentite previo consenso del locatore, su quali basi il consenso può essere negato, eventuali condizioni da soddisfare (ad es. una garanzia in caso di cessione, un canone non inferiore a quello in corso in caso di sublocazione) e se talune operazioni sono del tutto vietate."
     },
     {
       "index": 14,
-      "name": "Break Rights",
+      "name": "Diritti di recesso anticipato",
       "format": "text",
-      "prompt": "Are there any break rights in this lease? If so, identify who holds the break right (landlord, tenant, or both), the break date(s), the notice period and form required to exercise the break, and any pre-conditions to effective exercise (e.g. no material breach, vacant possession, payment of all sums due)."
+      "prompt": "Sono previsti diritti di recesso anticipato in questo contratto? In caso affermativo, individua chi è titolare del diritto di recesso (locatore, conduttore o entrambi), le date di recesso, il termine e la forma di preavviso richiesti per l'esercizio del recesso ed eventuali condizioni per l'efficacia dell'esercizio (ad es. assenza di inadempimenti rilevanti, riconsegna dell'immobile libero, pagamento di tutte le somme dovute)."
     },
     {
       "index": 15,
-      "name": "Security of Tenure",
+      "name": "Tutela della stabilità del rapporto",
       "format": "yes_no",
-      "prompt": "Does the tenant have statutory security of tenure (e.g. under the Landlord and Tenant Act 1954 in England and Wales, or equivalent legislation in another jurisdiction)? Answer Yes if the lease is contracted in or benefits from security of tenure. Answer No if the lease has been contracted out or if security of tenure does not apply. State the basis for your answer."
+      "prompt": "Il conduttore gode di una tutela legale della stabilità del rapporto (ad es. il diritto al rinnovo e all'indennità di avviamento previsti dalla L. 392/1978 per gli immobili a uso diverso da abitativo in Italia, o normativa equivalente in altro ordinamento)? Rispondi Sì se la locazione beneficia di tale tutela. Rispondi No se la tutela è stata esclusa o non si applica. Indica le basi della tua risposta."
     },
     {
       "index": 16,
-      "name": "Dilapidations",
+      "name": "Stato dei luoghi alla riconsegna",
       "format": "text",
-      "prompt": "What dilapidations obligations apply at the end of the term? Describe the tenant's yield-up obligations (e.g. to deliver the premises in repair, to reinstate alterations, to redecorate). Is there a schedule of condition limiting the tenant's liability? Note any dilapidations cap or other limitation on the landlord's claim."
+      "prompt": "Quali obblighi relativi allo stato dei luoghi si applicano al termine della locazione? Descrivi gli obblighi di riconsegna a carico del conduttore (ad es. riconsegnare l'immobile in buono stato, ripristinare le modifiche, ritinteggiare). Esiste un verbale di stato dei luoghi che limita la responsabilità del conduttore? Segnala eventuali massimali o altre limitazioni alla pretesa del locatore."
     },
     {
       "index": 17,
-      "name": "Rent Deposit",
+      "name": "Deposito cauzionale",
       "format": "monetary_amount",
-      "prompt": "Is a rent deposit required? If so, state the amount, the period for which it is held, the conditions under which the landlord may draw on it, and the circumstances in which it is returned to the tenant."
+      "prompt": "È richiesto un deposito cauzionale? In caso affermativo, indica l'importo, il periodo per cui è trattenuto, le condizioni in presenza delle quali il locatore può escuterlo e le circostanze in cui viene restituito al conduttore."
     },
     {
       "index": 18,
-      "name": "Forfeiture & Termination",
+      "name": "Risoluzione e scioglimento",
       "format": "text",
-      "prompt": "What are the landlord's forfeiture or termination rights? Identify the events that entitle the landlord to forfeit the lease (e.g. non-payment of rent after a grace period, material breach of covenant, insolvency) and any notice requirements before forfeiture can be exercised."
+      "prompt": "Quali sono i diritti di risoluzione o scioglimento del locatore? Individua gli eventi che legittimano il locatore a risolvere il contratto (ad es. mancato pagamento del canone decorso un periodo di tolleranza, inadempimento rilevante di un obbligo, insolvenza) ed eventuali requisiti di preavviso necessari prima che la risoluzione possa essere esercitata."
     },
     {
       "index": 19,
-      "name": "Governing Law",
+      "name": "Legge applicabile",
       "format": "text",
-      "prompt": "What governing law applies to this lease and which courts have jurisdiction over disputes?"
+      "prompt": "Quale legge applicabile disciplina questo contratto di locazione e quale foro competente è competente per le controversie?"
     }
   ]
 }

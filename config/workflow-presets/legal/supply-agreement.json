@@ -1,93 +1,93 @@
 {
   "id": "builtin-supply-agreement",
-  "title": "Supply Agreement Review",
+  "title": "Revisione contratto di fornitura",
   "type": "tabular",
   "domain": "legal",
-  "practice": "General Transactions",
+  "practice": "Operazioni generali",
   "columns_config": [
     {
       "index": 0,
-      "name": "Parties",
+      "name": "Parti",
       "format": "bulleted_list",
-      "prompt": "Identify all parties to this supply agreement. For each, state their full legal name, jurisdiction of incorporation (if stated), and their role (e.g. supplier, buyer, distributor)."
+      "prompt": "Individua tutte le parti di questo contratto di fornitura. Per ciascuna, indica la denominazione legale completa, la giurisdizione di costituzione (se indicata) e il ruolo (ad es. fornitore, acquirente, distributore)."
     },
     {
       "index": 1,
-      "name": "Effective Date",
+      "name": "Data di efficacia",
       "format": "date",
-      "prompt": "What is the effective date or commencement date of this agreement? If no explicit date is stated, note the date it is deemed to take effect."
+      "prompt": "Qual è la data di efficacia o di decorrenza di questo contratto? Se non è indicata una data esplicita, segnala la data in cui si considera produttivo di effetti."
     },
     {
       "index": 2,
-      "name": "Products",
+      "name": "Prodotti",
       "format": "bulleted_list",
-      "prompt": "What products are to be supplied under this agreement? List each product or product category, including any relevant specifications, part numbers, or standards referenced."
+      "prompt": "Quali prodotti devono essere forniti in base a questo contratto? Elenca ciascun prodotto o categoria di prodotto, incluse eventuali specifiche, codici articolo o standard richiamati."
     },
     {
       "index": 3,
-      "name": "Term",
+      "name": "Durata",
       "format": "text",
-      "prompt": "What is the initial term or duration of this agreement? State the start date (or reference to when it commences) and the end date or duration."
+      "prompt": "Qual è la durata iniziale di questo contratto? Indica la data di inizio (o il riferimento a quando ha decorrenza) e la data di fine o la durata."
     },
     {
       "index": 4,
-      "name": "Renewal",
+      "name": "Rinnovo",
       "format": "text",
-      "prompt": "What renewal provisions apply? Is renewal automatic or by agreement? State the renewal period, notice requirements to prevent renewal, and any conditions on renewal."
+      "prompt": "Quali clausole di rinnovo si applicano? Il rinnovo è automatico o per accordo? Indica il periodo di rinnovo, i requisiti di preavviso per impedire il rinnovo ed eventuali condizioni di rinnovo."
     },
     {
       "index": 5,
-      "name": "Delivery",
+      "name": "Consegna",
       "format": "text",
-      "prompt": "What delivery obligations and terms apply? Identify the delivery terms (e.g. Incoterms), delivery lead times, delivery locations, risk of loss, and any consequences for late or failed delivery."
+      "prompt": "Quali obblighi e condizioni di consegna si applicano? Individua i termini di consegna (ad es. Incoterms), i tempi di consegna, i luoghi di consegna, il passaggio del rischio ed eventuali conseguenze in caso di consegna tardiva o mancata."
     },
     {
       "index": 6,
-      "name": "Quality",
+      "name": "Qualità",
       "format": "text",
-      "prompt": "What quality standards or specifications apply to the products? Identify any applicable standards (e.g. ISO, regulatory requirements), inspection rights, acceptance procedures, and consequences of non-conformance."
+      "prompt": "Quali standard qualitativi o specifiche si applicano ai prodotti? Individua eventuali standard applicabili (ad es. ISO, requisiti regolamentari), i diritti di ispezione, le procedure di accettazione e le conseguenze della non conformità."
     },
     {
       "index": 7,
-      "name": "Warranties",
+      "name": "Garanzie",
       "format": "text",
-      "prompt": "What warranties does the supplier give in relation to the products? State the warranty period, the scope of the warranty (e.g. free from defects, conformance to specifications), the remedy for breach (e.g. repair, replacement, refund), and any exclusions."
+      "prompt": "Quali garanzie presta il fornitore in relazione ai prodotti? Indica il periodo di garanzia, l'ambito della garanzia (ad es. assenza di difetti, conformità alle specifiche), il rimedio in caso di violazione (ad es. riparazione, sostituzione, rimborso) ed eventuali esclusioni."
     },
     {
       "index": 8,
-      "name": "Liquidated Damages",
+      "name": "Penali",
       "format": "text",
-      "prompt": "Are there any liquidated damages provisions? If so, identify what triggers them (e.g. late delivery, failure to meet quality standards), the applicable rate or formula, any aggregate cap, and whether they are stated to be the exclusive remedy."
+      "prompt": "Sono previste clausole penali? In tal caso, individua cosa le attiva (ad es. consegna tardiva, mancato rispetto degli standard qualitativi), il tasso o la formula applicabile, l'eventuale massimale complessivo e se sono dichiarate quale rimedio esclusivo."
     },
     {
       "index": 9,
-      "name": "Limitation of Liability",
+      "name": "Limitazione di responsabilità",
       "format": "text",
-      "prompt": "What limitations of liability apply? Identify any caps on liability (and how they are calculated, e.g. contract value, fees paid), exclusions of consequential or indirect loss, and any carve-outs from the limitation (e.g. fraud, wilful misconduct, death or personal injury)."
+      "prompt": "Quali limitazioni di responsabilità si applicano? Individua eventuali massimali di responsabilità (e come sono calcolati, ad es. valore del contratto, corrispettivi pagati), le esclusioni dei danni indiretti o consequenziali ed eventuali deroghe alla limitazione (ad es. dolo, colpa grave, morte o lesioni personali)."
     },
     {
       "index": 10,
-      "name": "Force Majeure",
+      "name": "Forza maggiore",
       "format": "text",
-      "prompt": "Summarise the force majeure clause. What events qualify, what obligations are suspended, what notice must be given, how long must the event persist before either party may terminate, and what are the consequences of termination for force majeure?"
+      "prompt": "Riassumi la clausola di forza maggiore. Quali eventi vi rientrano, quali obblighi sono sospesi, quale preavviso deve essere dato, per quanto tempo deve persistere l'evento prima che una delle parti possa recedere e quali sono le conseguenze del recesso per forza maggiore?"
     },
     {
       "index": 11,
-      "name": "Termination Rights",
+      "name": "Diritti di risoluzione e recesso",
       "format": "text",
-      "prompt": "What are the termination rights of each party? Distinguish between termination for convenience (including notice period) and termination for cause (including cure periods and triggers). Note what happens on termination, including any outstanding purchase orders or payment obligations."
+      "prompt": "Quali sono i diritti di risoluzione e recesso di ciascuna parte? Distingui tra recesso ad nutum (incluso il periodo di preavviso) e risoluzione per giusta causa (inclusi i termini di sanatoria e gli eventi attivanti). Segnala cosa accade in caso di risoluzione, inclusi gli ordini di acquisto pendenti o gli obblighi di pagamento."
     },
     {
       "index": 12,
-      "name": "Governing Law",
+      "name": "Legge applicabile",
       "format": "text",
-      "prompt": "What governing law applies to this agreement? State the jurisdiction and any specific legal system referenced."
+      "prompt": "Quale legge applicabile regola questo contratto? Indica la giurisdizione e l'eventuale ordinamento giuridico specifico richiamato."
     },
     {
       "index": 13,
-      "name": "Dispute Resolution",
+      "name": "Risoluzione delle controversie",
       "format": "text",
-      "prompt": "How are disputes resolved under this agreement? Identify whether disputes go to litigation or arbitration, the chosen forum or seat, and any mandatory escalation steps (e.g. negotiation, mediation) before formal proceedings."
+      "prompt": "Come vengono risolte le controversie in base a questo contratto? Individua se le controversie sono devolute al contenzioso ordinario o all'arbitrato, il foro o la sede scelti ed eventuali fasi di escalation obbligatorie (ad es. negoziazione, mediazione) prima dell'avvio del procedimento formale."
     }
   ]
 }

@@ -1,8 +1,8 @@
 {
-    "name": "Payment & Fees",
+    "name": "Pagamenti e corrispettivi",
     "match_pattern": "\\bpayment\\b|\\bfees?\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "State the key payment obligations concisely: amount, timing, and currency, e.g. \"USD 10,000 payable within 30 days of invoice\". Note any late payment consequences."
+    "prompt": "Indica in modo conciso le principali obbligazioni di pagamento: importo, tempistiche e valuta, ad es. \"USD 10.000 da pagare entro 30 giorni dalla fattura\". Segnala eventuali conseguenze del ritardato pagamento."
 }

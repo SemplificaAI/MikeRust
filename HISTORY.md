@@ -13,6 +13,68 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.7.1 — 2026-06-09 (localizzazione italiana del verticale legale)
+
+Translates the **legal vertical** workflow + column presets from
+English to Italian, for the Italian-market product. The legal
+presets were the last English-language content in the catalogue
+(inherited from the upstream `willchen96/mike` international
+templates); medical, finance, fiscale, insurance, PA and machinery-
+compliance were already authored in Italian.
+
+### Translated (27 files, all `domain: legal`)
+
+* **14 workflow presets** (`config/workflow-presets/legal/`):
+  coc-dd, commercial-agreement, commercial-lease, cp-checklist,
+  credit-agreement, credit-summary, ediscovery, employment-agreement,
+  lpa, nda, sha-summary, shareholder-agreement, spa, supply-agreement.
+* **13 column presets** (`config/column-presets/legal/`):
+  amendment, assignment, change-of-control, confidentiality,
+  effective-date, force-majeure, governing-law, indemnity, parties,
+  payment-fees, term, termination, warranties.
+
+### What changed and what didn't
+
+Translated to fluent Italian legal register: `title`, `practice`,
+`prompt_md`, every column `name` + `prompt`, and `tags` DISPLAY
+values (e.g. NDA `["Mutual","Unilateral"]` → `["Reciproco",
+"Unilaterale"]`; employment `["Full Time","Part Time"]` →
+`["Tempo pieno","Tempo parziale"]`).
+
+Left byte-identical (canonical, never translated): `id`
+(`builtin-nda` etc.), `type`, `domain`, every column `index` and
+`format`, and the column-preset `match_pattern` / `match_flags`
+(the regex is a matcher, not display text — it stays bilingual).
+
+Jurisdiction-specific concepts were adapted to the Italian legal
+system rather than translated literally where it mattered: e.g.
+commercial-lease "security of tenure" → "tutela della stabilità del
+rapporto (L. 392/1978)" replacing the England & Wales LTA 1954
+reference; rent indexation generalised to ISTAT; "privileged" →
+"coperto da segreto professionale". PE-fund terms of art that
+Italian practitioners use untranslated (General Partner, carried
+interest, hurdle, clawback, waterfall, locked box) were preserved
+in the LPA preset; market terms (SOFR, EURIBOR, make-whole) kept in
+the credit presets.
+
+### Standby TODO
+
+Integration of public Italian case-law / norm databases
+(def.finanze.it, Sentenze Web Cassazione, Giustizia Tributaria DGT)
+as in-chat consultable corpora is **explicitly parked** at the
+user's request — annotated in `docs/piano_settore_fiscale.md` §6
++ roadmap Fase 3. It needs a per-source `LegalCorpusAdapter`, not a
+config drop-in; deferred to a dedicated future workstream.
+
+### Tests
+
+`shipped_workflow_presets_all_load_cleanly` + the full preset-loader
+suite (40 tests) stay green — every translated preset parses and
+keeps a valid `domain` / `format`. No code change, no schema
+migration.
+
+---
+
 ## v0.7.0 — 2026-06-09 (nuovo settore «Fiscale» — tax/commercialista italiano)
 
 Adds a twelfth professional vertical, **`fiscale`** (Italian tax /

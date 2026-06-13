@@ -1,8 +1,8 @@
 {
-    "name": "Term",
+    "name": "Durata",
     "match_pattern": "\\bterm\\b|\\bduration\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "State only the duration or term of this agreement in a concise form, e.g. \"3 years\", \"24 months\", \"perpetual\". No other text."
+    "prompt": "Indica esclusivamente la durata del presente contratto in forma concisa, ad es. \"3 anni\", \"24 mesi\", \"a tempo indeterminato\". Nessun altro testo."
 }

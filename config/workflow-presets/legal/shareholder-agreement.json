@@ -1,129 +1,129 @@
 {
   "id": "builtin-shareholder-agreement",
-  "title": "Shareholder Agreement Review",
+  "title": "Revisione del patto parasociale",
   "type": "tabular",
   "domain": "legal",
-  "practice": "Corporate",
+  "practice": "Diritto societario",
   "columns_config": [
     {
       "index": 0,
-      "name": "Parties",
+      "name": "Parti",
       "format": "bulleted_list",
-      "prompt": "Identify all parties to this shareholder agreement. For each, state their full legal name, jurisdiction of incorporation or establishment (if stated), and their role (e.g. company, majority shareholder, minority shareholder, investor, founder, management shareholder)."
+      "prompt": "Individua tutte le parti di questo patto parasociale. Per ciascuna, indica la denominazione legale completa, la giurisdizione di costituzione o di stabilimento (se indicata) e il ruolo (ad es. società, socio di maggioranza, socio di minoranza, investitore, fondatore, socio manager)."
     },
     {
       "index": 1,
-      "name": "Date",
+      "name": "Data",
       "format": "date",
-      "prompt": "What is the date of this shareholder agreement?"
+      "prompt": "Qual è la data di questo patto parasociale?"
     },
     {
       "index": 2,
-      "name": "Share Capital & Classes",
+      "name": "Capitale sociale e categorie di azioni",
       "format": "bulleted_list",
-      "prompt": "What classes of shares are in issue or contemplated by this agreement? For each class, describe the key rights attaching to it including voting rights, dividend rights, liquidation preference (if any), and any conversion or redemption features."
+      "prompt": "Quali categorie di azioni sono emesse o contemplate da questo patto? Per ciascuna categoria, descrivi i diritti principali ad essa connessi, inclusi i diritti di voto, i diritti ai dividendi, il privilegio in sede di liquidazione (se presente) ed eventuali caratteristiche di conversione o riscatto."
     },
     {
       "index": 3,
-      "name": "Shareholdings",
+      "name": "Partecipazioni",
       "format": "bulleted_list",
-      "prompt": "What are the shareholdings of each party as set out or contemplated in this agreement? For each shareholder, state the number of shares held, the class, and the percentage of total share capital (on a fully diluted basis if stated)."
+      "prompt": "Quali sono le partecipazioni di ciascuna parte indicate o contemplate in questo patto? Per ciascun socio, indica il numero di azioni detenute, la categoria e la percentuale sul capitale sociale complessivo (su base pienamente diluita, se indicata)."
     },
     {
       "index": 4,
-      "name": "Board Composition",
+      "name": "Composizione del consiglio",
       "format": "text",
-      "prompt": "How is the board of directors constituted under this agreement? State the total number of directors, each shareholder's or class of shareholders' right to appoint or nominate directors (and the threshold shareholding required to maintain that right), and any provisions for a chairman or casting vote."
+      "prompt": "Come è composto il consiglio di amministrazione in base a questo patto? Indica il numero complessivo dei consiglieri, il diritto di ciascun socio o categoria di soci di nominare o designare consiglieri (e la soglia di partecipazione richiesta per mantenere tale diritto) ed eventuali clausole relative al presidente o al voto determinante."
     },
     {
       "index": 5,
-      "name": "Reserved Matters",
+      "name": "Materie riservate",
       "format": "bulleted_list",
-      "prompt": "What are the reserved matters or veto rights set out in this agreement? List each matter that requires shareholder or director approval beyond an ordinary majority (e.g. special majority, unanimity, or the consent of a specific shareholder). Identify the applicable threshold or whose consent is required for each."
+      "prompt": "Quali sono le materie riservate o i diritti di veto previsti da questo patto? Elenca ciascuna materia che richiede l'approvazione dei soci o dei consiglieri oltre la maggioranza ordinaria (ad es. maggioranza qualificata, unanimità o consenso di uno specifico socio). Individua per ciascuna la soglia applicabile o di chi è richiesto il consenso."
     },
     {
       "index": 6,
-      "name": "Pre-emption on New Shares",
+      "name": "Prelazione sulle nuove azioni",
       "format": "text",
-      "prompt": "What pre-emption rights apply on the issuance of new shares? Describe who holds pre-emption rights, the procedure for offering new shares to existing shareholders, the timeline for acceptance, and any carve-outs or exceptions (e.g. shares issued under an employee option scheme, permitted issuances)."
+      "prompt": "Quali diritti di prelazione si applicano in caso di emissione di nuove azioni? Descrivi chi detiene i diritti di prelazione, la procedura per offrire le nuove azioni ai soci esistenti, i termini per l'accettazione ed eventuali deroghe o eccezioni (ad es. azioni emesse nell'ambito di un piano di stock option per i dipendenti, emissioni consentite)."
     },
     {
       "index": 7,
-      "name": "Transfer Restrictions",
+      "name": "Restrizioni al trasferimento",
       "format": "text",
-      "prompt": "What restrictions apply to the transfer of shares? Identify any lock-up periods (and their duration), which transfers are prohibited outright, and which transfers are permitted without consent (e.g. transfers to affiliates or family trusts). Note any board or shareholder approval requirements for transfers."
+      "prompt": "Quali restrizioni si applicano al trasferimento delle azioni? Individua eventuali periodi di lock-up (e la loro durata), quali trasferimenti sono integralmente vietati e quali sono consentiti senza consenso (ad es. trasferimenti a società del gruppo o a trust familiari). Segnala eventuali requisiti di approvazione del consiglio o dei soci per i trasferimenti."
     },
     {
       "index": 8,
-      "name": "Right of First Refusal / Pre-emption on Transfer",
+      "name": "Diritto di prelazione sul trasferimento",
       "format": "text",
-      "prompt": "Is there a right of first refusal or pre-emption right on a proposed transfer of shares? If so, describe who holds the right, the procedure for triggering and exercising it (including notice periods and pricing mechanics), and any exceptions."
+      "prompt": "È previsto un diritto di prelazione su un proposto trasferimento di azioni? In tal caso, descrivi chi detiene il diritto, la procedura per attivarlo ed esercitarlo (inclusi i termini di preavviso e i meccanismi di determinazione del prezzo) ed eventuali eccezioni."
     },
     {
       "index": 9,
-      "name": "Drag-Along Rights",
+      "name": "Diritti di trascinamento (drag-along)",
       "format": "text",
-      "prompt": "Are there drag-along rights? If so, identify who holds the drag right (e.g. majority shareholders above a specified threshold), the threshold required to trigger a drag, the obligations imposed on dragged shareholders, any conditions on the drag (e.g. minimum price, independent valuation), and any protections for minority shareholders."
+      "prompt": "Sono previsti diritti di trascinamento (drag-along)? In tal caso, individua chi detiene il diritto di drag (ad es. i soci di maggioranza al di sopra di una soglia determinata), la soglia richiesta per attivare il drag, gli obblighi imposti ai soci trascinati, eventuali condizioni al drag (ad es. prezzo minimo, valutazione indipendente) ed eventuali tutele per i soci di minoranza."
     },
     {
       "index": 10,
-      "name": "Tag-Along Rights",
+      "name": "Diritti di covendita (tag-along)",
       "format": "text",
-      "prompt": "Are there tag-along rights? If so, identify who holds the tag right, the threshold transfer that triggers the tag, the procedure for exercising the tag (including notice periods), the price and terms on which the tagging shareholder may sell, and any exceptions."
+      "prompt": "Sono previsti diritti di covendita (tag-along)? In tal caso, individua chi detiene il diritto di tag, la soglia di trasferimento che lo attiva, la procedura per esercitarlo (inclusi i termini di preavviso), il prezzo e le condizioni alle quali il socio aderente può vendere ed eventuali eccezioni."
     },
     {
       "index": 11,
-      "name": "Anti-Dilution Protections",
+      "name": "Tutele anti-diluizione",
       "format": "text",
-      "prompt": "Are there any anti-dilution protections for any class of shareholders? If so, describe the type of protection (e.g. full ratchet, weighted average, broad-based or narrow-based), the trigger events, how the adjusted price or entitlement is calculated, and any exceptions (e.g. permitted issuances excluded from the calculation)."
+      "prompt": "Sono previste tutele anti-diluizione per qualche categoria di soci? In tal caso, descrivi il tipo di tutela (ad es. full ratchet, media ponderata, broad-based o narrow-based), gli eventi attivanti, come è calcolato il prezzo o il diritto rettificato ed eventuali eccezioni (ad es. emissioni consentite escluse dal calcolo)."
     },
     {
       "index": 12,
-      "name": "Dividend Policy",
+      "name": "Politica dei dividendi",
       "format": "text",
-      "prompt": "What dividend provisions are set out in this agreement? Describe any obligation or policy to pay dividends (e.g. a minimum percentage of distributable profits), any preferential dividend rights attaching to a particular class of shares, and any restrictions on dividend payments (e.g. subject to available profits, board or shareholder approval, lender consent)."
+      "prompt": "Quali clausole sui dividendi sono previste in questo patto? Descrivi eventuali obblighi o politiche di distribuzione dei dividendi (ad es. una percentuale minima degli utili distribuibili), eventuali diritti preferenziali ai dividendi connessi a una particolare categoria di azioni ed eventuali restrizioni al pagamento dei dividendi (ad es. subordinati agli utili disponibili, all'approvazione del consiglio o dei soci, al consenso dei finanziatori)."
     },
     {
       "index": 13,
-      "name": "Exit & Liquidity Provisions",
+      "name": "Clausole di exit e liquidità",
       "format": "text",
-      "prompt": "What exit or liquidity provisions are included? Describe any agreed exit mechanisms (e.g. trade sale, IPO, drag-along sale), any timelines or milestones by which an exit is targeted, any shareholder rights to initiate or compel an exit process after a specified period, and any preference on exit proceeds attaching to a particular class of shares."
+      "prompt": "Quali clausole di exit o liquidità sono incluse? Descrivi eventuali meccanismi di exit concordati (ad es. cessione a terzi, IPO, vendita in drag-along), eventuali tempistiche o milestone entro cui è prevista un'exit, eventuali diritti dei soci di avviare o imporre un processo di exit dopo un periodo determinato ed eventuali privilegi sui proventi dell'exit connessi a una particolare categoria di azioni."
     },
     {
       "index": 14,
-      "name": "Deadlock",
+      "name": "Stallo decisionale (deadlock)",
       "format": "text",
-      "prompt": "How is deadlock addressed? Describe any deadlock resolution mechanisms (e.g. escalation to senior management, mediation, Russian roulette / shoot-out provisions, put/call options). For each mechanism, state the trigger conditions, the procedure, and the consequences if deadlock is not resolved."
+      "prompt": "Come viene affrontato lo stallo decisionale? Descrivi eventuali meccanismi di risoluzione dello stallo (ad es. escalation al senior management, mediazione, clausole di roulette russa / shoot-out, opzioni put/call). Per ciascun meccanismo, indica le condizioni di attivazione, la procedura e le conseguenze in caso di mancata risoluzione dello stallo."
     },
     {
       "index": 15,
-      "name": "Non-Compete & Non-Solicitation",
+      "name": "Non concorrenza e non sollecitazione",
       "format": "text",
-      "prompt": "Are any shareholders subject to non-compete or non-solicitation obligations? If so, identify which shareholders are bound, the scope of the restriction (activities and geography), and the duration (during the term of the agreement and/or for a period after a shareholder ceases to hold shares). Note any carve-outs."
+      "prompt": "Alcuni soci sono soggetti a obblighi di non concorrenza o non sollecitazione? In tal caso, individua quali soci sono vincolati, l'ambito della restrizione (attività e area geografica) e la durata (durante la vigenza del patto e/o per un periodo successivo al momento in cui un socio cessa di detenere azioni). Segnala eventuali deroghe."
     },
     {
       "index": 16,
-      "name": "Confidentiality",
+      "name": "Riservatezza",
       "format": "text",
-      "prompt": "What confidentiality obligations are imposed on the shareholders? State the scope of confidential information covered, the permitted disclosures (e.g. to professional advisers, affiliates, lenders), and the duration of the obligation. Note whether the obligation survives termination of the agreement."
+      "prompt": "Quali obblighi di riservatezza sono imposti ai soci? Indica l'ambito delle informazioni riservate coperte, le divulgazioni consentite (ad es. a consulenti professionali, società del gruppo, finanziatori) e la durata dell'obbligo. Indica se l'obbligo sopravvive alla cessazione del patto."
     },
     {
       "index": 17,
-      "name": "Warranties",
+      "name": "Dichiarazioni e garanzie",
       "format": "text",
-      "prompt": "What warranties are given by the shareholders under this agreement? Identify who gives warranties, the subject matter (e.g. title to shares, capacity, no encumbrances, no conflicts), any limitations on warranty claims (e.g. time limits, caps, knowledge qualifications), and any indemnities given alongside the warranties."
+      "prompt": "Quali dichiarazioni e garanzie sono prestate dai soci in base a questo patto? Individua chi presta le garanzie, l'oggetto (ad es. titolarità delle azioni, capacità, assenza di gravami, assenza di conflitti), eventuali limitazioni alle pretese in garanzia (ad es. termini, massimali, qualificazioni di conoscenza) ed eventuali manleve prestate unitamente alle garanzie."
     },
     {
       "index": 18,
-      "name": "Governing Law",
+      "name": "Legge applicabile",
       "format": "text",
-      "prompt": "What governing law applies to this agreement? State the jurisdiction and any specific legal system referenced."
+      "prompt": "Quale legge applicabile regola questo patto? Indica la giurisdizione e l'eventuale ordinamento giuridico specifico richiamato."
     },
     {
       "index": 19,
-      "name": "Dispute Resolution",
+      "name": "Risoluzione delle controversie",
       "format": "text",
-      "prompt": "How are disputes resolved under this agreement? Identify whether disputes go to litigation or arbitration, the chosen forum or seat, any mandatory escalation steps, and whether jurisdiction is exclusive."
+      "prompt": "Come vengono risolte le controversie in base a questo patto? Individua se le controversie sono devolute al contenzioso ordinario o all'arbitrato, il foro o la sede scelti, eventuali fasi di escalation obbligatorie e se la competenza è esclusiva."
     }
   ]
 }

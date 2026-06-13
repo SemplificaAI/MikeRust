@@ -1,8 +1,8 @@
 {
-    "name": "Termination",
+    "name": "Risoluzione e recesso",
     "match_pattern": "\\bterminat(e|ion|ing)\\b",
     "match_flags": "i",
     "format": "text",
     "domain": "legal",
-    "prompt": "Extract the termination provisions. State who may terminate, the trigger events, required notice period, any cure period, and the key consequences of termination. Be concise."
+    "prompt": "Estrai le clausole di risoluzione e recesso. Indica chi può risolvere o recedere, gli eventi che ne determinano l'attivazione, il periodo di preavviso richiesto, l'eventuale termine per sanare l'inadempimento e le principali conseguenze dello scioglimento del contratto. Sii conciso."
 }
