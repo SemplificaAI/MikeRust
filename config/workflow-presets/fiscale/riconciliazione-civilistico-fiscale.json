@@ -1,0 +1,46 @@
+{
+    "id": "builtin-fiscale-riconciliazione-civilistico-fiscale",
+    "title": "Riconciliazione civilistico-fiscale (variazioni IRES — Quadro RF)",
+    "type": "tabular",
+    "domain": "fiscale",
+    "practice": "Fiscale — Imposte dirette",
+    "prompt_md": "## Obiettivo\nMappa **variazione per variazione** il passaggio dal risultato civilistico al reddito imponibile IRES (art. 83 TUIR), nella logica del **Quadro RF** del modello Redditi SC. Una riga per variazione (in aumento o in diminuzione). Identifica la voce di bilancio, la norma TUIR, l'importo e il segno; la prima riga è il risultato civilistico di partenza, l'ultima il reddito imponibile.\n\n## Stile\n- **Prima riga**: 'Risultato civilistico ante imposte' (tipo `Partenza`).\n- Una riga per ciascuna variazione fiscale individuata.\n- **Ultima riga**: 'Reddito imponibile IRES' (tipo `Risultato`).\n- Importi formato italiano «€ 1.234,56».\n- Cita sempre l'articolo TUIR nella colonna Norma.\n- Se un dato per quantificare la variazione manca, scrivi 'DATO NON DISPONIBILE' nell'Importo e spiega nelle Note cosa serve.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Voce",
+            "format": "text",
+            "prompt": "Descrizione della posta di bilancio che genera la variazione (o 'Risultato civilistico ante imposte' nella prima riga, 'Reddito imponibile IRES' nell'ultima). Esempi: 'Ammortamento impianti eccedente coefficiente fiscale', 'Svalutazione crediti oltre 0,5%', 'Spese di rappresentanza oltre il limite di congruità', 'Compensi amministratori non corrisposti nell'esercizio', 'Interessi passivi eccedenti 30% ROL', 'Plusvalenza con opzione di rateizzazione', 'IMU su immobili strumentali', 'Sopravvenienze attive tassabili', 'ACE — deduzione per capitalizzazione'."
+        },
+        {
+            "index": 1,
+            "name": "Tipo",
+            "format": "tag",
+            "prompt": "Una sola tra: `Partenza` (solo prima riga, risultato civilistico), `Aumento` (variazione in aumento: incrementa l'imponibile — costo indeducibile o ricavo tassabile non contabilizzato), `Diminuzione` (variazione in diminuzione: riduce l'imponibile — costo deducibile non contabilizzato o ricavo non tassabile), `Risultato` (solo ultima riga, reddito imponibile)."
+        },
+        {
+            "index": 2,
+            "name": "Norma TUIR",
+            "format": "text",
+            "prompt": "Articolo del TUIR (DPR 917/1986) che disciplina la variazione. Esempi: 'Art. 102' (ammortamenti), 'Art. 106' (svalutazione crediti), 'Art. 108' (spese di rappresentanza), 'Art. 95 c.5' (compensi amministratori), 'Art. 96' (interessi passivi/ROL), 'Art. 86' (plusvalenze), 'Art. 87' (PEX), 'Art. 99' (imposte), 'Art. 164' (auto'), 'Art. 109' (competenza/inerenza). Per le righe Partenza/Risultato scrivi '—'. Se incerto sull'articolo preciso, indica la materia e annota 'art. da verificare'."
+        },
+        {
+            "index": 3,
+            "name": "Importo",
+            "format": "monetary_amount",
+            "prompt": "Importo della variazione (sempre positivo; il segno è dato dalla colonna Tipo), formato «€ X.XXX,XX». Per la riga Partenza riporta il risultato civilistico ante imposte. Per la riga Risultato riporta il reddito imponibile calcolato (Partenza + somma Aumenti − somma Diminuzioni). Se non quantificabile dai documenti: 'DATO NON DISPONIBILE'."
+        },
+        {
+            "index": 4,
+            "name": "Quadro RF / Rigo",
+            "format": "text",
+            "prompt": "Rigo del Quadro RF del modello Redditi SC in cui la variazione si riporta, se desumibile. Esempi: 'RF7' (plusvalenze), 'RF16' (interessi passivi indeducibili), 'RF24' (spese di rappresentanza), 'RF25' (ammortamenti non deducibili), 'RF55/RF54' (variazioni in diminuzione). Se non sei certo del rigo specifico, scrivi 'verificare rigo RF' — non inventarlo. Per Partenza/Risultato: '—'."
+        },
+        {
+            "index": 5,
+            "name": "Note",
+            "format": "text",
+            "prompt": "Spiegazione del calcolo della variazione (es. 'ammortamento civ. €12.000 − fiscale €10.000 = €2.000 indeducibile'), eventuale fiscalità differita/anticipata generata (rimando OIC 25), riferimento al documento o alla voce di nota integrativa (DOC-NN), e particolarità (es. 'plusvalenza rateizzata in 5 esercizi: variazione in diminuzione 4/5 quest'anno')."
+        }
+    ]
+}

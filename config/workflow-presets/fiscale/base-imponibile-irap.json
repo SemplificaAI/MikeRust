@@ -1,0 +1,40 @@
+{
+    "id": "builtin-fiscale-base-imponibile-irap",
+    "title": "Determinazione base imponibile IRAP da bilancio",
+    "type": "tabular",
+    "domain": "fiscale",
+    "practice": "Fiscale — Imposte dirette",
+    "prompt_md": "## Obiettivo\nDetermina la **base imponibile IRAP** (valore della produzione netta) a partire dal Conto Economico del bilancio, per le società di capitali secondo il metodo di derivazione dell'art. 5 D.Lgs. 446/1997. Una riga per voce/aggregato che concorre o si esclude dalla base IRAP. Identifica le voci rilevanti, le esclusioni (in primis il costo del personale, salvo le deduzioni ammesse) e le deduzioni spettanti.\n\n## Principio\nPer le società di capitali la base IRAP = differenza tra valore della produzione (lettera A del CE) e costi della produzione (lettera B), con **esclusione** di alcune voci: costo del personale (B.9, salvo deduzioni), svalutazioni/perdite su crediti (B.10.d), accantonamenti per rischi (B.12) e altri accantonamenti (B.13). Gli interessi e la gestione finanziaria NON rilevano. Sono poi ammesse deduzioni (cuneo fiscale, deduzione forfettaria, deduzione integrale dei dipendenti a tempo indeterminato ex L. 190/2014).\n\n## Stile\n- Una riga per voce/aggregato (segui l'ordine: aggregati A e B del CE, poi esclusioni, poi deduzioni, poi base finale).\n- **Ultima riga**: 'Base imponibile IRAP' (tipo `Risultato`).\n- Importi «€ 1.234,56».\n- Se un dato manca: 'DATO NON DISPONIBILE'. Non inventare deduzioni o aliquote.",
+    "columns_config": [
+        {
+            "index": 0,
+            "name": "Voce CE / Componente",
+            "format": "text",
+            "prompt": "Descrizione della voce di Conto Economico o del componente. Esempi: 'A) Valore della produzione', 'B) Costi della produzione (rilevanti IRAP)', 'B.9 Costo del personale — ESCLUSO', 'B.10.d Svalutazione crediti — ESCLUSA', 'B.12-B.13 Accantonamenti — ESCLUSI', 'Deduzione dipendenti a tempo indeterminato (cuneo)', 'Deduzione forfettaria', 'Base imponibile IRAP' (ultima riga)."
+        },
+        {
+            "index": 1,
+            "name": "Tipo",
+            "format": "tag",
+            "prompt": "Una sola tra: `Valore produzione` (componente positivo, lettera A), `Costo rilevante` (costo che riduce la base IRAP, lettera B rilevante), `Esclusione` (voce di costo NON deducibile ai fini IRAP, quindi NON riduce la base — es. personale, svalutazioni, accantonamenti), `Deduzione` (deduzione spettante che riduce la base — cuneo fiscale, forfettaria), `Risultato` (ultima riga, base imponibile)."
+        },
+        {
+            "index": 2,
+            "name": "Importo",
+            "format": "monetary_amount",
+            "prompt": "Importo della voce, formato «€ X.XXX,XX». Per le voci `Esclusione` riporta l'importo del costo che viene neutralizzato (ossia che NON va sottratto dalla base). Per `Risultato` riporta la base imponibile IRAP calcolata. Se non ricavabile dal bilancio: 'DATO NON DISPONIBILE'."
+        },
+        {
+            "index": 3,
+            "name": "Rilevanza IRAP",
+            "format": "tag",
+            "prompt": "Effetto sulla base imponibile. Una sola tra: `Aumenta base` (componente positivo del valore della produzione), `Riduce base` (costo deducibile ai fini IRAP o deduzione spettante), `Neutro` (voce esclusa: non incide perché non deducibile ai fini IRAP). Per la riga Risultato: `Neutro`."
+        },
+        {
+            "index": 4,
+            "name": "Norma / Note",
+            "format": "text",
+            "prompt": "Riferimento normativo (es. 'Art. 5 D.Lgs. 446/97', 'Art. 11 D.Lgs. 446/97' per le deduzioni, 'Art. 1 c. 20 L. 190/2014' per la deduzione integrale dei dipendenti a tempo indeterminato) e annotazioni di calcolo. Indica l'aliquota IRAP applicabile (ordinaria 3,9%, salvo aliquote regionali maggiorate o ridotte) nelle note della riga Risultato. Riferimento al documento/voce di bilancio (DOC-NN) quando rilevante."
+        }
+    ]
+}

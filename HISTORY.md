@@ -13,6 +13,45 @@ diff. For the upstream-sync audit trail (which fixes were ported from
 
 ---
 
+## v0.7.2 — 2026-06-13 (settore Fiscale — analisi del bilancio ai fini fiscali)
+
+Fills a gap reported during testing: the Fiscale sector had no
+balance-sheet workflow, forcing the user to reach into the
+`finance` sector's "Riclassificazione bilanci" to analyse a bilancio.
+Balance-sheet analysis legitimately exists in two sectors with
+different, complementary angles — finance does the managerial/
+valuation reading (reclassification, ratios, valuation, crisis);
+fiscale needed the **tax reading** (civilistic result → taxable
+income, IRAP base, deferred tax). v0.7.2 adds that reading.
+
+### Three new `fiscale` workflows
+
+* **`analisi-fiscale-bilancio`** (assistant) — reads the bilancio for
+  tax purposes per the derivation principle (art. 83 TUIR): civilistic
+  pre-tax result, the tax-relevant line items (ammortamenti art. 102,
+  svalutazione crediti art. 106, spese di rappresentanza art. 108,
+  interessi passivi/ROL art. 96, compensi amministratori art. 95 c.5,
+  auto art. 164, plus/minusvalenze artt. 86-87, IMU/IRAP art. 99),
+  an IRES estimate, an IRAP-base note, and deferred/anticipated tax
+  (OIC 25) — with the mandatory professional disclaimer.
+* **`riconciliazione-civilistico-fiscale`** (tabular) — Quadro RF-style:
+  one row per variazione in aumento/diminuzione from the civilistic
+  result to taxable income, with the TUIR article, amount, sign, and
+  the RF rigo where it lands.
+* **`base-imponibile-irap`** (tabular) — IRAP taxable base from the
+  CE per art. 5 D.Lgs. 446/97: value-of-production components, the
+  excluded cost lines (personnel B.9, write-downs B.10.d, provisions
+  B.12-B.13), and the spettanti deductions (cuneo fiscale, deduzione
+  integrale dipendenti a tempo indeterminato L. 190/2014).
+
+The Fiscale sector now ships **11 workflows** (4 assistant + 7
+tabular). `docs/piano_settore_fiscale.md` §3 updated with the new
+entries and a note on the fiscal-vs-financial bilancio angle.
+
+40/40 preset-loader tests green; no schema migration.
+
+---
+
 ## v0.7.1 — 2026-06-09 (localizzazione italiana del verticale legale)
 
 Translates the **legal vertical** workflow + column presets from

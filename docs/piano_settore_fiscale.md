@@ -51,7 +51,7 @@ fiscale è dannoso:
 
 ## 3. Workflow inclusi (`config/workflow-presets/fiscale/`)
 
-Otto preset pronti all'uso, mix assistant + tabular.
+Undici preset pronti all'uso, mix assistant + tabular.
 
 ### Assistant (chat strutturata)
 
@@ -60,6 +60,7 @@ Otto preset pronti all'uso, mix assistant + tabular.
 | `parere-tributario` | Parere tributario strutturato | Parere su quesito: fatti → norma → prassi/giurisprudenza → analisi → conclusione → disclaimer |
 | `ravvedimento-operoso` | Ravvedimento operoso — calcolo guidato | Calcolo imposta + sanzione ridotta (regime D.Lgs. 87/2024) + interessi legali pro-rata, con codici tributo F24 |
 | `analisi-avviso-accertamento` | Analisi avviso di accertamento + strategia difensiva | Termini di impugnazione, rilievi, vizi, confronto opzioni (adesione/autotutela/ricorso) post-abrogazione reclamo |
+| `analisi-fiscale-bilancio` | Analisi fiscale del bilancio | Lettura del bilancio **ai fini delle imposte**: derivazione (art. 83 TUIR), poste a rilevanza fiscale, stima IRES/IRAP, fiscalità differita (OIC 25) |
 
 ### Tabular (estrazione multi-documento)
 
@@ -70,6 +71,17 @@ Otto preset pronti all'uso, mix assistant + tabular.
 | `quadro-rw-monitoraggio` | Monitoraggio fiscale — Quadro RW (IVIE/IVAFE) | attività estera (immobile/conto/partecipazione/cripto) |
 | `imposte-indirette-atto` | Imposte indirette su atti | atto (registro/bollo/ipo-catastali, DPR 131/86) |
 | `scadenzario-versamenti-f24` | Scadenzario versamenti F24 per cliente | scadenza di versamento (tributo/codice/periodo/importo) |
+| `riconciliazione-civilistico-fiscale` | Riconciliazione civilistico-fiscale (variazioni IRES — Quadro RF) | variazione in aumento/diminuzione dal risultato civilistico al reddito imponibile (art. 83 TUIR) |
+| `base-imponibile-irap` | Determinazione base imponibile IRAP da bilancio | voce/aggregato del valore della produzione netta (art. 5 D.Lgs. 446/97) |
+
+> **Bilancio: angolazione fiscale vs finanziaria.** L'analisi del bilancio
+> esiste in due settori con tagli diversi e complementari: nel settore
+> **Finanza** la lettura è gestionale/valutativa (riclassificazione,
+> indici, valutazione d'azienda, crisi); nel settore **Fiscale** la
+> lettura è tributaria (dal risultato civilistico al reddito imponibile,
+> base IRAP, fiscalità differita). I tre workflow `analisi-fiscale-bilancio`,
+> `riconciliazione-civilistico-fiscale` e `base-imponibile-irap` coprono
+> questa seconda angolazione.
 
 ## 4. Column-preset inclusi (`config/column-presets/fiscale/`)
 
